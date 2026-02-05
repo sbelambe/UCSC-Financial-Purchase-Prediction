@@ -1,128 +1,187 @@
 # UCSC Financial Purchase Prediction Dashboard
 
-This project is a full-stack data dashboard for analyzing UCSC purchasing data across multiple sources (Amazon, CruzBuy, ProCard).
+This repository contains a full-stack data dashboard for analyzing UCSC purchasing data across multiple sources, including Amazon, CruzBuy, and ProCard.
 
-It consists of:
-- **Frontend**: React + Vite + TypeScript (initial UI generated from Figma, then normalized)
-- **Backend**: FastAPI (Python)
-- **Data Cleaning Pipeline**: Python (pandas-based), triggered by the backend
+The frontend never reads raw spreadsheets directly. All data is processed by the backend and a Python data-cleaning pipeline before being served to the UI.
 
-The frontend **never reads raw spreadsheets directly**. All raw data flows through the backend and a data-cleaning layer before being displayed.
+---
+
+## Tech Stack
+
+Frontend:
+- React
+- Vite
+- TypeScript
+- Tailwind CSS
+- Radix UI
+- Recharts
+
+Backend:
+- Python
+- FastAPI
+- Uvicorn
+
+Data Cleaning:
+- Python
+- pandas
+- openpyxl
 
 ---
 
 ## Repository Structure
+
+```
 .
-├── frontend/
-│ ├── src/
-│ ├── package.json
-│ └── tsconfig.json
+├── frontend/              # React + Vite frontend app
+│   ├── src/
+│   ├── package.json
+│   └── tsconfig.json
 ├── backend/
-│ ├── app/ # FastAPI application
-│ ├── data_cleaning/ # Data cleaning + parsing logic
-│ ├── requirements.txt
-│ └── .venv/ # Local Python virtual environment (not committed)
-└── .vscode/ # Workspace config (points VS Code to backend venv)
-
-
----
-
-## Prerequisites (Install Locally)
-
-Every developer working on this repo needs:
-
-- **Node.js** (LTS recommended)
-- **Python 3.11+** (Python 3.12 works in Codespaces)
-- **Git**
+│   ├── app/               # FastAPI APIs
+│   ├── data_cleaning/     # Python cleaning pipeline
+│   ├── requirements.txt   # Python dependencies
+│   └── .venv/             # Python virtual environment (not committed)
+├── .vscode/               # VS Code settings
+└── README.md
+```
 
 ---
 
-## One-Page Setup Summary
+## Prerequisites
 
-### 1) Clone the repo
+Install these before proceeding:
+
+```bash
+# Node.js
+node -v
+
+# npm
+npm -v
+
+# Python 3.11 or newer
+python3 --version
+
+# Git
+git --version
+```
+
+---
+
+## One-Page Setup Guide
+
+### 1. Clone the Repository
+
+```bash
 git clone <repo-url>
 cd UCSC-Financial-Purchase-Prediction
-
+```
 
 ---
 
-### 2) Frontend Setup (Terminal A)
+### 2. Frontend Setup (Terminal A)
 
+```bash
 cd frontend
 npm install
 npm run dev
-
-
-This starts the frontend at the Vite dev URL (shown in the terminal).
+```
 
 ---
 
-### 3) Backend Setup (Terminal B)
-Create and activate a Python virtual environment, then install dependencies:
+### 3. Backend Setup (Terminal B)
 
+```bash
 cd backend
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-
+```
 
 ---
 
-### 4) Run the Backend API
+### 4. Run the Backend API
 
+```bash
 cd backend
 source .venv/bin/activate
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
-
-
-The API runs at:
-http://127.0.0.1:8000
-
+```
 
 ---
 
-### 5) Test Backend Endpoints
+## Test Backend Endpoints
 
-From any terminal:
-
+```bash
 curl http://127.0.0.1:8000/health
-
 curl http://127.0.0.1:8000/status
-
 curl -X POST http://127.0.0.1:8000/refresh
-
-
-- `/health` → basic liveness check  
-- `/status` → backend state info  
-- `/refresh` → manually triggers the data-cleaning pipeline  
+```
 
 ---
 
 ## Data Flow Overview
 
-1. Raw spreadsheets live in a shared Google Drive (not accessed by frontend)
-2. Admin triggers `/refresh`
-3. Backend runs the data-cleaning pipeline
-4. Data is cleaned and normalized using pandas
-5. Cleaned data is stored (Supabase later)
-6. Frontend fetches **only cleaned data** via API endpoints
+```
+Raw spreadsheets (Drive)
+        ↓
+Admin hits POST /refresh
+        ↓
+Backend runs Python cleaning pipeline
+        ↓
+Cleaned data processed/stored
+        ↓
+Frontend fetches cleaned results
+```
 
 ---
 
 ## Notes for Teammates
 
-- Frontend and backend run in **separate terminals**
-- Backend **must** use the virtual environment
-- Data cleaning logic currently contains placeholders and will be expanded
-- `.vscode/settings.json` ensures VS Code uses the backend venv for Pylance
-- TypeScript config and imports have been normalized from Figma-generated code
+- Run `npm install` (frontend) and `pip install -r requirements.txt` (backend).
+- `node_modules/` and `backend/.venv/` are not committed.
+- VS Code is configured to use `backend/.venv` for Python IntelliSense.
+- The data-cleaning pipeline currently contains placeholder functions and will be expanded later.
+- `/refresh` is a manual trigger for data cleanup.
+
+---
+
+## Common Commands
+
+```bash
+cd frontend
+npm run dev
+
+cd backend
+source .venv/bin/activate
+uvicorn app.main:app --reload
+
+cd frontend
+npx tsc --noEmit
+```
+
+---
+
+## Troubleshooting
+
+- If Python imports (FastAPI/pandas) show errors:
+  - Ensure VS Code uses the `backend/.venv/bin/python` interpreter
+  - Reload the VS Code window
+
+- If frontend shows type errors:
+  - Ensure `@types/react` and `@types/react-dom` are installed
+  - Ensure `tsconfig.json` and `vite-env.d.ts` are present
+
+- If backend endpoints don’t respond:
+  - Confirm the backend server is running
 
 ---
 
 ## Current Status
 
-- Frontend builds cleanly with TypeScript
-- Backend runs with FastAPI + Uvicorn
-- `/refresh` endpoint successfully triggers the pipeline stub
-- Ready for Supabase integration and real data ingestion
-
+- Frontend runs with no TypeScript errors
+- Backend FastAPI endpoints are live
+- `/refresh` triggers the cleaning pipeline stub
+- Ready for:
+  - Google Drive ingestion
+  - Supabase integration
+  - Authentication + analytics implementation
