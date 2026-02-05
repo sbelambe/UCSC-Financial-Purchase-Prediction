@@ -72,7 +72,7 @@ export function FilterPanel({
             value={selectedProduct}
             onChange={(e) => onProductChange(e.target.value)}
             className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-opacity-50"
-            style={{ focusRing: '#003c6c' }}
+            style={{ outlineColor: '#003c6c' }}
           >
             {products.map((product) => (
               <option key={product.value} value={product.value}>
@@ -92,7 +92,7 @@ export function FilterPanel({
             value={selectedMetric}
             onChange={(e) => onMetricChange(e.target.value)}
             className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-opacity-50"
-            style={{ focusRing: '#003c6c' }}
+            style={{ outlineColor: '#003c6c' }}
           >
             {metrics.map((metric) => (
               <option key={metric.value} value={metric.value}>

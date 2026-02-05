@@ -148,7 +148,7 @@ export function Chatbot({ isOpen, onToggle }: ChatbotProps) {
                 onKeyPress={(e) => e.key === 'Enter' && handleSend()}
                 placeholder="Ask me anything..."
                 className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-opacity-50"
-                style={{ focusRing: '#003c6c' }}
+                style={{ outlineColor: '#003c6c' }}
               />
               <button
                 onClick={handleSend}

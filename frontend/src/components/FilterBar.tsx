@@ -37,7 +37,7 @@ export function FilterBar({
           value={selectedYear}
           onChange={(e) => onYearChange(e.target.value)}
           className="px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-opacity-50 text-sm"
-          style={{ focusRing: '#003c6c' }}
+          style={{ outlineColor: '#003c6c' }}
         >
           {years.map((year) => (
             <option key={year} value={year}>
@@ -51,7 +51,7 @@ export function FilterBar({
           value={selectedCategory}
           onChange={(e) => onCategoryChange(e.target.value)}
           className="px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-opacity-50 text-sm"
-          style={{ focusRing: '#003c6c' }}
+          style={{ outlineColor: '#003c6c' }}
         >
           {categories.map((category) => (
             <option key={category.value} value={category.value}>
@@ -72,7 +72,7 @@ export function FilterBar({
             onChange={(e) => onSearchChange(e.target.value)}
             placeholder="Search product name, etc."
             className="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-opacity-50 text-sm"
-            style={{ focusRing: '#003c6c' }}
+            style={{ outlineColor: '#003c6c' }}
           />
         </div>
       </div>
