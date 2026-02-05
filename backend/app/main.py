@@ -1,7 +1,7 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
-from data_cleaning.main import run_pipeline
+from backend.data_cleaning.src.main import run_pipeline
 
 app = FastAPI(title="UCSC Financial Dashboard API")
 
@@ -30,12 +30,7 @@ def status():
     }
 
 @app.post("/refresh")
-def refresh():
-    try:
-        result = run_pipeline()
-        return {
-            "status": "ok",
-            "result": result,
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Refresh failed: {e}")
+def refresh_data():
+    result = run_pipeline()
+    return {"status": "ok", "result": result}
+
