@@ -15,10 +15,11 @@ def run_pipeline():
 
     # Create summary
     result = {
-        "amazon_rows": len(amazon_df),
+        # "amazon_rows": len(amazon_df),
         "cruzbuy_rows": len(cruzbuy_df),
-        "pcard_rows": len(pcard_df),
-        "bundle_keys": ["amazon", "cruzbuy", "pcard"]
+        # "pcard_rows": len(pcard_df),
+        # "bundle_keys": ["amazon", "cruzbuy", "pcard"]
+        "bundle_keys": ["cruzbuy"]
     }
 
     return result
