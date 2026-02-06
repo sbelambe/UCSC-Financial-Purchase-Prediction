@@ -3,46 +3,52 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 
+
+/**
+ * Login Page
+ * Handles Google OAuth authentication using Supabase.
+ * Checks for existing sessions and displays error messages from URL fragments.
+ */
 export default function Login() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [errorMsg, setErrorMsg] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // 1. If user is already logged in, kick them to dashboard
+  // 1. Redirect if already logged in
   useEffect(() => {
     if (user) {
       navigate('/dashboard');
     }
   }, [user, navigate]);
 
-  // 2. Check URL for errors (e.g., if the SQL Trigger blocked a Gmail user)
+  // 2. Parse URL Hash for Error Messages
+  // Supabase redirects back with errors in the URL hash (e.g., #error_description=User+blocked)
   useEffect(() => {
     const hashParams = new URLSearchParams(window.location.hash.substring(1));
     const errorDescription = hashParams.get('error_description');
     
     if (errorDescription) {
-      // Clean up the URL encoding (replaces + with spaces)
+      // Decode URL encoding (e.g., 'User+blocked' -> 'User blocked')
       const cleanMsg = decodeURIComponent(errorDescription).replace(/\+/g, ' ');
       setErrorMsg(cleanMsg);
     }
   }, []);
 
+
+/**
+   * Initiates the OAuth flow with Google.
+   * 'hd: ucsc.edu' is a "Soft Check" asking Google to prefer UCSC accounts.
+   * The "Hard Check" is performed by the SQL Trigger in the database.
+   */
 const handleLogin = async (e: React.MouseEvent<HTMLButtonElement>) => {
-  // 1. Check if the function even runs
-  console.log("🟢 1. Button Clicked!"); 
-
-  // 2. Check if Env vars are loaded (Don't log the full key, just check existence)
-  console.log("🟢 2. Supabase URL:", import.meta.env.VITE_SUPABASE_URL); 
-  console.log("🟢 3. Key Exists?", !!import.meta.env.VITE_SUPABASE_ANON_KEY);
-
   setLoading(true);
   
   try {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: window.location.origin, 
+        redirectTo: window.location.origin, // // Returns user to localhost:5173 (or production URL)
         queryParams: {
           hd: 'ucsc.edu',
           prompt: 'select_account'
@@ -50,7 +56,6 @@ const handleLogin = async (e: React.MouseEvent<HTMLButtonElement>) => {
       },
     });
     
-    // 3. Did Supabase respond?
     if (error) {
         console.error("🔴 Supabase Error:", error);
         throw error;
@@ -85,7 +90,7 @@ const handleLogin = async (e: React.MouseEvent<HTMLButtonElement>) => {
           </p>
         </div>
 
-        {/* Action Section */}
+        {/* Card Body */}
         <div className="p-8">
           {errorMsg && (
             <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start gap-3">
@@ -97,17 +102,17 @@ const handleLogin = async (e: React.MouseEvent<HTMLButtonElement>) => {
             </div>
           )}
 
+          {/* Sign In Button */}
           <button
             onClick={handleLogin}
             disabled={loading}
-            className="w-full flex items-center justify-center gap-3 px-4 py-3 border border-transparent text-base font-medium rounded-lg text-white transition-all hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-900 disabled:opacity-70 disabled:cursor-not-allowed"
+            className="w-fit mx-auto flex items-center justify-center gap-3 px-8 py-2.5 border border-transparent text-sm font-medium rounded-lg text-white transition-all hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-900 disabled:opacity-70 disabled:cursor-not-allowed shadow-sm"
             style={{ backgroundColor: '#003c6c' }}
           >
             {loading ? (
               <span>Connecting...</span>
             ) : (
               <>
-                {/* Simple Google G Icon SVG */}
                 <svg className="w-5 h-5 bg-white rounded-full p-0.5" viewBox="0 0 24 24">
                   <path
                     d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
@@ -130,12 +135,6 @@ const handleLogin = async (e: React.MouseEvent<HTMLButtonElement>) => {
               </>
             )}
           </button>
-          
-          <div className="mt-6 text-center">
-            <p className="text-xs text-gray-400">
-              Restricted to @ucsc.edu domains only.
-            </p>
-          </div>
         </div>
       </div>
     </div>

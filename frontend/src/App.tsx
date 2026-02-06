@@ -7,20 +7,26 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import Login from './pages/Login';
 
-// exported dashboard code for better organization
-// ensures header/refresh logic only shows as the user is logged in
+/**
+ * DashboardLayout Component
+ * Wraps the Dashboard with the common Header, Refresh Logic, and Chatbot.
+ * This ensures these elements are only visible when the user is logged in.
+ */
 function DashboardLayout() {
   const { signOut, user } = useAuth(); // Get signOut function and user info
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [refreshMsg, setRefreshMsg] = useState<string | null>(null);
 
+  /**
+   * Triggers the backend pipeline to refresh data from Google Sheets/CSV.
+   */
   const handleRefresh = async () => {
     setIsRefreshing(true);
     setRefreshMsg(null);
 
     try {
-      // Note: Ensure your backend handles CORS if running on a different port
+      // calls fastAPI endpoint
       const res = await fetch('http://127.0.0.1:8000/refresh', {
         method: 'POST',
       });
@@ -46,6 +52,7 @@ function DashboardLayout() {
       {/* Header */}
       <header className="bg-white border-b border-gray-200 shadow-sm">
         <div className="max-w-[1800px] mx-auto px-6 py-4 flex justify-between items-center">
+          {/* Logo & Title */}
           <div className="flex items-center gap-4">
             <div
               className="w-14 h-14 rounded-full flex items-center justify-center border-4"
@@ -63,6 +70,7 @@ function DashboardLayout() {
             </div>
           </div>
 
+          {/* Action Buttons */}
           <div className="flex items-center gap-3">
             <button
               onClick={handleRefresh}
@@ -96,6 +104,7 @@ function DashboardLayout() {
           </div>
         </div>
 
+        {/* Status Message (Refresh Results) */}
         {refreshMsg && (
           <div
             className="max-w-[1800px] mx-auto px-6 pb-3 text-sm"
@@ -120,6 +129,10 @@ function DashboardLayout() {
   );
 }
 
+/**
+ * Main App Component
+ * Handles the Routing and Authentication Provider wrapping.
+ */
 export default function App() {
   return (
     <AuthProvider>
