@@ -1,4 +1,5 @@
-# from .clean_amazon import clean_amazon
+# program entry point - runs the program
+from clean_amazon import load_amazon
 from clean_cruzbuy import clean_cruzbuy
 # from .clean_pcard import clean_pcard
 
@@ -8,7 +9,7 @@ def run_pipeline():
     """
 
     # Clean each dataset
-    # amazon_df = clean_amazon()
+    amazon_df = load_amazon()
     cruzbuy_df = clean_cruzbuy()
     # pcard_df = clean_pcard()
 
