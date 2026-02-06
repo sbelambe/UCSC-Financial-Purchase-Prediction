@@ -1,9 +1,16 @@
 import { useState } from 'react';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Dashboard } from './components/Dashboard';
 import { Chatbot } from './components/Chatbot';
 import { LogOut, HelpCircle, RefreshCw } from 'lucide-react';
+import { AuthProvider, useAuth } from './context/AuthContext';
+import ProtectedRoute from './components/ProtectedRoute';
+import Login from './pages/Login';
 
-export default function App() {
+// exported dashboard code for better organization
+// ensures header/refresh logic only shows as the user is logged in
+function DashboardLayout() {
+  const { signOut, user } = useAuth(); // Get signOut function and user info
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [refreshMsg, setRefreshMsg] = useState<string | null>(null);
@@ -13,6 +20,7 @@ export default function App() {
     setRefreshMsg(null);
 
     try {
+      // Note: Ensure your backend handles CORS if running on a different port
       const res = await fetch('http://127.0.0.1:8000/refresh', {
         method: 'POST',
       });
@@ -47,9 +55,12 @@ export default function App() {
                 UCSC
               </span>
             </div>
-            <h1 className="text-2xl font-bold" style={{ color: '#003c6c' }}>
-              UCSC Purchase Predictions
-            </h1>
+            <div className="flex flex-col">
+              <h1 className="text-2xl font-bold" style={{ color: '#003c6c' }}>
+                UCSC Purchase Predictions
+              </h1>
+              <span className="text-xs text-gray-500">Logged in as: {user?.email}</span>
+            </div>
           </div>
 
           <div className="flex items-center gap-3">
@@ -72,16 +83,16 @@ export default function App() {
               <span>Help</span>
             </button>
 
+            {/* logout button */}
             <button
-              onClick={() =>
-                alert('Logout functionality to be implemented later')
-              }
+              onClick={signOut}
               className="flex items-center gap-2 px-4 py-2 rounded-lg text-white transition-all hover:opacity-90"
               style={{ backgroundColor: '#003c6c' }}
             >
               <LogOut size={20} />
               <span>Logout</span>
             </button>
+
           </div>
         </div>
 
@@ -106,5 +117,25 @@ export default function App() {
         onToggle={() => setIsChatOpen(!isChatOpen)}
       />
     </div>
+  );
+}
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <BrowserRouter>
+        <Routes>
+          {/* Public Route */}
+          <Route path="/login" element={<Login />} />
+
+          {/* Protected Routes */}
+          <Route element={<ProtectedRoute />}>
+            <Route path="/dashboard" element={<DashboardLayout />} />
+            {/* Default redirect to dashboard */}
+            <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          </Route>
+        </Routes>
+      </BrowserRouter>
+    </AuthProvider>
   );
 }
