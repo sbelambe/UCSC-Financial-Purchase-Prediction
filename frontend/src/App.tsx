@@ -1,18 +1,32 @@
 import { useState } from 'react';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Dashboard } from './components/Dashboard';
 import { Chatbot } from './components/Chatbot';
 import { LogOut, HelpCircle, RefreshCw } from 'lucide-react';
+import { AuthProvider, useAuth } from './context/AuthContext';
+import ProtectedRoute from './components/ProtectedRoute';
+import Login from './pages/Login';
 
-export default function App() {
+/**
+ * DashboardLayout Component
+ * Wraps the Dashboard with the common Header, Refresh Logic, and Chatbot.
+ * This ensures these elements are only visible when the user is logged in.
+ */
+function DashboardLayout() {
+  const { signOut, user } = useAuth(); // Get signOut function and user info
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [refreshMsg, setRefreshMsg] = useState<string | null>(null);
 
+  /**
+   * Triggers the backend pipeline to refresh data from Google Sheets/CSV.
+   */
   const handleRefresh = async () => {
     setIsRefreshing(true);
     setRefreshMsg(null);
 
     try {
+      // calls fastAPI endpoint
       const res = await fetch('http://127.0.0.1:8000/refresh', {
         method: 'POST',
       });
@@ -38,6 +52,7 @@ export default function App() {
       {/* Header */}
       <header className="bg-white border-b border-gray-200 shadow-sm">
         <div className="max-w-[1800px] mx-auto px-6 py-4 flex justify-between items-center">
+          {/* Logo & Title */}
           <div className="flex items-center gap-4">
             <div
               className="w-14 h-14 rounded-full flex items-center justify-center border-4"
@@ -47,11 +62,15 @@ export default function App() {
                 UCSC
               </span>
             </div>
-            <h1 className="text-2xl font-bold" style={{ color: '#003c6c' }}>
-              UCSC Purchase Predictions
-            </h1>
+            <div className="flex flex-col">
+              <h1 className="text-2xl font-bold" style={{ color: '#003c6c' }}>
+                UCSC Purchase Predictions
+              </h1>
+              <span className="text-xs text-gray-500">Logged in as: {user?.email}</span>
+            </div>
           </div>
 
+          {/* Action Buttons */}
           <div className="flex items-center gap-3">
             <button
               onClick={handleRefresh}
@@ -72,19 +91,20 @@ export default function App() {
               <span>Help</span>
             </button>
 
+            {/* logout button */}
             <button
-              onClick={() =>
-                alert('Logout functionality to be implemented later')
-              }
+              onClick={signOut}
               className="flex items-center gap-2 px-4 py-2 rounded-lg text-white transition-all hover:opacity-90"
               style={{ backgroundColor: '#003c6c' }}
             >
               <LogOut size={20} />
               <span>Logout</span>
             </button>
+
           </div>
         </div>
 
+        {/* Status Message (Refresh Results) */}
         {refreshMsg && (
           <div
             className="max-w-[1800px] mx-auto px-6 pb-3 text-sm"
@@ -106,5 +126,29 @@ export default function App() {
         onToggle={() => setIsChatOpen(!isChatOpen)}
       />
     </div>
+  );
+}
+
+/**
+ * Main App Component
+ * Handles the Routing and Authentication Provider wrapping.
+ */
+export default function App() {
+  return (
+    <AuthProvider>
+      <BrowserRouter>
+        <Routes>
+          {/* Public Route */}
+          <Route path="/login" element={<Login />} />
+
+          {/* Protected Routes */}
+          <Route element={<ProtectedRoute />}>
+            <Route path="/dashboard" element={<DashboardLayout />} />
+            {/* Default redirect to dashboard */}
+            <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          </Route>
+        </Routes>
+      </BrowserRouter>
+    </AuthProvider>
   );
 }

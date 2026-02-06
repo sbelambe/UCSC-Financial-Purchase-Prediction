@@ -4,13 +4,27 @@ import { FilterBar } from './FilterBar';
 import { MetricsGrid } from './MetricsGrid';
 import { ChartsGrid } from './ChartsGrid';
 import { generateDashboardData } from '../utils/dashboardData';
+import { useAuth } from '../context/AuthContext';
 
+/**
+ * Dashboard Component
+ * The main view for authenticated users. Displays financial metrics and charts.
+ * * Features:
+ * - Tab switching (Overall vs Specific Vendors)
+ * - Filtering by Year and Category
+ * - Search functionality
+ */
 export function Dashboard() {
+  // get user info
+  const {user, signOut} = useAuth();
+
+  // --- State Management ---
   const [activeTab, setActiveTab] = useState<'Overall' | 'OneBuy' | 'ProCard' | 'Amazon' | 'Bookstore'>('Overall');
   const [selectedYear, setSelectedYear] = useState('2024');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
 
+  // --- Data Generation ---
   const data = generateDashboardData(activeTab, selectedYear, selectedCategory);
 
   return (

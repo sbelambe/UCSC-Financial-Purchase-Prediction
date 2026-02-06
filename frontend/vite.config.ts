@@ -5,6 +5,7 @@
 
   export default defineConfig({
     plugins: [react()],
+    envDir: '../',  // assuming the env file is in the root folder
     resolve: {
       extensions: ['.js', '.jsx', '.ts', '.tsx', '.json'],
       alias: {
