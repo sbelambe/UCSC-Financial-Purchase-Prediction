@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { supabase } from '../lib/supabase';
+import { signInWithPopup } from 'firebase/auth';
+import { auth, googleProvider } from '../lib/firebase';
 
 
 /**
@@ -38,35 +39,15 @@ export default function Login() {
 
 /**
    * Initiates the OAuth flow with Google.
-   * 'hd: ucsc.edu' is a "Soft Check" asking Google to prefer UCSC accounts.
-   * The "Hard Check" is performed by the SQL Trigger in the database.
    */
 const handleLogin = async (e: React.MouseEvent<HTMLButtonElement>) => {
   setLoading(true);
   
-  try {
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: window.location.origin, // // Returns user to localhost:5173 (or production URL)
-        queryParams: {
-          hd: 'ucsc.edu',
-          prompt: 'select_account'
-        },
-      },
-    });
-    
-    if (error) {
-        console.error("🔴 Supabase Error:", error);
-        throw error;
-    } else {
-        console.log("🟢 4. Redirect initiated...");
-    }
-
-  } catch (error: any) {
-    console.error("🔴 Catch Block:", error);
-    setErrorMsg(error.message || 'An error occurred during sign in');
-    setLoading(false);
+try {
+    await signInWithPopup(auth, googleProvider);
+    // Firebase automatically handles the redirect/popup logic
+  } catch (error) {
+    console.error(error);
   }
 };
 

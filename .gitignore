@@ -17,3 +17,4 @@ venv/
 .idea/
 **/node_modules
 sync_branch.sh
+**serviceAccountKey.json
