@@ -4,6 +4,146 @@ import pandas as pd
 RAW_DIR = os.path.join(os.path.dirname(__file__), "..", "data", "raw")
 CLEAN_DIR = os.path.join(os.path.dirname(__file__), "..", "data", "clean")
 
+# Used in clean_columns() to drop unnecessary columns
+UNNECESSARY_COLUMNS = [
+    # Order/payment metadata
+    "Account Group",
+    "PO Number",
+    "Currency",
+    "Order Shipping & Handling",
+    "Order Promotion",
+    "Order Status",
+    "Invoice Status",
+    "Payment Reference ID",
+    "Payment Date",
+    "Payment Amount",
+    "Payment Instrument Type",
+
+    # Product identifiers/metadata
+    "ASIN",
+    "UNSPSC",
+    "Segment",
+    "Family",
+    "Class",
+    "Brand Code",
+    "Manufacturer",
+    "National Stock Number",
+    "Item model number",
+    "Part number",
+    "Product Condition",
+    "Company Compliance",
+
+    # Pricing details (redundant)
+    "Listed PPU",
+    "Purchase PPU",
+    "Item Quantity",
+    "Item Subtotal",
+    "Item Shipping & Handling",
+    "Item Tax",
+    "Item Net Total",
+    "PO Line Item Id",
+
+    # Tax fields
+    "Tax Exemption Applied",
+    "Tax Exemption Type",
+    "Tax Exemption Opt Out",
+
+    # Programs/discounts
+    "Pricing Savings program",
+    "Pricing Discount Applied",
+
+    # Receiving/logistics
+    "Receiving Status",
+    "Received Date",
+    "Receiver Name",
+    "Receiver Email",
+
+    # Accounting fields
+    "GL Code",
+    "Department",
+    "Cost Center",
+    "Project Code",
+    "Location",
+
+    # Misc
+    "Custom Field 1",
+    "Seller Credentials",
+    "Seller ZipCode",
+]
+
+# Used in normalize_state() to change state initials to full names
+STATE_MAP = {
+    # United States
+    "AL": "Alabama",
+    "AK": "Alaska",
+    "AZ": "Arizona",
+    "AR": "Arkansas",
+    "CA": "California",
+    "CO": "Colorado",
+    "CT": "Connecticut",
+    "DE": "Delaware",
+    "FL": "Florida",
+    "GA": "Georgia",
+    "HI": "Hawaii",
+    "IA": "Iowa",
+    "ID": "Idaho",
+    "IL": "Illinois",
+    "IN": "Indiana",
+    "KS": "Kansas",
+    "KY": "Kentucky",
+    "LA": "Louisiana",
+    "MA": "Massachusetts",
+    "MD": "Maryland",
+    "ME": "Maine",
+    "MI": "Michigan",
+    "MN": "Minnesota",
+    "MO": "Missouri",
+    "MS": "Mississippi",
+    "MT": "Montana",
+    "NC": "North Carolina",
+    "ND": "North Dakota",
+    "NE": "Nebraska",
+    "NH": "New Hampshire",
+    "NJ": "New Jersey",
+    "N.J.": "New Jersey",
+    "NM": "New Mexico",
+    "NV": "Nevada",
+    "NY": "New York",
+    "OH": "Ohio",
+    "OK": "Oklahoma",
+    "OR": "Oregon",
+    "PA": "Pennsylvania",
+    "RI": "Rhode Island",
+    "SC": "South Carolina",
+    "SD": "South Dakota",
+    "TN": "Tennessee",
+    "TX": "Texas",
+    "UT": "Utah",
+    "VA": "Virginia",
+    "VT": "Vermont",
+    "WA": "Washington",
+    "WI": "Wisconsin",
+    "WV": "West Virginia",
+    "WY": "Wyoming",
+
+    # Canada
+    "ON": "Ontario",
+    "QC": "Quebec",
+    "BC": "British Columbia",
+    "AB": "Alberta",
+
+    # Australia
+    "NSW": "New South Wales",
+    "VIC": "Victoria",
+
+    # Other
+    "ENG": "England",
+    "PR": "Puerto Rico",
+    "NT": "New Territories", # in Hong Kong
+    "HK": "Hong Kong",
+    "KL": "Kuala Lumpur"
+}
+
 
 def load_amazon():
     # Load the data into the Pandas dataframe
@@ -18,6 +158,7 @@ def load_amazon():
     df = clean_amazon(df)
 
     output_path = os.path.join(CLEAN_DIR, "amazon_clean.csv")
+    os.makedirs(CLEAN_DIR, exist_ok=True)
     df.to_csv(output_path, index=False)
 
     return df
@@ -25,71 +166,6 @@ def load_amazon():
 
 def clean_columns(df):
     # Drop unnecessary columns
-    UNNECESSARY_COLUMNS = [
-        # Order/payment metadata
-        "Account Group",
-        "PO Number",
-        "Currency",
-        "Order Shipping & Handling",
-        "Order Promotion",
-        "Order Status",
-        "Invoice Status",
-        "Payment Reference ID",
-        "Payment Date",
-        "Payment Amount",
-        "Payment Instrument Type",
-
-        # Product identifiers/metadata
-        "ASIN",
-        "UNSPSC",
-        "Segment",
-        "Family",
-        "Class",
-        "Brand Code",
-        "Manufacturer",
-        "National Stock Number",
-        "Item model number",
-        "Part number",
-        "Product Condition",
-        "Company Compliance",
-
-        # Pricing details (redundant)
-        "Listed PPU",
-        "Purchase PPU",
-        "Item Quantity",
-        "Item Subtotal",
-        "Item Shipping & Handling",
-        "Item Tax",
-        "Item Net Total",
-        "PO Line Item Id",
-
-        # Tax fields
-        "Tax Exemption Applied",
-        "Tax Exemption Type",
-        "Tax Exemption Opt Out",
-
-        # Programs/discounts
-        "Pricing Savings program",
-        "Pricing Discount Applied",
-
-        # Receiving/logistics
-        "Receiving Status",
-        "Received Date",
-        "Receiver Name",
-        "Receiver Email",
-
-        # Accounting fields
-        "GL Code",
-        "Department",
-        "Cost Center",
-        "Project Code",
-        "Location",
-
-        # Misc
-        "Custom Field 1",
-        "Seller Credentials",
-        "Seller ZipCode",
-    ]
     df.drop(columns=UNNECESSARY_COLUMNS, inplace=True, errors="ignore")
 
     # Normalize missing values
@@ -150,11 +226,12 @@ def clean_prices(df):
     if "Sales Tax" in df.columns:
         df["Sales Tax"] = df["Sales Tax"].fillna(0.0)
 
-    # Drop columns where total price is 0
+    # Drop columns where total price is missing
     if "Total Price" in df.columns:
         df = df.dropna(subset=["Total Price"])
 
     return df
+
 
 def clean_categories(df):
     text_cols = ["Category", "Subcategory", "Brand", "Merchant", "Merchant City"]
@@ -170,11 +247,12 @@ def clean_categories(df):
             )
 
     # If Merchant is "Amazon.Com" change to "Amazon.com"
-    df["Merchant"] = (
-        df["Merchant"]
-        .str.strip()
-        .str.replace("Amazon.Com", "Amazon.com", regex=False)
-    )
+    if "Merchant" in df.columns:
+        df["Merchant"] = (
+            df["Merchant"]
+            .str.strip()
+            .str.replace("Amazon.Com", "Amazon.com", regex=False)
+        )
 
     # For Merchant State, convert initials to full city names
     if "Merchant State" in df.columns:
@@ -183,79 +261,7 @@ def clean_categories(df):
     return df
 
 
-def normalize_state(value):
-    STATE_MAP = {
-        # United States
-        "AL": "Alabama",
-        "AK": "Alaska",
-        "AZ": "Arizona",
-        "AR": "Arkansas",
-        "CA": "California",
-        "CO": "Colorado",
-        "CT": "Connecticut",
-        "DE": "Delaware",
-        "FL": "Florida",
-        "GA": "Georgia",
-        "HI": "Hawaii",
-        "IA": "Iowa",
-        "ID": "Idaho",
-        "IL": "Illinois",
-        "IN": "Indiana",
-        "KS": "Kansas",
-        "KY": "Kentucky",
-        "LA": "Loiusiana",
-        "MA": "Massachusetts",
-        "MD": "Maryland",
-        "ME": "Maine",
-        "MI": "Michigan",
-        "MN": "Minnesota",
-        "MO": "Missouri",
-        "MS": "Mississippi",
-        "MT": "Montana",
-        "NC": "North Carolina",
-        "ND": "North Dakota",
-        "NE": "Nebraska",
-        "NH": "New Hampshire",
-        "NJ": "New Jersey",
-        "N.J.": "New Jersey",
-        "NM": "New Mexico",
-        "NV": "Nevada",
-        "NY": "New York",
-        "OH": "Ohio",
-        "OK": "Oklahoma",
-        "OR": "Oregon",
-        "PA": "Pennsylvania",
-        "RI": "Rhode Island",
-        "SC": "South Carolina",
-        "SD": "South Dakota",
-        "TN": "Tennessee",
-        "TX": "Texas",
-        "UT": "Utah",
-        "VA": "Virginia",
-        "VT": "Vermont",
-        "WA": "Washington",
-        "WI": "Wisconsin",
-        "WV": "West Virginia",
-        "WY": "Wyoming",
-
-        # Canada
-        "ON": "Ontario",
-        "QC": "Quebec",
-        "BC": "British Columbia",
-        "AB": "Alberta",
-
-        # Australia
-        "NSW": "New South Wales",
-        "VIC": "Victoria",
-
-        # Other
-        "ENG": "England",
-        "PR": "Puerto Rico",
-        "NT": "New Territories", # in Hong Kong
-        "HK": "Hong Kong",
-        "KL": "Kuala Lumpur"
-    }
-        
+def normalize_state(value):        
     if pd.isna(value):
         return pd.NA
 
