@@ -1,6 +1,6 @@
-from backend.data_cleaning.src.clean_amazon import load_amazon
-from backend.data_cleaning.src.clean_cruzbuy import clean_cruzbuy
-from backend.app.firebase import bucket
+from data_cleaning.src.clean_amazon import load_amazon
+from data_cleaning.src.clean_cruzbuy import clean_cruzbuy
+from app.firebase import bucket
 import os
 from datetime import datetime
 
