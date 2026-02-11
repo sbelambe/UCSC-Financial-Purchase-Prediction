@@ -159,10 +159,10 @@ Start the backend API:
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-Backend will run at:
+Start the frontend development server:
 
-```
-http://localhost:8000
+```bash
+npm run dev -- --host 0.0.0.0 --port 5173
 ```
 
 ---
