@@ -40,7 +40,6 @@ def clean_columns(df):
     # Change column names (for consistency)
     df = df.rename(columns={
         "Order Date": "Transaction Date",
-        "Order Id": "Transaction Id",
         "Order Quantity": "Quantity",
         "Order Subtotal": "Unit Price",
         "Order Tax": "Sales Tax",
@@ -53,7 +52,7 @@ def clean_columns(df):
         "Seller State": "Merchant State"
     })
 
-    # Change Transaction Date to datetime
+    # For Transaction Date, change to datetime
     df["Transaction Date"] = pd.to_datetime(df["Transaction Date"], errors="coerce")
 
     # Clean column names
@@ -72,23 +71,25 @@ def clean_prices(df):
         "Sales Tax",
         "Total Price",
     ]
-    qty_col = "Quantity"
 
     # Convert to numeric types
     for col in price_cols:
         if col in df.columns:
             df[col] = pd.to_numeric(df[col], errors="coerce")
 
-    # Quantity should be numeric and >= 1
-    if qty_col in df.columns:
-        df[qty_col] = pd.to_numeric(df[qty_col], errors="coerce")
-        df.loc[df[qty_col] < 1, qty_col] = pd.NA
+    # For Unit Price (zero values), drop rows where Unit Price = 0
+    df = df[df["Unit Price"] != 0]
 
-    # If sales tax is NaN, it usually means 0
+    # For Quantity, should be numeric and >= 1
+    if "Quantitiy" in df.columns:
+        df["Quantity"] = pd.to_numeric(df["Quantity"], errors="coerce")
+        df = df[df["Quantity"] > 0]
+
+    # For Sales Tax, if NaN, it usually means 0
     if "Sales Tax" in df.columns:
         df["Sales Tax"] = df["Sales Tax"].fillna(0.0)
 
-    # Drop columns where total price is missing
+    # For Total Price, drop missing columns
     if "Total Price" in df.columns:
         df = df.dropna(subset=["Total Price"])
 
@@ -99,7 +100,6 @@ def clean_categories(df):
     text_cols = ["Item Name", 
                  "Category", 
                  "Subcategory", 
-                 "Brand", 
                  "Merchant Name", 
                  "Merchant City"
     ]
@@ -116,7 +116,7 @@ def clean_categories(df):
                 .str.title()
             )
 
-    # If Merchant Name is "Amazon.Com" change to "Amazon.com"
+    # For Merchant Name, if "Amazon.Com" change to "Amazon.com"
     if "Merchant Name" in df.columns:
         df["Merchant Name"] = (
             df["Merchant Name"]
@@ -170,3 +170,13 @@ def format_currency(df, cols):
                 lambda x: f"${x:,.2f}" if pd.notna(x) else x
             )
     return df
+
+# Future Ideas:
+# - Possible product normalization- find ways to detect products that are the same
+# and combine them
+# - Clean item names more thoroughly
+# - Any Google Suggestions
+# - "Chili'S -> Chili's"
+# - Should I change the name of Unit Price?
+# Category cleans - drop random number categories,
+# - Deeper cleaning on every column 

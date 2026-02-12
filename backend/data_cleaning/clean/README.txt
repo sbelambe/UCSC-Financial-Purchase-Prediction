@@ -1,1 +1,0 @@
-This is where clean csvs will go once main.py is run

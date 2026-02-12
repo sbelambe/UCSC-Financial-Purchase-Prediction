@@ -3,6 +3,7 @@
 # Used in clean_columns() to drop unnecessary columns
 UNNECESSARY_COLUMNS = [
     # Order/payment metadata
+    "Order ID"
     "Account Group",
     "PO Number",
     "Currency",
@@ -22,6 +23,7 @@ UNNECESSARY_COLUMNS = [
     "Family",
     "Class",
     "Brand Code",
+    "Brand",
     "Manufacturer",
     "National Stock Number",
     "Item model number",
@@ -188,11 +190,13 @@ STATE_MAP = {
     "HEI LONG JIANG PROVINCE": "Heilongjiang",
     # Hong Kong
     "HK": "Hong Kong", 
+    "香港": "Hong Kong",
     "HONGKONG": "Hong Kong", 
     "HONG KONG SAR": "Hong Kong", 
     "NT": "New Territories", 
     "新界": "New Territories", 
     "KL": "Kuala Lumpur",
+    "九龍": "Kowloon",
     # Hubei 
     "湖北": "Hubei",
     "湖北省": "Hubei",
@@ -264,9 +268,13 @@ STATE_MAP = {
     # Other
     "ENG": "England",
     "PR": "Puerto Rico",
+    "神奈川県": "Kanagawa",
+    "Youngdeungpo Gu": "Yeongdeungpo Gu",
+    "Yeongdeungpo-Gu": "Yeongdeungpo Gu",
     "TINH QUANG BINH": "Quang Binh",
     "THANH PHO HA NOI": "Ha Noi",
-    "TP HO CHI MINH": "Ho Chi Minh"
+    "TP HO CHI MINH": "Ho Chi Minh",
+    "HO CHI MINH CITY": "Ho Chi Minh"
 }
 
 # Ty Google data cleaning suggestions for spotting most of these inconsistencies
