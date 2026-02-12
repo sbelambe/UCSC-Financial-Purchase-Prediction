@@ -1,149 +1,9 @@
 import os
 import pandas as pd
+from config.amazon_config import STATE_MAP, UNNECESSARY_COLUMNS
 
 RAW_DIR = os.path.join(os.path.dirname(__file__), "..", "data", "raw")
 CLEAN_DIR = os.path.join(os.path.dirname(__file__), "..", "data", "clean")
-
-# Used in clean_columns() to drop unnecessary columns
-UNNECESSARY_COLUMNS = [
-    # Order/payment metadata
-    "Account Group",
-    "PO Number",
-    "Currency",
-    "Order Shipping & Handling",
-    "Order Promotion",
-    "Order Status",
-    "Invoice Status",
-    "Payment Reference ID",
-    "Payment Date",
-    "Payment Amount",
-    "Payment Instrument Type",
-
-    # Product identifiers/metadata
-    "ASIN",
-    "UNSPSC",
-    "Segment",
-    "Family",
-    "Class",
-    "Brand Code",
-    "Manufacturer",
-    "National Stock Number",
-    "Item model number",
-    "Part number",
-    "Product Condition",
-    "Company Compliance",
-
-    # Pricing details (redundant)
-    "Listed PPU",
-    "Purchase PPU",
-    "Item Quantity",
-    "Item Subtotal",
-    "Item Shipping & Handling",
-    "Item Tax",
-    "Item Net Total",
-    "PO Line Item Id",
-
-    # Tax fields
-    "Tax Exemption Applied",
-    "Tax Exemption Type",
-    "Tax Exemption Opt Out",
-
-    # Programs/discounts
-    "Pricing Savings program",
-    "Pricing Discount Applied",
-
-    # Receiving/logistics
-    "Receiving Status",
-    "Received Date",
-    "Receiver Name",
-    "Receiver Email",
-
-    # Accounting fields
-    "GL Code",
-    "Department",
-    "Cost Center",
-    "Project Code",
-    "Location",
-
-    # Misc
-    "Custom Field 1",
-    "Seller Credentials",
-    "Seller ZipCode",
-]
-
-# Used in normalize_state() to change state initials to full names
-STATE_MAP = {
-    # United States
-    "AL": "Alabama",
-    "AK": "Alaska",
-    "AZ": "Arizona",
-    "AR": "Arkansas",
-    "CA": "California",
-    "CO": "Colorado",
-    "CT": "Connecticut",
-    "DE": "Delaware",
-    "FL": "Florida",
-    "GA": "Georgia",
-    "HI": "Hawaii",
-    "IA": "Iowa",
-    "ID": "Idaho",
-    "IL": "Illinois",
-    "IN": "Indiana",
-    "KS": "Kansas",
-    "KY": "Kentucky",
-    "LA": "Louisiana",
-    "MA": "Massachusetts",
-    "MD": "Maryland",
-    "ME": "Maine",
-    "MI": "Michigan",
-    "MN": "Minnesota",
-    "MO": "Missouri",
-    "MS": "Mississippi",
-    "MT": "Montana",
-    "NC": "North Carolina",
-    "ND": "North Dakota",
-    "NE": "Nebraska",
-    "NH": "New Hampshire",
-    "NJ": "New Jersey",
-    "N.J.": "New Jersey",
-    "NM": "New Mexico",
-    "NV": "Nevada",
-    "NY": "New York",
-    "OH": "Ohio",
-    "OK": "Oklahoma",
-    "OR": "Oregon",
-    "PA": "Pennsylvania",
-    "RI": "Rhode Island",
-    "SC": "South Carolina",
-    "SD": "South Dakota",
-    "TN": "Tennessee",
-    "TX": "Texas",
-    "UT": "Utah",
-    "VA": "Virginia",
-    "VT": "Vermont",
-    "WA": "Washington",
-    "WI": "Wisconsin",
-    "WV": "West Virginia",
-    "WY": "Wyoming",
-
-    # Canada
-    "ON": "Ontario",
-    "QC": "Quebec",
-    "BC": "British Columbia",
-    "AB": "Alberta",
-
-    # Australia
-    "NSW": "New South Wales",
-    "VIC": "Victoria",
-
-    # Other
-    "ENG": "England",
-    "PR": "Puerto Rico",
-    "NT": "New Territories", # in Hong Kong
-    "HK": "Hong Kong",
-    "KL": "Kuala Lumpur"
-}
-
 
 def load_amazon():
     # Load the data into the Pandas dataframe
@@ -186,13 +46,14 @@ def clean_columns(df):
         "Order Tax": "Sales Tax",
         "Order Net Total": "Total Price",
         "Amazon-Internal Product Category": "Category",
+        "Title": "Item Name",
         "Commodity": "Subcategory",
-        "Seller Name": "Merchant",
+        "Seller Name": "Merchant Name",
         "Seller City": "Merchant City",
         "Seller State": "Merchant State"
     })
 
-    # Change date to datetime
+    # Change Transaction Date to datetime
     df["Transaction Date"] = pd.to_datetime(df["Transaction Date"], errors="coerce")
 
     # Clean column names
@@ -207,20 +68,21 @@ def clean_columns(df):
 
 def clean_prices(df):
     price_cols = [
-        "Quantity",
         "Unit Price",
         "Sales Tax",
         "Total Price",
     ]
+    qty_col = "Quantity"
 
     # Convert to numeric types
     for col in price_cols:
         if col in df.columns:
             df[col] = pd.to_numeric(df[col], errors="coerce")
 
-    # Quantity should be at least 1
-    if "Quantity" in df.columns:
-        df.loc[df["Quantity"] < 1, "Quantity"] = pd.NA
+    # Quantity should be numeric and >= 1
+    if qty_col in df.columns:
+        df[qty_col] = pd.to_numeric(df[qty_col], errors="coerce")
+        df.loc[df[qty_col] < 1, qty_col] = pd.NA
 
     # If sales tax is NaN, it usually means 0
     if "Sales Tax" in df.columns:
@@ -234,29 +96,33 @@ def clean_prices(df):
 
 
 def clean_categories(df):
-    text_cols = ["Category", "Subcategory", "Brand", "Merchant", "Merchant City"]
+    text_cols = ["Item Name", 
+                 "Category", 
+                 "Subcategory", 
+                 "Brand", 
+                 "Merchant Name", 
+                 "Merchant City"
+    ]
+
+    # For Merchant State, convert initials to full city names
+    if "Merchant State" in df.columns:
+        df["Merchant State"] = df["Merchant State"].apply(normalize_state)
 
     # Clean up and title case category columns
     for col in text_cols:
         if col in df.columns:
             df[col] = (
-                df[col]
-                .astype(str)
-                .str.strip()
+                normalize_whitespace(df[col])
                 .str.title()
             )
 
-    # If Merchant is "Amazon.Com" change to "Amazon.com"
-    if "Merchant" in df.columns:
-        df["Merchant"] = (
-            df["Merchant"]
+    # If Merchant Name is "Amazon.Com" change to "Amazon.com"
+    if "Merchant Name" in df.columns:
+        df["Merchant Name"] = (
+            df["Merchant Name"]
             .str.strip()
             .str.replace("Amazon.Com", "Amazon.com", regex=False)
         )
-
-    # For Merchant State, convert initials to full city names
-    if "Merchant State" in df.columns:
-        df["Merchant State"] = df["Merchant State"].apply(normalize_state)
 
     return df
 
@@ -270,11 +136,37 @@ def normalize_state(value):
     # Convert initials to full name if known
     return STATE_MAP.get(value, value.title())
 
+def normalize_whitespace(series):
+    return (
+        series
+        .astype(str)
+        .str.replace(r"\s+", " ", regex=True)
+        .str.strip()
+    )
+
 
 def clean_amazon(df):
+    price_cols = ["Unit Price",
+                  "Sales Tax",
+                  "Total Price"
+    ]
+
     df = clean_columns(df)
     df = clean_prices(df)
     df = clean_categories(df)
+
     # Sort values by transaction date
     df = df.sort_values(by="Transaction Date")
+
+    # Add dollar signs back to price categories
+    df = format_currency(df, price_cols)
+
+    return df
+
+def format_currency(df, cols):
+    for col in cols:
+        if col in df.columns:
+            df[col] = df[col].apply(
+                lambda x: f"${x:,.2f}" if pd.notna(x) else x
+            )
     return df
