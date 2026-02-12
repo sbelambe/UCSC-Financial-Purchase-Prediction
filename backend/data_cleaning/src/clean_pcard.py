@@ -5,7 +5,7 @@ from config.procard_config import STATE_MAP, UNNECESSARY_COLUMNS, MERCHANT_MAP
 
 RAW_DIR = os.path.join(os.path.dirname(__file__), "..", "data", "raw")
 CLEAN_DIR = os.path.join(os.path.dirname(__file__), "..", "data", "clean")
-# Regexes used in cleaning Merchant City
+# Regexes used in cleaninggit Merchant City
 PHONE_PATTERN = re.compile(r"\d{3}[\-\s\.]?\d{3}[\-\s\.]?\d{4}")
 URL_PATTERN = re.compile(r"(http|www|\.com|\.net|\.org)", re.IGNORECASE)
 

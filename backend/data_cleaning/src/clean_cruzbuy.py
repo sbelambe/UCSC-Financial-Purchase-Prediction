@@ -4,6 +4,7 @@ import pandas as pd
 RAW_DIR = os.path.join(os.path.dirname(__file__), "..", "data", "raw")
 CLEAN_DIR = os.path.join(os.path.dirname(__file__), "..", "data", "clean")
 
+
 def clean_cruzbuy():
     file_path = os.path.join(RAW_DIR, "cruzbuy.csv")
 
