@@ -78,33 +78,91 @@ cd UCSC-Financial-Purchase-Prediction
 
 ---
 
-### 2. Frontend Setup (Terminal A)
+### 2. Add Required Credential Files
+
+Place the following files in the **repository root directory**:
+
+```
+firebase-key.json
+google-key.json
+```
+
+These files are required for backend authentication and are **not committed to GitHub**.
+
+Your root directory should look like:
+
+```
+UCSC-Financial-Purchase-Prediction/
+├── backend/
+├── frontend/
+├── firebase-key.json
+├── google-key.json
+└── README.md
+```
+
+---
+
+### 3) Frontend Setup (Terminal A)
+
+```bash
+cat > .env <<'EOF'
+VITE_FIREBASE_API_KEY=AIzaSyCHLJgMezo3p741p26VP8nphKZPERKuYdY
+VITE_FIREBASE_AUTH_DOMAIN=slugsmart-d7363.firebaseapp.com
+VITE_FIREBASE_PROJECT_ID=slugsmart-d7363
+FIREBASE_CREDENTIALS_PATH=backend/firebase-key.json
+FIREBASE_STORAGE_BUCKET=slugsmart-d7363.appspot.com
+EOF
+```
+
+Install dependencies:
 
 ```bash
 cd frontend
 npm install
-npm run dev
 ```
 
 ---
 
-### 3. Backend Setup (Terminal B)
+### 4. Backend Setup (Terminal B)
+
+Create and activate the Python virtual environment:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+```
+
+Install backend dependencies:
 
 ```bash
 cd backend
-python3 -m venv .venv
-source .venv/bin/activate
+pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
----
-
-### 4. Run the Backend API
+Create backend environment file:
 
 ```bash
-cd backend
-source .venv/bin/activate
+cat > .env <<'EOF'
+FIREBASE_CREDENTIALS_PATH=firebase-key.json
+FIREBASE_STORAGE_BUCKET=slugsmart-d7363.appspot.com
+EOF
+```
+
+---
+
+### 5. Deploying onto local host
+
+Start the backend API:
+
+```bash
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+Start the frontend development server:
+
+```bash
+npm run dev -- --host 0.0.0.0 --port 5173
 ```
 
 ---
@@ -133,55 +191,3 @@ Cleaned data processed/stored
 Frontend fetches cleaned results
 ```
 
----
-
-## Notes for Teammates
-
-- Run `npm install` (frontend) and `pip install -r requirements.txt` (backend).
-- `node_modules/` and `backend/.venv/` are not committed.
-- VS Code is configured to use `backend/.venv` for Python IntelliSense.
-- The data-cleaning pipeline currently contains placeholder functions and will be expanded later.
-- `/refresh` is a manual trigger for data cleanup.
-
----
-
-## Common Commands
-
-```bash
-cd frontend
-npm run dev
-
-cd backend
-source .venv/bin/activate
-uvicorn app.main:app --reload
-
-cd frontend
-npx tsc --noEmit
-```
-
----
-
-## Troubleshooting
-
-- If Python imports (FastAPI/pandas) show errors:
-  - Ensure VS Code uses the `backend/.venv/bin/python` interpreter
-  - Reload the VS Code window
-
-- If frontend shows type errors:
-  - Ensure `@types/react` and `@types/react-dom` are installed
-  - Ensure `tsconfig.json` and `vite-env.d.ts` are present
-
-- If backend endpoints don’t respond:
-  - Confirm the backend server is running
-
----
-
-## Current Status
-
-- Frontend runs with no TypeScript errors
-- Backend FastAPI endpoints are live
-- `/refresh` triggers the cleaning pipeline stub
-- Ready for:
-  - Google Drive ingestion
-  - Supabase integration
-  - Authentication + analytics implementation
