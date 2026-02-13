@@ -21,13 +21,13 @@ def run_pipeline():
     ts = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
     
     amazon_local = os.path.abspath(
-        os.path.join(os.path.dirname(__file__), "..", "clean", "amazon_clean.csv")
+        os.path.join(os.path.dirname(__file__), "..", "data", "clean", "amazon_clean.csv")
     )
     cruzbuy_local = os.path.abspath(
-        os.path.join(os.path.dirname(__file__), "..", "clean", "cruzbuy_clean.csv")
+        os.path.join(os.path.dirname(__file__), "..", "data", "clean", "cruzbuy_clean.csv")
     )
     pcard_local = os.path.abspath(
-        os.path.join(os.path.dirname(__file__), "..", "clean", "procard_clean.csv")
+        os.path.join(os.path.dirname(__file__), "..", "data", "clean", "procard_clean.csv")
     )
 
     # Storage paths

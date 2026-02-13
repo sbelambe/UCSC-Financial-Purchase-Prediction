@@ -39,6 +39,8 @@ Data Cleaning:
 ├── backend/
 │   ├── app/               # FastAPI APIs
 │   ├── data_cleaning/     # Python cleaning pipeline
+|       ├── clean/         # Stores clean csv files
+        ├── raw/           # Stores raw csv files (pre cleaning)
 │   ├── requirements.txt   # Python dependencies
 │   └── .venv/             # Python virtual environment (not committed)
 ├── .vscode/               # VS Code settings
