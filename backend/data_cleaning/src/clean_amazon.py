@@ -1,13 +1,14 @@
 import os
 import pandas as pd
-from backend.data_cleaning.config.amazon_config import STATE_MAP, UNNECESSARY_COLUMNS
+from config.amazon_config import STATE_MAP, UNNECESSARY_COLUMNS
 
-RAW_DIR = os.path.join(os.path.dirname(__file__), "..", "raw")
-CLEAN_DIR = os.path.join(os.path.dirname(__file__), "..", "clean")
+RAW_DIR = os.path.join(os.path.dirname(__file__), "..", "data", "raw")
+CLEAN_DIR = os.path.join(os.path.dirname(__file__), "..", "data", "clean")
 
 
+# ------------------------------- STEP 1: LOAD -------------------------------
+# Read the dataset file and load into a Pandas dataframe
 def load_amazon():
-    # Load the data into the Pandas dataframe
     file_path = os.path.join(RAW_DIR, "amazon.csv")
 
     if not os.path.exists(file_path):
@@ -15,16 +16,24 @@ def load_amazon():
         return pd.DataFrame()  # return empty df
 
     df = pd.read_csv(file_path)
-
     df = clean_amazon(df)
 
-    output_path = os.path.join(CLEAN_DIR, "amazon_clean.csv")
-    os.makedirs(CLEAN_DIR, exist_ok=True)
-    df.to_csv(output_path, index=False)
+    save_clean_data(df)
+    return df
+# ----------------------------------------------------------------------------
 
+
+# ------------------------------- STEP 2: CLEAN ------------------------------
+# Clean the columns, numeric data, and categorical data in any ways appropriate
+def clean_amazon(df):
+    df = clean_columns(df)
+    df = clean_numbers(df)
+    df = clean_categories(df)
+    df = finalize_dataframe(df)
     return df
 
-
+# STEP 2.1 - CLEAN COLUMNS
+# ------------------------
 def clean_columns(df):
     # Drop unnecessary columns
     df.drop(columns=UNNECESSARY_COLUMNS, inplace=True, errors="ignore")
@@ -65,8 +74,9 @@ def clean_columns(df):
 
     return df
 
-
-def clean_prices(df):
+# STEP 2.2 - CLEAN NUMERIC DATA
+# -----------------------------
+def clean_numbers(df):
     price_cols = [
         "Subtotal",
         "Sales Tax",
@@ -96,7 +106,8 @@ def clean_prices(df):
 
     return df
 
-
+# STEP 2.3 - CLEAN CATEGORIES
+# ---------------------------
 def clean_categories(df):
     text_cols = ["Item Name", 
                  "Category", 
@@ -117,12 +128,20 @@ def clean_categories(df):
                 .str.title()
             )
 
-    # For Merchant Name, if "Amazon.Com" change to "Amazon.com"
+    # For Merchant Name, standardize values
     if "Merchant Name" in df.columns:
+        amazon_variants = {
+            "Amazon Appstore": "Amazon",
+            "Amazon Payments, Inc.": "Amazon",
+            "Amazon Resale": "Amazon",
+            "Amazon.Com": "Amazon",
+            "Amazon.Com Services Llc": "Amazon",
+        }
+
         df["Merchant Name"] = (
             df["Merchant Name"]
             .str.strip()
-            .str.replace("Amazon.Com", "Amazon.com", regex=False)
+            .replace(amazon_variants)
         )
 
     return df
@@ -144,22 +163,20 @@ def normalize_whitespace(series):
         .str.replace(r"\s+", " ", regex=True)
         .str.strip()
     )
+# ----------------------------------------------------------------------------
 
 
-def clean_amazon(df):
+# ------------------------------ STEP 3: FINALIZE ----------------------------
+# Any final touches to clean the dataframe
+def finalize_dataframe(df):
+    # Sort rows by date
+    df = df.sort_values(by="Transaction Date")
+
+    # Add dollar signs back to price categories
     price_cols = ["Subtotal",
                   "Sales Tax",
                   "Total Price"
     ]
-
-    df = clean_columns(df)
-    df = clean_prices(df)
-    df = clean_categories(df)
-
-    # Sort values by transaction date
-    df = df.sort_values(by="Transaction Date")
-
-    # Add dollar signs back to price categories
     df = format_currency(df, price_cols)
 
     return df
@@ -171,12 +188,17 @@ def format_currency(df, cols):
                 lambda x: f"${x:,.2f}" if pd.notna(x) else x
             )
     return df
+# ----------------------------------------------------------------------------
+
+
+# -------------------------------- STEP 4: SAVE ------------------------------
+# Save the cleaned dataset
+def save_clean_data(df):
+    output_path = os.path.join(CLEAN_DIR, "amazon_clean.csv")
+    os.makedirs(CLEAN_DIR, exist_ok=True)
+    df.to_csv(output_path, index=False)
+# ----------------------------------------------------------------------------
 
 # Future Ideas:
-# - Possible product normalization- find ways to detect products that are the same
-# and combine them
-# - Clean item names more thoroughly
-# - Any Google Suggestions
-# - "Chili'S -> Chili's"
-# Category cleans - drop random number categories,
 # - Deeper cleaning on every column 
+# - Clean item names column 

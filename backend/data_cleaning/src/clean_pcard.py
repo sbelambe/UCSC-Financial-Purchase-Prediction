@@ -101,6 +101,9 @@ def clean_numbers(df):
         df["Quantity"] = pd.to_numeric(df["Quantity"], errors="coerce")
         df = df[df["Quantity"] >= 0]
 
+    # Create a new column called Total Price
+    df["Total Price"] = df["Subtotal"] + df["Sales Tax"]
+
     return df
 
 
@@ -216,13 +219,19 @@ def clean_merchant_city(value):
 # ------------------------------ STEP 3: FINALIZE ----------------------------
 # Any final touches to clean the dataframe
 def finalize_dataframe(df):
-    # Sort row by date
+    # Sort rows by date
     if "Transaction Date" in df.columns:
         df = df.sort_values(by="Transaction Date")
 
-    # Format prices as currency
-    price_cols = ["Subtotal", "Sales Tax"]
+    # Add dollar signs back to price categories
+    price_cols = ["Subtotal", "Sales Tax", "Total Price"]
     df = format_currency(df, price_cols)
+
+    # Create a new column called Merchant Type, labels a row as "Campus" if
+    # the purchase comes from the campus store, else "External"
+    df["Merchant Type"] = df["Merchant Name"].apply(
+        lambda x: "Campus" if "Ucsc Bay Tree Bkstore" in str(x) else "External"
+    )
 
     return df
 
@@ -245,10 +254,4 @@ def save_clean_data(df):
 # ----------------------------------------------------------------------------
 
 # Future ideas:
-# - Clean item names
-# - Possibly create a column called "Merchant Type" that labels "External" for
-# external purchases and "Campus" for campus purchases (could be helpful)
-# - Create a "Total Price" column that is Subtotal * Quantity + Sales Tax
-# - Possible product normalization- find ways to detect products that are the same
-# and combine them
-# - "Chili'S -> Chili's"
+# - Clean Item Names column (it's really messy)

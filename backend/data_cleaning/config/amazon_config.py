@@ -3,7 +3,7 @@
 # Used in clean_columns() to drop unnecessary columns
 UNNECESSARY_COLUMNS = [
     # Order/payment metadata
-    "Order ID"
+    "Order ID",
     "Account Group",
     "PO Number",
     "Currency",
