@@ -5,7 +5,7 @@ from config.procard_config import STATE_MAP, UNNECESSARY_COLUMNS, MERCHANT_MAP
 
 RAW_DIR = os.path.join(os.path.dirname(__file__), "..", "data", "raw")
 CLEAN_DIR = os.path.join(os.path.dirname(__file__), "..", "data", "clean")
-# Regexes used in cleaninggit Merchant City
+# Regexes used in cleaning Merchant City
 PHONE_PATTERN = re.compile(r"\d{3}[\-\s\.]?\d{3}[\-\s\.]?\d{4}")
 URL_PATTERN = re.compile(r"(http|www|\.com|\.net|\.org)", re.IGNORECASE)
 
@@ -48,7 +48,7 @@ def clean_columns(df):
 
     # Change column names (for consistency)
     df = df.rename(columns={
-        "Transaction Amount": "Unit Price",
+        "Transaction Amount": "Subtotal",
         "Merchant Category Code Description": "Category",
         "Merchant State/Province": "Merchant State",
         "ITEM_DSC": "Item Name",
@@ -71,7 +71,7 @@ def clean_columns(df):
 # STEP 2.2 - CLEAN NUMERIC DATA
 # -----------------------------
 def clean_numbers(df):
-    price_cols = ["Unit Price", "Sales Tax"]
+    price_cols = ["Subtotal", "Sales Tax"]
 
     # Remove currency symbols and commas
     for col in price_cols:
@@ -84,21 +84,22 @@ def clean_numbers(df):
             )
             df[col] = pd.to_numeric(df[col], errors="coerce")
 
-    # For Unit Price (zero values), drop rows where Unit Price = 0
-    if "Unit Price" in df.columns:
-        df = df[df["Unit Price"] != 0]
+    # For Subtotal (zero values), drop rows where Subtotal = 0
+    if "Subtotal" in df.columns:
+        df = df[df["Subtotal"] != 0]
 
-    # For Unit Price (negative values), create a new column called
+    # For Subtotal (negative values), create a new column called
     # 'Transaction Type' that classifies negative values as 'Refund' and
     # positive values as 'Purchase'
-    df["Transaction Type"] = df["Unit Price"].apply(
+    df["Transaction Type"] = df["Subtotal"].apply(
         lambda price: "Refund" if price < 0 else "Purchase"
     )
 
-    # For Quantity, should be numeric and >= 1
+    # For Quantity, should be numeric and >= 0
+    # For necessity, keep the 0 quantities for this dataset
     if "Quantity" in df.columns:
         df["Quantity"] = pd.to_numeric(df["Quantity"], errors="coerce")
-        df = df[df["Quantity"] > 0]
+        df = df[df["Quantity"] >= 0]
 
     return df
 
@@ -115,21 +116,26 @@ def clean_categories(df):
  
     # For Merchant Name, remove number/letter weirdness to make names consistent
     # Ex: Safeway #0640, Safeway #1929 -> Safeway
-    if "Merchant Name" in df.columns:
-            df["Merchant Name"] = (
+    df["Merchant Name"] = (
         df["Merchant Name"]
         .astype(str)
         # Remove anything after *
         .str.replace(r"\*.*", "", regex=True)
-        # Remove trailing long alphanumeric codes (6+ chars)
-        .str.replace(r"\s+[A-Za-z0-9]{6,}$", "", regex=True)
-        # Remove trailing long digit strings
-        .str.replace(r"\s*\d{6,}$", "", regex=True)
-        # Separate words stuck to digits (Bestbuycom8070266)
-        .str.replace(r"(\D)(\d{6,})$", r"\1", regex=True)
-        # Normalize .com
-        .str.replace(r"\.com", ".com", regex=True)
-        # Remove extra whitespace
+        # Remove anything after #
+        .str.replace(r"#.*", "", regex=True)
+        # Remove phone numbers
+        .str.replace(r"\b\d{3}[- ]?\d{3}[- ]?\d{3,4}\b", "", regex=True)
+        # Remove dates YYYY-MM-DD
+        .str.replace(r"\b\d{4}-\d{2}-\d{2}\b", "", regex=True)
+        # Remove long numeric sequences (5+ digits)
+        .str.replace(r"\d{5,}", "", regex=True)
+        # Remove long trailing alphanumeric tokens (6+ chars)
+        .str.replace(r"\b[A-Za-z0-9]{6,}\b$", "", regex=True)
+        # Remove digits glued to words at end (Fedex37928331)
+        .str.replace(r"(\D)\d+$", r"\1", regex=True)
+        # Remove trailing slash
+        .str.replace(r"/$", "", regex=True)
+        # Collapse whitespace
         .str.replace(r"\s+", " ", regex=True)
         .str.strip()
     )
@@ -142,11 +148,6 @@ def clean_categories(df):
     if "Merchant State" in df.columns:
         df["Merchant State"] = df["Merchant State"].apply(normalize_state)
 
-    # Item Name fixes
-    if "Item Name" in df.columns:
-        # For Item Name (blank), change to 'Unknown Item'
-        df["Item Name"] = df["Item Name"].fillna("Unknown Item")
-
     # Clean up and title case category columns
     for col in text_cols:
         if col in df.columns:
@@ -154,6 +155,13 @@ def clean_categories(df):
                 normalize_whitespace(df[col])
                 .str.title()
             )
+    
+    # For Merchant Name, combine all "Sp ___" Merchant Names into a single bucket
+    df["Merchant Name"] = df["Merchant Name"].str.replace(
+        r"^Sp\s.*",
+        "Special Purchase",
+        regex=True
+    )
 
     # For Merchant City, simple clean using clean_merchant_city helper function
     if "Merchant City" in df.columns:
@@ -208,10 +216,12 @@ def clean_merchant_city(value):
 # ------------------------------ STEP 3: FINALIZE ----------------------------
 # Any final touches to clean the dataframe
 def finalize_dataframe(df):
+    # Sort row by date
     if "Transaction Date" in df.columns:
         df = df.sort_values(by="Transaction Date")
 
-    price_cols = ["Unit Price", "Sales Tax"]
+    # Format prices as currency
+    price_cols = ["Subtotal", "Sales Tax"]
     df = format_currency(df, price_cols)
 
     return df
@@ -238,9 +248,7 @@ def save_clean_data(df):
 # - Clean item names
 # - Possibly create a column called "Merchant Type" that labels "External" for
 # external purchases and "Campus" for campus purchases (could be helpful)
-# - Create a "Total Price" column that is Unit Price * Quantity + Sales Tax
+# - Create a "Total Price" column that is Subtotal * Quantity + Sales Tax
 # - Possible product normalization- find ways to detect products that are the same
 # and combine them
-# - Turn smaller categories 
-# into "Other"
 # - "Chili'S -> Chili's"

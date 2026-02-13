@@ -42,7 +42,7 @@ def clean_columns(df):
     df = df.rename(columns={
         "Order Date": "Transaction Date",
         "Order Quantity": "Quantity",
-        "Order Subtotal": "Unit Price",
+        "Order Subtotal": "Subtotal",
         "Order Tax": "Sales Tax",
         "Order Net Total": "Total Price",
         "Amazon-Internal Product Category": "Category",
@@ -68,7 +68,7 @@ def clean_columns(df):
 
 def clean_prices(df):
     price_cols = [
-        "Unit Price",
+        "Subtotal",
         "Sales Tax",
         "Total Price",
     ]
@@ -78,8 +78,8 @@ def clean_prices(df):
         if col in df.columns:
             df[col] = pd.to_numeric(df[col], errors="coerce")
 
-    # For Unit Price (zero values), drop rows where Unit Price = 0
-    df = df[df["Unit Price"] != 0]
+    # For Subtotal (zero values), drop rows where Subtotal = 0
+    df = df[df["Subtotal"] != 0]
 
     # For Quantity, should be numeric and >= 1
     if "Quantitiy" in df.columns:
@@ -147,7 +147,7 @@ def normalize_whitespace(series):
 
 
 def clean_amazon(df):
-    price_cols = ["Unit Price",
+    price_cols = ["Subtotal",
                   "Sales Tax",
                   "Total Price"
     ]
@@ -178,6 +178,5 @@ def format_currency(df, cols):
 # - Clean item names more thoroughly
 # - Any Google Suggestions
 # - "Chili'S -> Chili's"
-# - Should I change the name of Unit Price?
 # Category cleans - drop random number categories,
 # - Deeper cleaning on every column 
