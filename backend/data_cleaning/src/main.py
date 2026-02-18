@@ -1,11 +1,16 @@
-from backend.data_cleaning.src.clean_amazon import load_amazon
-from backend.data_cleaning.src.clean_cruzbuy import clean_cruzbuy
-from backend.data_cleaning.src.clean_pcard import load_pcard
-from backend.app.firebase import bucket
-import os
+import os, sys
+current_dir = os.path.dirname(os.path.abspath(__file__))
+BACKEND_ROOT = os.path.abspath(os.path.join(current_dir, "..", ".."))
+if BACKEND_ROOT not in sys.path:
+    sys.path.insert(0, BACKEND_ROOT)
+
+from data_cleaning.src.clean_amazon import load_amazon
+from data_cleaning.src.clean_cruzbuy import clean_cruzbuy
+from data_cleaning.src.clean_pcard import load_pcard
+from data_cleaning.src.firestore_upload import df_to_firestore
+from data_cleaning.src.firestore_summaries import save_top_values_summary
+from app.firebase import bucket
 from datetime import datetime, timezone
-from backend.data_cleaning.src.firestore_upload import df_to_firestore
-from backend.data_cleaning.src.firestore_summaries import save_top_values_summary
 
 def run_pipeline():
     """

@@ -167,6 +167,12 @@ Start the frontend development server:
 npm run dev -- --host 0.0.0.0 --port 5173
 ```
 
+If running just the data scraping:
+```bash
+# assuming running from /backend/data_cleaning
+py -m src.main
+```
+
 ---
 
 ## Test Backend Endpoints

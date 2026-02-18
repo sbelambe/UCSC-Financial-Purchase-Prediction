@@ -1,10 +1,7 @@
-import re
-import uuid
+import re, uuid, pandas as pd
 from datetime import datetime, timezone
 from typing import Optional, Dict, Any
-
-import pandas as pd
-from backend.app.firebase import db
+from app.firebase import db
 
 
 BATCH_LIMIT = 500  # Firestore batch write limit

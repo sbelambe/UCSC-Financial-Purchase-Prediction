@@ -1,9 +1,7 @@
 from __future__ import annotations
-
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
-
-from backend.app.firebase import db
+from app.firebase import db
 import pandas as pd
 
 
