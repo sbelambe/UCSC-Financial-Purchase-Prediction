@@ -1,4 +1,6 @@
-import os, pandas as pd, re
+import os
+import pandas as pd
+import re
 from config.procard_config import STATE_MAP, UNNECESSARY_COLUMNS, MERCHANT_MAP
 
 RAW_DIR = os.path.join(os.path.dirname(__file__), "..", "data", "raw")
