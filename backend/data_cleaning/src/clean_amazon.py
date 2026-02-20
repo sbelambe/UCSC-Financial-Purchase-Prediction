@@ -1,6 +1,6 @@
 import os
 import pandas as pd
-from config.amazon_config import STATE_MAP, UNNECESSARY_COLUMNS
+from data_cleaning.config.amazon_config import STATE_MAP, UNNECESSARY_COLUMNS
 
 RAW_DIR = os.path.join(os.path.dirname(__file__), "..", "data", "raw")
 CLEAN_DIR = os.path.join(os.path.dirname(__file__), "..", "data", "clean")
@@ -55,7 +55,7 @@ def clean_columns(df):
         "Order Tax": "Sales Tax",
         "Order Net Total": "Total Price",
         "Amazon-Internal Product Category": "Category",
-        "Title": "Item Name",
+        "Title": "Item Description",
         "Commodity": "Subcategory",
         "Seller Name": "Merchant Name",
         "Seller City": "Merchant City",
@@ -109,7 +109,7 @@ def clean_numbers(df):
 # STEP 2.3 - CLEAN CATEGORIES
 # ---------------------------
 def clean_categories(df):
-    text_cols = ["Item Name", 
+    text_cols = ["Item Description", 
                  "Category", 
                  "Subcategory", 
                  "Merchant Name", 
@@ -200,5 +200,4 @@ def save_clean_data(df):
 # ----------------------------------------------------------------------------
 
 # Future Ideas:
-# - Deeper cleaning on every column 
-# - Clean item names column 
+# - Clean item description column 
