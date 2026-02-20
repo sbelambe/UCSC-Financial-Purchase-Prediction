@@ -1,7 +1,7 @@
 import os
 import pandas as pd
 import re
-from config.procard_config import STATE_MAP, UNNECESSARY_COLUMNS, MERCHANT_MAP
+from data_cleaning.config.procard_config import STATE_MAP, UNNECESSARY_COLUMNS, MERCHANT_MAP
 
 RAW_DIR = os.path.join(os.path.dirname(__file__), "..", "data", "raw")
 CLEAN_DIR = os.path.join(os.path.dirname(__file__), "..", "data", "clean")

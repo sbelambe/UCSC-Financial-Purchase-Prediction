@@ -40,8 +40,10 @@ Data Cleaning:
 │   ├── app/               # FastAPI APIs
 │   ├── data_cleaning/     # Python cleaning pipeline
 |       ├── clean/         # Stores clean csv files
-        ├── raw/           # Stores raw csv files (pre cleaning)
-│   ├── requirements.txt   # Python dependencies
+|        ├── raw/          # Stores raw csv files (pre cleaning)
+|   ├── firebase/          # Contains files to run uploading to Storage and Firestore
+|   ├── jobs/              # Contains cleaning job and firebase upload job
+│   ├── requirements.txt   # Python dependencies (TODO)
 │   └── .venv/             # Python virtual environment (not committed)
 ├── .vscode/               # VS Code settings
 └── README.md
@@ -125,7 +127,21 @@ npm install
 
 ---
 
-### 4. Backend Setup (Terminal B)
+### 4.1 Data Cleaning/Firebase Upload(Terminal B)
+Navigate to the data cleaning repo and run command for data cleaning pipeline
+```bash
+cd backend/jobs
+```
+To data clean run:
+```bash
+python run_cleaning.py
+```
+To upload to Firebase Storage and Firestore (including summaries), run:
+```bash
+python run_firebase_upload.py
+```
+
+### 4.2 Backend Setup (Terminal C)
 
 Create and activate the Python virtual environment:
 

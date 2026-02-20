@@ -1,6 +1,6 @@
 import os
 import pandas as pd
-from config.cruzbuy_config import UNNECESSARY_COLUMNS
+# from config.cruzbuy_config import UNNECESSARY_COLUMNS
 
 RAW_DIR = os.path.join(os.path.dirname(__file__), "..", "data", "raw")
 CLEAN_DIR = os.path.join(os.path.dirname(__file__), "..", "data", "clean")
@@ -36,7 +36,7 @@ def clean_cruzbuy(df):
 # ------------------------
 def clean_columns(df):
     # Drop unnecessary columns
-    df.drop(columns=UNNECESSARY_COLUMNS, inplace=True, errors="ignore")
+    # df.drop(columns=UNNECESSARY_COLUMNS, inplace=True, errors="ignore")
 
     # Normalize missing values
     missing_vals = ["N/A", "n/a", "NULL", "None", "?", "", "<NA>"]
