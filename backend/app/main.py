@@ -1,6 +1,7 @@
 import sys, os
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from .analytics import get_item_freq
 
 # --- Path Configuration ---
 # Add backend/ to sys.path so app, jobs, firebase, and data_cleaning packages can be imported.
@@ -17,6 +18,8 @@ app.add_middleware(
     allow_origins=[
         "http://localhost:5173",
         "http://127.0.0.1:5173",
+        "http://localhost:3000",
+        "http://127.0.0.1:3000"
     ],
     allow_credentials=True,
     allow_methods=["*"],  # Allows all methods (GET, POST, etc.)
@@ -56,6 +59,15 @@ def refresh_data():
         return {"status": "ok", "result": result}
     except Exception as e:
         # If the pipeline crashes, tell the frontend why
+        raise HTTPException(status_code=500, detail=str(e))
+    
+
+@app.get("/api/analytics/top-items")
+def get_top_items(user_id: str):
+    try:
+        data = get_item_freq(user_id)
+        return {"status": "success", "data": data}
+    except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     
 # Entry point for running via 'py app/main.py' directly

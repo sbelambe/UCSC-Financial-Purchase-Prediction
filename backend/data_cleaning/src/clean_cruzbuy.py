@@ -88,6 +88,13 @@ def clean_categories(df):
 # ------------------------------ STEP 3: FINALIZE ----------------------------
 # Any final touches to clean the dataframe
 def finalize_dataframe(df):
+    """
+    Detailed description: Applies final formatting, including duplicating 
+    Subtotal into 'Total Price' for consistency across school datasets.
+    """
+    if "Subtotal" in df.columns:
+        # Create "Total Price" as requested by copying "Subtotal"
+        df["Total Price"] = df["Subtotal"]
     return df
 
 # ----------------------------------------------------------------------------

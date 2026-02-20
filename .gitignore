@@ -3,6 +3,7 @@ data_cleaning/raw/*
 data_cleaning/clean/*
 !data_cleaning/clean/.gitkeep
 *.csv
+frontend/src/data/*
 
 __pycache_/
 *.pyc
