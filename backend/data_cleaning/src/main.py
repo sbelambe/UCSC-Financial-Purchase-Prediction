@@ -1,6 +1,5 @@
-from backend.data_cleaning.src.clean_amazon import load_amazon
-from backend.data_cleaning.src.clean_cruzbuy import clean_cruzbuy
-from backend.app.firebase import bucket
+from data_cleaning.src.clean_amazon import load_amazon
+from data_cleaning.src.clean_cruzbuy import clean_cruzbuy
 import os
 from datetime import datetime
 
@@ -49,6 +48,12 @@ def upload_csv_to_storage(local_path, storage_path):
     """
     if not os.path.exists(local_path):
         print(f"[WARNING] Clean CSV not found, skipping upload: {local_path}")
+        return
+
+    try:
+        from app.firebase import bucket
+    except Exception as e:
+        print(f"[WARNING] Firebase unavailable, skipping upload for {local_path}: {e}")
         return
     
     blob = bucket.blob(storage_path)

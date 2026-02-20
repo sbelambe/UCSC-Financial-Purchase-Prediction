@@ -2,6 +2,7 @@ import sys
 import os
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from app.analytics import get_campus_store_item_insights
 
 # --- Path Configuration ---
 # Add the parent directory (backend/) to sys.path so we can import 'data_cleaning'
@@ -58,6 +59,21 @@ def refresh_data():
         return {"status": "ok", "result": result}
     except Exception as e:
         # If the pipeline crashes, tell the frontend why
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/analytics/campus-store-items")
+def campus_store_items(top_n: int = 5, lookback_days: int = 90, account: str = "Campus Store"):
+    """
+    Returns most/least purchased Campus Store items and stock priority recommendations.
+    """
+    try:
+        return get_campus_store_item_insights(
+            top_n=top_n,
+            lookback_days=lookback_days,
+            account_filter=account,
+        )
+    except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     
 # Entry point for running via 'py app/main.py' directly
