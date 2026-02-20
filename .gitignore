@@ -4,7 +4,6 @@ data_cleaning/clean/*
 !data_cleaning/clean/.gitkeep
 *.csv
 frontend/src/data/*
-!frontend/src/data/.gitkeep
 
 __pycache_/
 *.pyc
