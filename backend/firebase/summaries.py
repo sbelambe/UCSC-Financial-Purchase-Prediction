@@ -164,9 +164,9 @@ def compute_top_items_detailed(df, item_col, price_col, vendor_col, n=20):
     stats = stats.sort_values(by='count', ascending=False).head(n)
 
     # debugging stuff
-    print(f"\n✨ --- DATA PREVIEW ({item_col}) ---")
+    print(f"\n--- DATA PREVIEW ({item_col}) ---")
     if not stats.empty:
-        # Print the top 5 to terminal for instant verification
+        # Print the top 5 to terminal
         print(stats[['clean_item_name', 'count']].head(5).to_string(index=False))
     else:
         print("Empty results.")
