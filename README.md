@@ -110,11 +110,11 @@ UCSC-Financial-Purchase-Prediction/
 
 ```bash
 cat > .env <<'EOF'
-VITE_FIREBASE_API_KEY=AIzaSyCHLJgMezo3p741p26VP8nphKZPERKuYdY
-VITE_FIREBASE_AUTH_DOMAIN=slugsmart-d7363.firebaseapp.com
-VITE_FIREBASE_PROJECT_ID=slugsmart-d7363
+VITE_FIREBASE_API_KEY=<API KEY>
+VITE_FIREBASE_AUTH_DOMAIN=<projext_id>.firebaseapp.com
+VITE_FIREBASE_PROJECT_ID=<project_id>
 FIREBASE_CREDENTIALS_PATH=backend/firebase-key.json
-FIREBASE_STORAGE_BUCKET=slugsmart-d7363.appspot.com
+FIREBASE_STORAGE_BUCKET=<project_id>.appspot.com
 EOF
 ```
 
@@ -163,7 +163,7 @@ Create backend environment file:
 ```bash
 cat > .env <<'EOF'
 FIREBASE_CREDENTIALS_PATH=firebase-key.json
-FIREBASE_STORAGE_BUCKET=slugsmart-d7363.appspot.com
+FIREBASE_STORAGE_BUCKET=<project_id>.appspot.com
 EOF
 ```
 
@@ -181,12 +181,6 @@ Start the frontend development server:
 
 ```bash
 npm run dev -- --host 0.0.0.0 --port 5173
-```
-
-If running just the data scraping:
-```bash
-# assuming running from /backend/data_cleaning
-py -m src.main
 ```
 
 ---
