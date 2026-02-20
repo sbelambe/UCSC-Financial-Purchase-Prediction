@@ -3,11 +3,10 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 # --- Path Configuration ---
-# Add the parent directory (backend/) to sys.path so we can import 'data_cleaning'
-# This allows the app to find the sibling folder structure.
+# Add backend/ to sys.path so app, jobs, firebase, and data_cleaning packages can be imported.
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from data_cleaning.src.main import run_pipeline
+from jobs.run_firebase_uploads import run_firebase_uploads
 
 app = FastAPI(title="UCSC Financial Dashboard API")
 
@@ -48,12 +47,12 @@ def refresh_data():
     """
     Triggers the data cleaning pipeline.
     
-    1. Calls run_pipeline() from the data_cleaning module.
+    1. Runs cleaning and Firebase uploads via jobs.
     2. Returns the summary of processed rows.
     3. Handles any errors that occur during the pipeline execution.
     """
     try:
-        result = run_pipeline()
+        result = run_firebase_uploads()
         return {"status": "ok", "result": result}
     except Exception as e:
         # If the pipeline crashes, tell the frontend why
@@ -64,4 +63,3 @@ if __name__ == "__main__":
     import uvicorn
     # reload=True allows auto-restart on code changes
     uvicorn.run("app.main:app", host="127.0.0.1", port=8000, reload=True)
-

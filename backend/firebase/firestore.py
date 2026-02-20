@@ -1,10 +1,14 @@
 import re, uuid, pandas as pd
 from datetime import datetime, timezone
 from typing import Optional, Dict, Any
+import time
+from google.api_core.exceptions import DeadlineExceeded
 from app.firebase import db
 
 
-BATCH_LIMIT = 500  # Firestore batch write limit
+BATCH_LIMIT = 200  # Firestore batch write limit
+MAX_COMMIT_RETRIES = 4
+BASE_RETRY_DELAY_SECONDS = 1.0
 
 
 def _utc_now_iso() -> str:
@@ -34,6 +38,22 @@ def _clean_value(v: Any) -> Any:
         except Exception:
             pass
     return v
+
+
+def _commit_with_retry(batch, *, timeout: int = 120) -> None:
+    """
+    Commit a Firestore batch with retries for transient DeadlineExceeded errors.
+    """
+    for attempt in range(1, MAX_COMMIT_RETRIES + 1):
+        try:
+            batch.commit(timeout=timeout)
+            return
+        except DeadlineExceeded:
+            if attempt == MAX_COMMIT_RETRIES:
+                raise
+            sleep_s = BASE_RETRY_DELAY_SECONDS * (2 ** (attempt - 1))
+            print(f"[WARN] Firestore commit timed out (attempt {attempt}/{MAX_COMMIT_RETRIES}), retrying in {sleep_s:.1f}s...")
+            time.sleep(sleep_s)
 
 
 def df_to_firestore(
@@ -87,13 +107,13 @@ def df_to_firestore(
         op_count += 1
 
         if op_count >= BATCH_LIMIT:
-            batch.commit()
+            _commit_with_retry(batch, timeout=120)
             batch = db.batch()
             op_count = 0
 
     # Commit remaining
     if op_count > 0:
-        batch.commit()
+        _commit_with_retry(batch, timeout=120)
 
     print(f"[OK] Stored {len(df)} rows for '{dataset}' in Firestore (upload_id={upload_id})")
     return upload_id

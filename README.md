@@ -125,7 +125,21 @@ npm install
 
 ---
 
-### 4. Backend Setup (Terminal B)
+### 4.1 Data Cleaning/Firebase Upload(Terminal B)
+Navigate to the data cleaning repo and run command for data cleaning pipeline
+```bash
+cd backend/jobs
+```
+To data clean run:
+```bash
+python run_cleaning.py
+```
+To upload to Firebase Storage and Firestore (including summaries), run:
+```bash
+python run_firebase_upload.py
+```
+
+### 4.2 Backend Setup (Terminal C)
 
 Create and activate the Python virtual environment:
 
