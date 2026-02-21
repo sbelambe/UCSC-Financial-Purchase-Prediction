@@ -2,7 +2,9 @@ import sys, os
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from .analytics import get_item_freq
-
+from app.drive import download_drive_files
+from dotenv import load_dotenv
+load_dotenv(
 # --- Path Configuration ---
 # Add backend/ to sys.path so app, jobs, firebase, and data_cleaning packages can be imported.
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -55,7 +57,19 @@ def refresh_data():
     3. Handles any errors that occur during the pipeline execution.
     """
     try:
-        result = run_firebase_uploads()
+        folder_id = os.getenv("GOOGLE_DRIVE_FOLDER_ID")
+
+        raw_dir = os.path.join(
+            os.path.dirname(os.path.dirname(__file__)),
+            "data_cleaning",
+            "data",
+            "raw"
+        )
+
+        download_drive_files(folder_id, raw_dir)
+
+        result = run_pipeline()
+
         return {"status": "ok", "result": result}
     except Exception as e:
         # If the pipeline crashes, tell the frontend why

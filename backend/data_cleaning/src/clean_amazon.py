@@ -1,6 +1,6 @@
 import os
 import pandas as pd
-from data_cleaning.config.amazon_config import STATE_MAP, UNNECESSARY_COLUMNS
+from backend.data_cleaning.config.amazon_config import STATE_MAP, UNNECESSARY_COLUMNS
 
 RAW_DIR = os.path.join(os.path.dirname(__file__), "..", "data", "raw")
 CLEAN_DIR = os.path.join(os.path.dirname(__file__), "..", "data", "clean")
