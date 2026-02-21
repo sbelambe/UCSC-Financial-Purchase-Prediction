@@ -6,6 +6,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 cred_filename = os.getenv("FIREBASE_CREDENTIALS_PATH")
+bucket_name = os.getenv("FIREBASE_STORAGE_BUCKET")
 
 if not cred_filename:
     raise ValueError("Error: FIREBASE_CREDENTIALS_PATH is missing in .env")
@@ -34,4 +35,5 @@ if not firebase_admin._apps:
 # initialize firestore client so we can write data to FireStore
 db = firestore.client()
 bucket = storage.bucket(bucket_name)
+
 
