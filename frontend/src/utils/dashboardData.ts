@@ -31,7 +31,7 @@ export function generateDashboardData(
   if (tab === 'Overall') {
     vendorData = [
       { name: 'Amazon', amount: 85000 },
-      { name: 'OneBuy', amount: 65000 },
+      { name: 'OneCard', amount: 65000 },
       { name: 'ProCard', amount: 52000 },
       { name: 'Bookstore', amount: 38000 },
     ];

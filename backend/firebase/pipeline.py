@@ -2,7 +2,7 @@ from typing import Dict, Any
 
 from firebase.storage import upload_all_to_storage
 from firebase.firestore import df_to_firestore
-from firebase.summaries import save_top_values_summary
+from firebase.summaries import save_top_values_summary, save_spend_over_time_summary
 
 
 def upload_cleaned_data(*, dataframes: Dict[str, Any], local_paths: Dict[str, str]) -> Dict[str, Dict[str, str]]:
@@ -53,6 +53,44 @@ def upload_cleaned_data(*, dataframes: Dict[str, Any], local_paths: Dict[str, st
         df=dataframes["pcard"],
         column="Merchant Name",
         n=10,
+    )
+
+    save_spend_over_time_summary(
+        upload_id=upload_ids["amazon"],
+        dataset="amazon",
+        storage_path=storage_paths["amazon"],
+        summary_name="spend_over_time_monthly",
+        title="Spend over time",
+        df=dataframes["amazon"],
+        date_col="Transaction Date",
+        amount_col="Total Price",
+        interval="month",
+    )
+
+    save_spend_over_time_summary(
+        upload_id=upload_ids["cruzbuy"],
+        dataset="cruzbuy",
+        storage_path=storage_paths["cruzbuy"],
+        summary_name="spend_over_time_monthly",
+        title="Spend over time",
+        df=dataframes["cruzbuy"],
+        date_col="Transaction Date",
+        amount_col="Total Price",
+        interval="month",
+    )
+
+    save_spend_over_time_summary(
+        upload_id=upload_ids["pcard"],
+        dataset="pcard",
+        storage_path=storage_paths["pcard"],
+        summary_name="spend_over_time_monthly",
+        title="Spend over time",
+        df=dataframes["pcard"],
+        date_col="Transaction Date",
+        amount_col="Total Price",
+        interval="month",
+        transaction_type_col="Transaction Type",
+        include_refunds=True,
     )
 
     return {

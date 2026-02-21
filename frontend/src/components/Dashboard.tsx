@@ -3,8 +3,23 @@ import { TabNavigation } from './TabNavigation';
 import { FilterBar } from './FilterBar';
 import { useAuth } from '../context/AuthContext';
 import TopItemsChart from './TopItemsChart';
+import TransactionsOverTimeChart from './TransactionsOverTimeChart';
 import { TopItemsTable } from './TopItemsTable';
-import previewData from '../data/preview_data.json';
+import previewData from '../data/preview_top_20_data.json';
+import previewSpendOverTimeData from '../data/preview_spend_over_time_data.json';
+
+const buildCombinedSpendSeries = (preview: { [key: string]: { period: string; spend: number }[] }) => {
+  const combinedMap: { [period: string]: number } = {};
+  ['amazon', 'cruzbuy', 'pcard'].forEach((key) => {
+    (preview[key] || []).forEach((point) => {
+      combinedMap[point.period] = (combinedMap[point.period] || 0) + Number(point.spend || 0);
+    });
+  });
+
+  return Object.entries(combinedMap)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([period, spend]) => ({ period, spend }));
+};
 
 
 const mergePreviewData = (rawPreview: any, tab: string) => {
@@ -12,7 +27,7 @@ const mergePreviewData = (rawPreview: any, tab: string) => {
   const tabToKeyMap: { [key: string]: string } = {
     'Amazon': 'amazon',
     'ProCard': 'pcard',
-    'OneBuy': 'cruzbuy'
+    'OneCard': 'cruzbuy'
   };
 
 
@@ -44,11 +59,23 @@ const mergePreviewData = (rawPreview: any, tab: string) => {
 
 export function Dashboard() {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState<'Overall' | 'OneBuy' | 'ProCard' | 'Amazon' | 'Bookstore'>('Overall');
+  const [activeTab, setActiveTab] = useState<'Overall' | 'OneCard' | 'ProCard' | 'Amazon' | 'Bookstore'>('Overall');
   const [isPreviewMode, setIsPreviewMode] = useState(true);
   const [topItems, setTopItems] = useState<any[]>([]);
   const [isLoadingTopItems, setIsLoadingTopItems] = useState(true);
+  const [spendSeries, setSpendSeries] = useState<{ period: string; spend: number }[]>([]);
+  const [isLoadingSpend, setIsLoadingSpend] = useState(true);
   const [showDetails, setShowDetails] = useState(false);
+
+  const tabToSeriesKeyMap: { [key: string]: string } = {
+    Overall: 'combined',
+    Amazon: 'amazon',
+    ProCard: 'pcard',
+    OneCard: 'cruzbuy',
+    Bookstore: 'combined',
+  };
+
+  const previewSpendByTab = previewSpendOverTimeData as { [key: string]: { period: string; spend: number }[] };
 
   useEffect(() => {
     setTopItems([]);
@@ -65,6 +92,14 @@ export function Dashboard() {
         .catch(() => setIsLoadingTopItems(false));
     }
   }, [user, isPreviewMode, activeTab]);
+
+  useEffect(() => {
+    setIsLoadingSpend(true);
+    const seriesKey = tabToSeriesKeyMap[activeTab] || 'combined';
+    const combinedSeries = previewSpendByTab.combined || buildCombinedSpendSeries(previewSpendByTab);
+    setSpendSeries(previewSpendByTab[seriesKey] || combinedSeries || []);
+    setIsLoadingSpend(false);
+  }, [isPreviewMode, activeTab]);
 
   return (
     <div className="space-y-6">
@@ -92,6 +127,12 @@ export function Dashboard() {
             <div className="h-[450px] w-full">
                <TopItemsChart data={topItems} />
             </div>
+
+            <TransactionsOverTimeChart
+              data={spendSeries}
+              loading={isLoadingSpend}
+              title={`Spend Over Time (${activeTab})`}
+            />
 
             <div className="flex justify-center">
               <button onClick={() => setShowDetails(!showDetails)} className="px-6 py-2 text-sm font-semibold text-blue-700 bg-blue-50 rounded-full hover:bg-blue-100 transition-colors">

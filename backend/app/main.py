@@ -1,7 +1,8 @@
 import sys, os
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from .analytics import get_item_freq
+from typing import Optional
+from .analytics import get_item_freq, get_spend_over_time
 
 # --- Path Configuration ---
 # Add backend/ to sys.path so app, jobs, firebase, and data_cleaning packages can be imported.
@@ -66,6 +67,33 @@ def refresh_data():
 def get_top_items(user_id: str):
     try:
         data = get_item_freq(user_id)
+        return {"status": "success", "data": data}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/analytics/spend-over-time")
+def spend_over_time(
+    interval: str = "month",
+    include_refunds: bool = True,
+    amazon_upload_id: Optional[str] = None,
+    cruzbuy_upload_id: Optional[str] = None,
+    pcard_upload_id: Optional[str] = None,
+):
+    try:
+        upload_ids = None
+        if amazon_upload_id or cruzbuy_upload_id or pcard_upload_id:
+            upload_ids = {
+                "amazon": amazon_upload_id,
+                "cruzbuy": cruzbuy_upload_id,
+                "pcard": pcard_upload_id,
+            }
+
+        data = get_spend_over_time(
+            upload_ids=upload_ids,
+            interval=interval,
+            include_refunds=include_refunds,
+        )
         return {"status": "success", "data": data}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

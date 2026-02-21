@@ -1,10 +1,10 @@
 interface TabNavigationProps {
   activeTab: string;
-  onTabChange: (tab: 'Overall' | 'OneBuy' | 'ProCard' | 'Amazon' | 'Bookstore') => void;
+  onTabChange: (tab: 'Overall' | 'OneCard' | 'ProCard' | 'Amazon' | 'Bookstore') => void;
 }
 
 export function TabNavigation({ activeTab, onTabChange }: TabNavigationProps) {
-  const tabs = ['Overall', 'OneBuy', 'ProCard', 'Amazon', 'Bookstore'];
+  const tabs = ['Overall', 'OneCard', 'ProCard', 'Amazon', 'Bookstore'];
 
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-1 flex gap-1">

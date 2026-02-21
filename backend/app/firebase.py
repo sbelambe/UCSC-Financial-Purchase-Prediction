@@ -14,12 +14,13 @@ if not cred_filename:
 current_dir = os.path.dirname(os.path.abspath(__file__))
 root_dir = os.path.dirname(os.path.dirname(current_dir))
 cred_path = os.path.join(root_dir, cred_filename)
+bucket_name = os.getenv("FIREBASE_STORAGE_BUCKET")
 
 # initialize firebase
 if not firebase_admin._apps:
     if os.path.exists(cred_path):
         cred = credentials.Certificate(cred_path)
-        bucket_name = os.getenv("FIREBASE_STORAGE_BUCKET")
+        # bucket_name = os.getenv("FIREBASE_STORAGE_BUCKET")
         if not bucket_name:
             raise ValueError("FIREBASE_STORAGE_BUCKET is missing in .env")
 
