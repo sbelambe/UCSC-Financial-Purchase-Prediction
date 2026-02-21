@@ -1,17 +1,17 @@
 import os
 from typing import Dict, Any
 
-from data_cleaning.src.clean_amazon import load_amazon
-from data_cleaning.src.clean_cruzbuy import load_cruzbuy
-from data_cleaning.src.clean_pcard import load_pcard
+from backend.data_cleaning.src.clean_amazon import load_amazon
+from backend.data_cleaning.src.clean_cruzbuy import load_cruzbuy
+from backend.data_cleaning.src.clean_pcard import load_pcard
 
 
 def _clean_csv_paths() -> Dict[str, str]:
     base = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "data", "clean"))
     return {
-        "amazon": os.path.join(base, "amazon_clean.csv"),
-        "cruzbuy": os.path.join(base, "cruzbuy_clean.csv"),
-        "pcard": os.path.join(base, "procard_clean.csv"),
+        "amazon": os.path.join(base, "amazon_clean.xlsx"),
+        "cruzbuy": os.path.join(base, "cruzbuy_clean.xlsx"),
+        "pcard": os.path.join(base, "procard_clean.xlsx"),
     }
 
 

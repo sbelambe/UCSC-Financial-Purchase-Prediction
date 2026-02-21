@@ -2,9 +2,12 @@ import sys, os
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from .analytics import get_item_freq
-from app.drive import download_drive_files
+from backend.app.drive import sync_drive_folder
 from dotenv import load_dotenv
-load_dotenv(
+from backend.jobs.run_full_pipeline import run_full_pipeline
+
+load_dotenv()
+
 # --- Path Configuration ---
 # Add backend/ to sys.path so app, jobs, firebase, and data_cleaning packages can be imported.
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -66,11 +69,14 @@ def refresh_data():
             "raw"
         )
 
-        download_drive_files(folder_id, raw_dir)
+        changed = sync_drive_folder(folder_id, raw_dir)
 
-        result = run_pipeline()
+        if not changed:
+            return {"status": "ok", "message": "No new Drive updates detected."}
 
-        return {"status": "ok", "result": result}
+        result = run_full_pipeline()
+        return {"status": "ok", "message": "New Drive updates detected.", "result": result}
+    
     except Exception as e:
         # If the pipeline crashes, tell the frontend why
         raise HTTPException(status_code=500, detail=str(e))
