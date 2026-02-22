@@ -61,6 +61,7 @@ def df_to_firestore(
     dataset: str,
     storage_path: Optional[str] = None,
     upload_id: Optional[str] = None,
+    write_rows: bool = True,
 ) -> str:
     """
     Stores a dataframe into Firestore under:
@@ -84,6 +85,10 @@ def df_to_firestore(
         },
         merge=True,
     )
+
+    if not write_rows:
+        print(f"[INFO] {dataset}: wrote metadata only (row writes disabled, upload_id={upload_id})")
+        return upload_id
 
     if df.empty:
         print(f"[INFO] {dataset}: df is empty; wrote metadata only (upload_id={upload_id})")
