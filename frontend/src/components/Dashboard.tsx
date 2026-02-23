@@ -40,9 +40,13 @@ const mergePreviewData = (rawPreview: any, tab: string) => {
       }
       merged[name].count += item.count || 0;
       merged[name].total_spent += item.total_spent || 0;
-      const displaySource = source.charAt(0).toUpperCase() + source.slice(1);
-      if (!merged[name].vendors.includes(displaySource)) {
-        merged[name].vendors.push(displaySource);
+      if (Array.isArray(item.vendors)) {
+        item.vendors.forEach((realVendor: string) => {
+          // Only add the vendor if it isn't already in the array to prevent duplicates
+          if (!merged[name].vendors.includes(realVendor)) {
+            merged[name].vendors.push(realVendor);
+          }
+        });
       }
     });
   };
@@ -62,6 +66,13 @@ export function Dashboard() {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<'Overall' | 'OneBuy' | 'ProCard' | 'Amazon' | 'Bookstore'>('Overall');
   const [isPreviewMode, setIsPreviewMode] = useState(true);
+
+
+  // passive cache states
+  const [liveRawTopItems, setLiveRawTopItems] = useState<any>(null);
+  const [liveRawSpend, setLiveRawSpend] = useState<any>(null);
+
+  // active display states
   const [topItems, setTopItems] = useState<any[]>([]);
   const [isLoadingTopItems, setIsLoadingTopItems] = useState(true);
   const [spendSeries, setSpendSeries] = useState<{ period: string; spend: number }[]>([]);
@@ -78,57 +89,62 @@ export function Dashboard() {
 
   const previewSpendByTab = previewSpendOverTimeData as { [key: string]: { period: string; spend: number }[] };
 
+  // only runs when mode switches to live data, and only fetches if cache is empty
   useEffect(() => {
-    if (!user) return;
+      if (isPreviewMode) {
+        setIsLoadingTopItems(false);
+        setIsLoadingSpend(false);
+        return;
+      }
 
-    setTopItems([]);
-    setIsLoadingTopItems(true);
+      if (user && !liveRawTopItems) {
+        setIsLoadingTopItems(true);
+        fetch(`http://127.0.0.1:8000/api/analytics/top-items?user_id=${user.uid}`)
+          .then(res => res.json())
+          .then(res => { 
+              setLiveRawTopItems(res.data || {}); 
+              setIsLoadingTopItems(false); 
+          })
+          .catch(() => setIsLoadingTopItems(false));
+      }
 
-    if (isPreviewMode) {
-      const data = mergePreviewData(previewData, activeTab);
-      setTopItems(data);
-      setIsLoadingTopItems(false);
-    } else if (user) {
-      fetch(`http://127.0.0.1:8000/api/analytics/top-items?user_id=${user.uid}`)
-        .then(res => res.json())
-        .then(res => { 
-            const liveMerged = mergePreviewData(res.data || {}, activeTab);
-            setTopItems(liveMerged); 
-            setIsLoadingTopItems(false); 
-        })
-        .catch(() => setIsLoadingTopItems(false));
-    }
-  }, [user, isPreviewMode, activeTab]);
+      if (user && !liveRawSpend) {
+        setIsLoadingSpend(true);
+        fetch('http://127.0.0.1:8000/api/analytics/spend-over-time?interval=month&include_refunds=true')
+          .then((res) => res.json())
+          .then((res) => {
+            setLiveRawSpend(res.data || {});
+            setIsLoadingSpend(false);
+          })
+          .catch(() => setIsLoadingSpend(false));
+      }
+    }, [user, isPreviewMode]); // Note: activeTab is REMOVED from the dependency array!
 
+
+  // runs instantly on tab changes (e.g. Amazon -> Pcard) using cached data
   useEffect(() => {
-    setIsLoadingSpend(true);
-    const seriesKey = tabToSeriesKeyMap[activeTab] || 'combined';
+      // Route Top Items
+      if (isPreviewMode) {
+        setTopItems(mergePreviewData(previewData, activeTab));
+      } else if (liveRawTopItems) {
+        setTopItems(mergePreviewData(liveRawTopItems, activeTab));
+      }
 
-    if (isPreviewMode) {
-      const combinedSeries = previewSpendByTab.combined || buildCombinedSpendSeries(previewSpendByTab);
-      setSpendSeries(previewSpendByTab[seriesKey] || combinedSeries || []);
-      setIsLoadingSpend(false);
-      return;
-    }
-
-    fetch('http://127.0.0.1:8000/api/analytics/spend-over-time?interval=month&include_refunds=true')
-      .then((res) => res.json())
-      .then((res) => {
-        const apiData = res?.data || {};
+      // Route Spend Over Time
+      const seriesKey = tabToSeriesKeyMap[activeTab] || 'combined';
+      if (isPreviewMode) {
+        const combinedSeries = previewSpendByTab.combined || buildCombinedSpendSeries(previewSpendByTab);
+        setSpendSeries(previewSpendByTab[seriesKey] || combinedSeries || []);
+      } else if (liveRawSpend) {
         const liveSeriesByKey: { [key: string]: { period: string; spend: number }[] } = {
-          combined: apiData?.combined || [],
-          amazon: apiData?.datasets?.amazon || [],
-          cruzbuy: apiData?.datasets?.cruzbuy || [],
-          pcard: apiData?.datasets?.pcard || [],
+          combined: liveRawSpend.combined || [],
+          amazon: liveRawSpend.datasets?.amazon || [],
+          cruzbuy: liveRawSpend.datasets?.cruzbuy || [],
+          pcard: liveRawSpend.datasets?.pcard || [],
         };
         setSpendSeries(liveSeriesByKey[seriesKey] || liveSeriesByKey.combined || []);
-        setIsLoadingSpend(false);
-      })
-      .catch(() => {
-        setSpendSeries([]);
-        setIsLoadingSpend(false);
-      });
-  }, [isPreviewMode, activeTab]);
+      }
+    }, [activeTab, isPreviewMode, liveRawTopItems, liveRawSpend]);
 
   return (
     <div className="space-y-6">

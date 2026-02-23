@@ -3,9 +3,9 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from typing import Optional
 from .analytics import get_item_freq, get_spend_over_time
-from backend.app.drive import sync_drive_folder
+# from backend.app.drive import sync_drive_folder
+# from backend.jobs.run_full_pipeline import run_full_pipeline
 from dotenv import load_dotenv
-from backend.jobs.run_full_pipeline import run_full_pipeline
 
 load_dotenv()
 
