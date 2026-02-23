@@ -17,7 +17,7 @@ load_dotenv(os.path.join(BACKEND_ROOT, ".env"))
 from data_cleaning.src.clean_amazon import load_amazon
 from data_cleaning.src.clean_cruzbuy import load_cruzbuy
 from data_cleaning.src.clean_pcard import load_pcard
-from summaries import compute_top_items_detailed
+from firebase.summaries import compute_top_items_detailed, compute_spend_over_time
 
 # --- Environment Controls ---
 MOCK_FIRESTORE = os.getenv("MOCK_FIRESTORE", "False").lower() == "true"
@@ -75,24 +75,56 @@ def run_pre_upload_audit():
 
         # 2. Compute summaries using real production logic
         print("[INFO] Computing summaries...")
-        local_previews = {
+        local_top_items_previews = {
             "amazon": compute_top_items_detailed(amazon_df, "Item Description", "Subtotal", "Merchant Name"),
             "cruzbuy": compute_top_items_detailed(cruzbuy_df, "Item Description", "Subtotal", "Merchant Name"),
             "pcard": compute_top_items_detailed(pcard_df, "Item Name", "Subtotal", "Merchant Name")
         }
 
+        local_spend_trend_previews = {
+            "amazon": compute_spend_over_time(
+                amazon_df,
+                date_col="Transaction Date",
+                amount_col="Total Price",
+                interval="month",
+            ),
+            "cruzbuy": compute_spend_over_time(
+                cruzbuy_df,
+                date_col="Transaction Date",
+                amount_col="Total Price",
+                interval="month",
+            ),
+            "pcard": compute_spend_over_time(
+                pcard_df,
+                date_col="Transaction Date",
+                amount_col="Total Price",
+                interval="month",
+                transaction_type_col="Transaction Type",
+                include_refunds=True,
+            ),
+        }
+
         # 3. Display the terminal summary for immediate audit
-        test_dashboard_integration(local_previews)
+        test_dashboard_integration(local_top_items_previews)
 
         # 4. Export to frontend for visual verification
-        # Path assumes: project_root/frontend/src/data/preview_data.json
-        preview_file = os.path.abspath(os.path.join(BACKEND_ROOT, "..", "frontend", "src", "data", "preview_data.json"))
-        os.makedirs(os.path.dirname(preview_file), exist_ok=True)
+        # Path assumes: project_root/frontend/src/data/preview_top_20_data.json
+        preview_top_items_file = os.path.abspath(
+            os.path.join(BACKEND_ROOT, "..", "frontend", "src", "data", "preview_top_20_data.json")
+        )
+        preview_spend_file = os.path.abspath(
+            os.path.join(BACKEND_ROOT, "..", "frontend", "src", "data", "preview_spend_over_time_data.json")
+        )
+        os.makedirs(os.path.dirname(preview_top_items_file), exist_ok=True)
         
-        with open(preview_file, 'w') as f:
-            json.dump(local_previews, f, indent=4)
+        with open(preview_top_items_file, 'w') as f:
+            json.dump(local_top_items_previews, f, indent=4)
+
+        with open(preview_spend_file, 'w') as f:
+            json.dump(local_spend_trend_previews, f, indent=4)
         
-        print(f"[SUCCESS] Real data preview saved to: {preview_file}")
+        print(f"[SUCCESS] Top-items preview saved to: {preview_top_items_file}")
+        print(f"[SUCCESS] Spend-trend preview saved to: {preview_spend_file}")
         print("Audit complete.")
 
     except Exception as e:
