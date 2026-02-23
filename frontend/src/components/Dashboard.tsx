@@ -3,8 +3,23 @@ import { TabNavigation } from './TabNavigation';
 import { FilterBar } from './FilterBar';
 import { useAuth } from '../context/AuthContext';
 import TopItemsChart from './TopItemsChart';
+import TransactionsOverTimeChart from './TransactionsOverTimeChart';
 import { TopItemsTable } from './TopItemsTable';
-import previewData from '../data/preview_data.json';
+import previewData from '../data/preview_top_20_data.json';
+import previewSpendOverTimeData from '../data/preview_spend_over_time_data.json';
+
+const buildCombinedSpendSeries = (preview: { [key: string]: { period: string; spend: number }[] }) => {
+  const combinedMap: { [period: string]: number } = {};
+  ['amazon', 'cruzbuy', 'pcard'].forEach((key) => {
+    (preview[key] || []).forEach((point) => {
+      combinedMap[point.period] = (combinedMap[point.period] || 0) + Number(point.spend || 0);
+    });
+  });
+
+  return Object.entries(combinedMap)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([period, spend]) => ({ period, spend }));
+};
 
 
 const mergePreviewData = (rawPreview: any, tab: string) => {
@@ -49,9 +64,23 @@ export function Dashboard() {
   const [isPreviewMode, setIsPreviewMode] = useState(true);
   const [topItems, setTopItems] = useState<any[]>([]);
   const [isLoadingTopItems, setIsLoadingTopItems] = useState(true);
+  const [spendSeries, setSpendSeries] = useState<{ period: string; spend: number }[]>([]);
+  const [isLoadingSpend, setIsLoadingSpend] = useState(true);
   const [showDetails, setShowDetails] = useState(false);
 
-useEffect(() => {
+  const tabToSeriesKeyMap: { [key: string]: string } = {
+    Overall: 'combined',
+    Amazon: 'amazon',
+    ProCard: 'pcard',
+    OneBuy: 'cruzbuy',
+    Bookstore: 'combined',
+  };
+
+  const previewSpendByTab = previewSpendOverTimeData as { [key: string]: { period: string; spend: number }[] };
+
+  useEffect(() => {
+    if (!user) return;
+
     setTopItems([]);
     setIsLoadingTopItems(true);
 
@@ -71,9 +100,41 @@ useEffect(() => {
     }
   }, [user, isPreviewMode, activeTab]);
 
+  useEffect(() => {
+    setIsLoadingSpend(true);
+    const seriesKey = tabToSeriesKeyMap[activeTab] || 'combined';
+
+    if (isPreviewMode) {
+      const combinedSeries = previewSpendByTab.combined || buildCombinedSpendSeries(previewSpendByTab);
+      setSpendSeries(previewSpendByTab[seriesKey] || combinedSeries || []);
+      setIsLoadingSpend(false);
+      return;
+    }
+
+    fetch('http://127.0.0.1:8000/api/analytics/spend-over-time?interval=month&include_refunds=true')
+      .then((res) => res.json())
+      .then((res) => {
+        const apiData = res?.data || {};
+        const liveSeriesByKey: { [key: string]: { period: string; spend: number }[] } = {
+          combined: apiData?.combined || [],
+          amazon: apiData?.datasets?.amazon || [],
+          cruzbuy: apiData?.datasets?.cruzbuy || [],
+          pcard: apiData?.datasets?.pcard || [],
+        };
+        setSpendSeries(liveSeriesByKey[seriesKey] || liveSeriesByKey.combined || []);
+        setIsLoadingSpend(false);
+      })
+      .catch(() => {
+        setSpendSeries([]);
+        setIsLoadingSpend(false);
+      });
+  }, [isPreviewMode, activeTab]);
+
   return (
     <div className="space-y-6">
-      <TabNavigation activeTab={activeTab} onTabChange={setActiveTab} />
+      <div className="sticky top-0 z-40 bg-gray-50/95 backdrop-blur py-2">
+        <TabNavigation activeTab={activeTab} onTabChange={setActiveTab} />
+      </div>
       
       {/* --- STAGING BANNER --- */}
       <div className={`p-4 rounded-xl border flex justify-between items-center transition-all ${
@@ -97,6 +158,12 @@ useEffect(() => {
             <div className="h-[450px] w-full">
                <TopItemsChart data={topItems} />
             </div>
+
+            <TransactionsOverTimeChart
+              data={spendSeries}
+              loading={isLoadingSpend}
+              title={`Spend Over Time (${activeTab})`}
+            />
 
             <div className="flex justify-center">
               <button onClick={() => setShowDetails(!showDetails)} className="px-6 py-2 text-sm font-semibold text-blue-700 bg-blue-50 rounded-full hover:bg-blue-100 transition-colors">
