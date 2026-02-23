@@ -27,7 +27,7 @@ const mergePreviewData = (rawPreview: any, tab: string) => {
   const tabToKeyMap: { [key: string]: string } = {
     'Amazon': 'amazon',
     'ProCard': 'pcard',
-    'OneCard': 'cruzbuy'
+    'OneBuy': 'cruzbuy'
   };
 
 
@@ -59,7 +59,7 @@ const mergePreviewData = (rawPreview: any, tab: string) => {
 
 export function Dashboard() {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState<'Overall' | 'OneCard' | 'ProCard' | 'Amazon' | 'Bookstore'>('Overall');
+  const [activeTab, setActiveTab] = useState<'Overall' | 'OneBuy' | 'ProCard' | 'Amazon' | 'Bookstore'>('Overall');
   const [isPreviewMode, setIsPreviewMode] = useState(true);
   const [topItems, setTopItems] = useState<any[]>([]);
   const [isLoadingTopItems, setIsLoadingTopItems] = useState(true);
@@ -71,7 +71,7 @@ export function Dashboard() {
     Overall: 'combined',
     Amazon: 'amazon',
     ProCard: 'pcard',
-    OneCard: 'cruzbuy',
+    OneBuy: 'cruzbuy',
     Bookstore: 'combined',
   };
 
