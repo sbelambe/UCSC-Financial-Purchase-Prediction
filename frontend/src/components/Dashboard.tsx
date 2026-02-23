@@ -12,7 +12,8 @@ const mergePreviewData = (rawPreview: any, tab: string) => {
   const tabToKeyMap: { [key: string]: string } = {
     'Amazon': 'amazon',
     'ProCard': 'pcard',
-    'OneBuy': 'cruzbuy'
+    'OneBuy': 'cruzbuy',
+    'Bookstore': 'baytree'
   };
 
 
@@ -50,7 +51,7 @@ export function Dashboard() {
   const [isLoadingTopItems, setIsLoadingTopItems] = useState(true);
   const [showDetails, setShowDetails] = useState(false);
 
-  useEffect(() => {
+useEffect(() => {
     setTopItems([]);
     setIsLoadingTopItems(true);
 
@@ -59,9 +60,13 @@ export function Dashboard() {
       setTopItems(data);
       setIsLoadingTopItems(false);
     } else if (user) {
-      fetch(`http://127.0.0.1:8000/api/analytics/top-items?user_id=${user.uid}&vendor=${activeTab.toLowerCase()}`)
+      fetch(`http://127.0.0.1:8000/api/analytics/top-items?user_id=${user.uid}`)
         .then(res => res.json())
-        .then(res => { setTopItems(res.data || []); setIsLoadingTopItems(false); })
+        .then(res => { 
+            const liveMerged = mergePreviewData(res.data || {}, activeTab);
+            setTopItems(liveMerged); 
+            setIsLoadingTopItems(false); 
+        })
         .catch(() => setIsLoadingTopItems(false));
     }
   }, [user, isPreviewMode, activeTab]);

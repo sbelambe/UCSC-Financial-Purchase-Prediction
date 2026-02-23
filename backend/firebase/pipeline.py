@@ -2,7 +2,7 @@ from typing import Dict, Any
 
 from firebase.storage import upload_all_to_storage
 from firebase.firestore import df_to_firestore
-from firebase.summaries import save_top_values_summary
+from firebase.summaries import save_top_values_summary, save_top_items_detailed_summary
 
 
 def upload_cleaned_data(*, dataframes: Dict[str, Any], local_paths: Dict[str, str]) -> Dict[str, Dict[str, str]]:
@@ -22,6 +22,7 @@ def upload_cleaned_data(*, dataframes: Dict[str, Any], local_paths: Dict[str, st
         ),
     }
 
+    # ---------------- CRUZBUY SUMMARIES ----------------
     save_top_values_summary(
         upload_id=upload_ids["cruzbuy"],
         dataset="cruzbuy",
@@ -33,6 +34,20 @@ def upload_cleaned_data(*, dataframes: Dict[str, Any], local_paths: Dict[str, st
         n=10,
     )
 
+    save_top_items_detailed_summary(
+        upload_id=upload_ids["cruzbuy"],
+        dataset="cruzbuy",
+        storage_path=storage_paths["cruzbuy"],
+        summary_name="top_items_detailed",
+        title="Top Purchased Items",
+        df=dataframes["cruzbuy"],
+        item_col="Product Description",     
+        price_col="Total Price",       
+        vendor_col="Supplier Name",
+        n=20
+    )
+
+    # ---------------- AMAZON SUMMARIES ----------------
     save_top_values_summary(
         upload_id=upload_ids["amazon"],
         dataset="amazon",
@@ -44,6 +59,20 @@ def upload_cleaned_data(*, dataframes: Dict[str, Any], local_paths: Dict[str, st
         n=10,
     )
 
+    save_top_items_detailed_summary(
+        upload_id=upload_ids["amazon"],
+        dataset="amazon",
+        storage_path=storage_paths["amazon"],
+        summary_name="top_items_detailed",
+        title="Top Purchased Items",
+        df=dataframes["amazon"],
+        item_col="Item Description",
+        price_col="Subtotal",
+        vendor_col="Merchant Name",
+        n=20
+    )
+
+    # ---------------- PCARD SUMMARIES ----------------
     save_top_values_summary(
         upload_id=upload_ids["pcard"],
         dataset="pcard",
@@ -53,6 +82,19 @@ def upload_cleaned_data(*, dataframes: Dict[str, Any], local_paths: Dict[str, st
         df=dataframes["pcard"],
         column="Merchant Name",
         n=10,
+    )
+
+    save_top_items_detailed_summary(
+        upload_id=upload_ids["pcard"],
+        dataset="pcard",
+        storage_path=storage_paths["pcard"],
+        summary_name="top_items_detailed",
+        title="Top Purchased Items",
+        df=dataframes["pcard"],
+        item_col="Item Name",
+        price_col="Subtotal",
+        vendor_col="Merchant Name",
+        n=20
     )
 
     return {

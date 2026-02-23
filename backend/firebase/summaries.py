@@ -116,49 +116,35 @@ def save_top_values_summary(
 def compute_top_items_detailed(df, item_col, price_col, vendor_col, n=20):
     df_clean = df.copy()
     
-    # 1. Aggressive Blacklist
-    blacklist = {
-        "", "nan", "none", "sq hosted product", "noncatalog product", 
-        "punchout product", "order summary", "null", "undefined",
-        "shipping", "freight", "placeholder - do not close", "product"
-    }
-
-    df_clean['clean_item_name'] = df_clean[item_col].fillna("").astype(str).str.strip()
-    
-    # 2. Case-insensitive filter
-    df_clean = df_clean[
-        (~df_clean['clean_item_name'].str.lower().isin(blacklist)) & 
-        (df_clean['clean_item_name'].str.len() > 1) # Ignore single-character junk
-    ]
-    
-    # Standardize column names (case-insensitive search)
+    # 1. Standardize column names (case-insensitive search)
     cols_lower = {c.lower(): c for c in df.columns}
     actual_item_col = cols_lower.get(item_col.lower(), item_col)
     
+    # Safely get the actual vendor column name
+    actual_vendor_col = cols_lower.get(vendor_col.lower(), vendor_col)
+    
+    # 2. Extract and clean the strings
     df_clean['clean_item_name'] = df_clean[actual_item_col].fillna("").astype(str).str.strip()
 
-    blacklist = {
-        "", "nan", "none", "sq hosted product", "noncatalog product", 
-        "punchout product", "order summary", "null", "undefined"
-    }
-
-    # Apply filter
-    df_clean = df_clean[
-        (~df_clean['clean_item_name'].str.lower().isin(blacklist)) & 
-        (df_clean['clean_item_name'].str.len() > 0)
-    ]
+    # Clean the vendor column
+    if actual_vendor_col in df_clean.columns:
+        df_clean['clean_vendor_name'] = df_clean[actual_vendor_col].fillna("Unknown").astype(str).str.strip()
+    else:
+        df_clean['clean_vendor_name'] = "Unknown"
 
     if df_clean.empty:
         print(f"[TEST] No data remaining after filtering '{item_col}'. Check your column name!")
         return []
 
+    # Clean the price column
     df_clean[price_col] = df_clean[price_col].astype(str).str.replace(r'[\$,]', '', regex=True)
     df_clean[price_col] = pd.to_numeric(df_clean[price_col], errors='coerce').fillna(0.0)
 
-    # 2. Group & Aggregate
+    # 3. Group & Aggregate (Now capturing unique vendors!)
     stats = df_clean.groupby('clean_item_name').agg(
         count=('clean_item_name', 'count'),
-        total_spent=(price_col, 'sum') # Use the actual price column found
+        total_spent=(price_col, 'sum'), 
+        vendors=('clean_vendor_name', lambda x: list(set(x))) # Groups unique vendors into an array
     ).reset_index()
     
     stats = stats.sort_values(by='count', ascending=False).head(n)
@@ -172,7 +158,7 @@ def compute_top_items_detailed(df, item_col, price_col, vendor_col, n=20):
         print("Empty results.")
     print("-----------------------------------\n")
 
-    return stats.sort_values(by='count', ascending=False).head(n).to_dict(orient='records')
+    return stats.to_dict(orient='records')
 
 def save_top_items_detailed_summary(
     *,

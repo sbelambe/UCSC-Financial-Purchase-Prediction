@@ -37,14 +37,15 @@ def test_dashboard_integration(all_results: dict):
                 merged[name] = {"count": 0, "total": 0.0, "sources": set()}
             
             # --- Safe Numeric Parsing ---
-            raw_total = item.get('total_spent', 0)
-            try:
-                if isinstance(raw_total, str):
-                    clean_total = float(raw_total.replace('$', '').replace(',', '').strip())
-                else:
-                    clean_total = float(raw_total)
-            except (ValueError, TypeError):
-                clean_total = 0.0
+            raw_total = item.get('total_spent', 0) 
+            # If the cleaner failed and output a string (e.g., "$1,234.56"), crash the test loudly
+            if isinstance(raw_total, str):
+                print(f"\n[TYPE ERROR] Found a string instead of a float in {dataset.upper()}!")
+                print(f"Item: {name} | Value: '{raw_total}'")
+                raise TypeError(f"Database requires pure floats, but received string: {raw_total}")
+            
+            # If it passes, it's a pure number!
+            clean_total = float(raw_total)
 
             merged[name]["count"] += item['count']
             merged[name]["total"] += clean_total
