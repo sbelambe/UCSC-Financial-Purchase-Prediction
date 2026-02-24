@@ -1,6 +1,6 @@
 import os
 import pandas as pd
-# from config.cruzbuy_config import UNNECESSARY_COLUMNS
+from config.cruzbuy_config import UNNECESSARY_COLUMNS
 
 RAW_DIR = os.path.join(os.path.dirname(__file__), "..", "data", "raw")
 CLEAN_DIR = os.path.join(os.path.dirname(__file__), "..", "data", "clean")
@@ -36,7 +36,7 @@ def clean_cruzbuy(df):
 # ------------------------
 def clean_columns(df):
     # Drop unnecessary columns
-    # df.drop(columns=UNNECESSARY_COLUMNS, inplace=True, errors="ignore")
+    df.drop(columns=UNNECESSARY_COLUMNS, inplace=True, errors="ignore")
 
     # Normalize missing values
     missing_vals = ["N/A", "n/a", "NULL", "None", "?", "", "<NA>"]
@@ -81,10 +81,11 @@ def clean_numbers(df):
             df[col] = pd.to_numeric(df[col], errors="coerce")
     
     # For Subtotal (zero values), drop rows where Subtotal = 0
-    df = df[df["Subtotal"] != 0]
+    if "Subtotal" in df.columns:
+        df = df[df["Subtotal"] != 0]
 
     # For Quantity, should be numeric and >= 1
-    if "Quantitiy" in df.columns:
+    if "Quantity" in df.columns:
         df = df[df["Quantity"] > 0]
 
     return df
@@ -93,10 +94,10 @@ def clean_numbers(df):
 # ---------------------------
 def clean_categories(df):
     text_cols = ["Merchant Name",
-                 Item Description,
-                 Category,
-                 Subcategory,
-                 Item Name]
+                 "Item Description",
+                 "Category",
+                 "Subcategory",
+                 "Item Name"]
 
 
     # Clean up and title case category columns
@@ -107,7 +108,15 @@ def clean_categories(df):
                 .str.title()
             )
 
+    # Clean up this common Category inconsistency
+    old_name = "Musical Instruments And Games And Toys And Arts And Crafts And Educational Equipment And Materials A"
+    new_name = "Musical Instruments And Games And Toys And Arts And Crafts And Educational Equipment And Materials And Accessories And Supplies"
+
+    if "Category" in df.columns:
+        df.loc[df["Category"] == old_name, "Category"] = new_name
+
     return df
+
 
 def normalize_whitespace(series):
     return (
@@ -122,15 +131,26 @@ def normalize_whitespace(series):
 # ------------------------------ STEP 3: FINALIZE ----------------------------
 # Any final touches to clean the dataframe
 def finalize_dataframe(df):
-    """
-    Detailed description: Applies final formatting, including duplicating 
-    Subtotal into 'Total Price' for consistency across school datasets.
-    """
     if "Subtotal" in df.columns:
-        # Create "Total Price" as requested by copying "Subtotal"
+        # Create "Total Price" by copying "Subtotal"
         df["Total Price"] = df["Subtotal"]
+
+    # Sort rows by date
+    df = df.sort_values(by="Transaction Date")
+
+    # Add dollar signs back to price categories
+    price_cols = ["Subtotal", "Total Price"]
+    df = format_currency(df, price_cols)
+
     return df
 
+def format_currency(df, cols):
+    for col in cols:
+        if col in df.columns:
+            df[col] = df[col].apply(
+                lambda x: f"${x:,.2f}" if pd.notna(x) else x
+            )
+    return df
 # ----------------------------------------------------------------------------
 
 
@@ -142,6 +162,3 @@ def save_clean_data(df):
     df.to_csv(output_path, index=False)
 
 # ----------------------------------------------------------------------------
-
-
-# Make a column called "Total Price" that's just the same as Subtotal tbh
