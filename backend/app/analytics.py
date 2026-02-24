@@ -50,12 +50,14 @@ def _parse_transaction_date(value: Any) -> Optional[datetime]:
         return None
 
 
-def _period_key(dt: datetime, interval: str) -> str:
-    if interval == "day":
+def _period_key(dt: datetime, time_period: str) -> str:
+    if time_period == "day":
         return dt.strftime("%Y-%m-%d")
-    if interval == "week":
+    if time_period == "week":
         year, week, _ = dt.isocalendar()
         return f"{year}-W{week:02d}"
+    if time_period == "year":
+        return dt.strftime("%Y")
     return dt.strftime("%Y-%m")
 
 
@@ -72,11 +74,13 @@ def _dataset_rows(upload_id: str) -> List[Dict[str, Any]]:
 def get_spend_over_time(
     *,
     upload_ids: Optional[Dict[str, str]] = None,
-    interval: str = "month",
+    time_period: str = "month",
+    interval: Optional[str] = None,  # Backward-compatible alias
     include_refunds: bool = True,
 ) -> Dict[str, Any]:
-    if interval not in {"day", "week", "month"}:
-        raise ValueError("interval must be one of: day, week, month")
+    chosen_time_period = interval or time_period
+    if chosen_time_period not in {"day", "week", "month", "year"}:
+        raise ValueError("time_period must be one of: day, week, month, year")
 
     chosen_upload_ids = upload_ids or DEFAULT_UPLOAD_IDS
     dataset_series: Dict[str, Dict[str, float]] = {}
@@ -114,14 +118,15 @@ def get_spend_over_time(
                 if str(row.get("Transaction_Type", "")).lower() == "refund" or amount < 0:
                     continue
 
-            key = _period_key(dt, interval)
+            key = _period_key(dt, chosen_time_period)
             agg[key] += amount
             combined[key] += amount
 
         dataset_series[dataset] = dict(sorted(agg.items()))
 
     return {
-        "interval": interval,
+        "time_period": chosen_time_period,
+        "interval": chosen_time_period,  # Kept for existing frontend compatibility
         "include_refunds": include_refunds,
         "upload_ids": chosen_upload_ids,
         "datasets": {

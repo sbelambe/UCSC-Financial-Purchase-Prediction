@@ -94,7 +94,8 @@ def get_top_items(user_id: str):
 
 @app.get("/api/analytics/spend-over-time")
 def spend_over_time(
-    interval: str = "month",
+    time_period: str = "month",
+    interval: Optional[str] = None,  # Backward-compatible alias
     include_refunds: bool = True,
     amazon_upload_id: Optional[str] = None,
     cruzbuy_upload_id: Optional[str] = None,
@@ -111,6 +112,7 @@ def spend_over_time(
 
         data = get_spend_over_time(
             upload_ids=upload_ids,
+            time_period=time_period,
             interval=interval,
             include_refunds=include_refunds,
         )

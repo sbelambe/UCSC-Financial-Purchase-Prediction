@@ -106,7 +106,7 @@ export function Dashboard() {
       return;
     }
 
-    fetch('http://127.0.0.1:8000/api/analytics/spend-over-time?interval=month&include_refunds=true')
+    fetch('http://127.0.0.1:8000/api/analytics/spend-over-time?time_period=month&include_refunds=true')
       .then((res) => res.json())
       .then((res) => {
         const apiData = res?.data || {};

@@ -88,7 +88,7 @@ def upload_cleaned_data(
         df=dataframes["amazon"],
         date_col="Transaction Date",
         amount_col="Total Price",
-        interval="month",
+        time_period="month",
     )
 
     save_spend_over_time_summary(
@@ -100,7 +100,7 @@ def upload_cleaned_data(
         df=dataframes["cruzbuy"],
         date_col="Transaction Date",
         amount_col="Total Price",
-        interval="month",
+        time_period="month",
     )
 
     save_spend_over_time_summary(
@@ -112,7 +112,7 @@ def upload_cleaned_data(
         df=dataframes["pcard"],
         date_col="Transaction Date",
         amount_col="Total Price",
-        interval="month",
+        time_period="month",
         transaction_type_col="Transaction Type",
         include_refunds=True,
     )
