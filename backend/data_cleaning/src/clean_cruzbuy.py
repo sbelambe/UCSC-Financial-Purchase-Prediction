@@ -73,15 +73,49 @@ def clean_columns(df):
 # STEP 2.2 - CLEAN NUMERIC DATA
 # -----------------------------
 def clean_numbers(df):
-    number_cols = []
+    number_cols = ["Quantity", "Subtotal"]
 
+    # Convert to numeric types
+    for col in number_cols:
+        if col in df.columns:
+            df[col] = pd.to_numeric(df[col], errors="coerce")
+    
+    # For Subtotal (zero values), drop rows where Subtotal = 0
+    df = df[df["Subtotal"] != 0]
+
+    # For Quantity, should be numeric and >= 1
+    if "Quantitiy" in df.columns:
+        df = df[df["Quantity"] > 0]
 
     return df
 
 # STEP 2.3 - CLEAN CATEGORIES
 # ---------------------------
 def clean_categories(df):
+    text_cols = ["Merchant Name",
+                 Item Description,
+                 Category,
+                 Subcategory,
+                 Item Name]
+
+
+    # Clean up and title case category columns
+    for col in text_cols:
+        if col in df.columns:
+            df[col] = (
+                normalize_whitespace(df[col])
+                .str.title()
+            )
+
     return df
+
+def normalize_whitespace(series):
+    return (
+        series
+        .astype(str)
+        .str.replace(r"\s+", " ", regex=True)
+        .str.strip()
+    )
 # ----------------------------------------------------------------------------
 
 
