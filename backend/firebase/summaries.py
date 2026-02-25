@@ -188,14 +188,14 @@ def save_top_values_summary(
 def compute_top_items_detailed(df, item_col, price_col, vendor_col, n=20):
     df_clean = df.copy()
     
-    # 1. Standardize column names (case-insensitive search)
+    # Standardize column names (case-insensitive search)
     cols_lower = {c.lower(): c for c in df.columns}
     actual_item_col = cols_lower.get(item_col.lower(), item_col)
     
     # Safely get the actual vendor column name
     actual_vendor_col = cols_lower.get(vendor_col.lower(), vendor_col)
     
-    # 2. Extract and clean the strings
+    # Extract and clean the strings
     df_clean['clean_item_name'] = df_clean[actual_item_col].fillna("").astype(str).str.strip()
 
     # Clean the vendor column
@@ -212,11 +212,29 @@ def compute_top_items_detailed(df, item_col, price_col, vendor_col, n=20):
     df_clean[price_col] = df_clean[price_col].astype(str).str.replace(r'[\$,]', '', regex=True)
     df_clean[price_col] = pd.to_numeric(df_clean[price_col], errors='coerce').fillna(0.0)
 
-    # 3. Group & Aggregate (Now capturing unique vendors!)
-    stats = df_clean.groupby('clean_item_name').agg(
-        count=('clean_item_name', 'count'),
-        total_spent=(price_col, 'sum'), 
-        vendors=('clean_vendor_name', lambda x: list(set(x))) # Groups unique vendors into an array
+
+
+    # Calculate precise stats for every Item + Vendor combination
+    vendor_stats = df_clean.groupby(['clean_item_name', 'clean_vendor_name']).agg(
+        vendor_count=('clean_item_name', 'count'),
+        vendor_spent=(price_col, 'sum')
+    ).reset_index()
+
+    # Pack these stats into a dictionary column so it serializes cleanly to JSON
+    vendor_stats['vendor_dict'] = vendor_stats.apply(
+        lambda r: {
+            "name": r['clean_vendor_name'], 
+            "count": r['vendor_count'], 
+            "spend": r['vendor_spent']
+        },
+        axis=1
+    )
+
+    # Roll up everything to the Item level
+    stats = vendor_stats.groupby('clean_item_name').agg(
+        count=('vendor_count', 'sum'),
+        total_spent=('vendor_spent', 'sum'),
+        vendors=('vendor_dict', list)
     ).reset_index()
     
     stats = stats.sort_values(by='count', ascending=False).head(n)

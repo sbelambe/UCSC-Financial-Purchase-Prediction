@@ -7,3 +7,4 @@ matplotlib
 firebase_admin
 openpyxl
 google-api-python-client
+python-multipart

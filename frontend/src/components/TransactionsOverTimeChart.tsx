@@ -12,6 +12,7 @@ import {
 type SpendPoint = {
   period: string;
   spend: number;
+  pending_spend?: number;
 };
 
 type TransactionsOverTimeChartProps = {
@@ -32,9 +33,11 @@ const TransactionsOverTimeChart: React.FC<TransactionsOverTimeChartProps> = ({
   title = 'Spend Over Time',
   loading = false,
 }) => {
+  // map the pending_spend property if it exists
   const chartData = (data || []).map((d) => ({
     period: String(d.period),
     spend: Number(d.spend) || 0,
+    pending_spend: d.pending_spend ? Number(d.pending_spend) : undefined,
   }));
 
   if (loading) {
@@ -81,6 +84,8 @@ const TransactionsOverTimeChart: React.FC<TransactionsOverTimeChartProps> = ({
             labelFormatter={(label) => `Period: ${label}`}
           />
           <Legend />
+          
+          {/* Base Historical Spend Line */}
           <Line
             type="monotone"
             dataKey="spend"
@@ -88,7 +93,20 @@ const TransactionsOverTimeChart: React.FC<TransactionsOverTimeChartProps> = ({
             strokeWidth={3}
             dot={{ r: 3, fill: '#1e3a8a' }}
             activeDot={{ r: 5 }}
-            name="Spend"
+            name="Database Spend"
+          />
+          
+          {/* Sandbox Preview Line (Renders as a dashed purple line) */}
+          <Line
+            type="monotone"
+            dataKey="pending_spend"
+            stroke="#a855f7"
+            strokeWidth={3}
+            strokeDasharray="5 5" // Makes it dashed to indicate "pending" or "staged"
+            dot={{ r: 4, fill: '#a855f7' }}
+            activeDot={{ r: 6 }}
+            name="Pending Upload"
+            connectNulls // Allows the line to bridge gaps if a CSV skips a month
           />
         </LineChart>
       </div>

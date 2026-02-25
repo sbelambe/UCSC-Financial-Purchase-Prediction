@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import TopItemsChart from './TopItemsChart';
 import TransactionsOverTimeChart from './TransactionsOverTimeChart';
 import { TopItemsTable } from './TopItemsTable';
+import { ProjectionUploader } from './ProjectionUploader';
 import previewData from '../data/preview_top_20_data.json';
 import previewSpendOverTimeData from '../data/preview_spend_over_time_data.json';
 
@@ -31,20 +32,46 @@ const mergePreviewData = (rawPreview: any, tab: string) => {
     'Bookstore': 'baytree'
   };
 
-
-  const processDataset = (dataset: any[], source: string) => {
+  const processDataset = (dataset: any[]) => {
     dataset.forEach((item: any) => {
-      const name = item.clean_item_name;
+      // use the clean_item_name or fallback to "Unknown Item" if empty string
+      const name = item.clean_item_name || "Miscellaneous";
+
       if (!merged[name]) {
-        merged[name] = { clean_item_name: name, count: 0, total_spent: 0, vendors: [] };
+        merged[name] = { 
+          clean_item_name: name, 
+          count: 0, 
+          total_spent: 0, 
+          vendors: [],
+          projected_count: 0,
+          projected_spent: 0 
+        };
       }
-      merged[name].count += item.count || 0;
-      merged[name].total_spent += item.total_spent || 0;
+
+      // if it's tagged as projected data from our router...
+      if (item.projected_count || item.projected_spent) {
+        merged[name].projected_count += item.projected_count || 0;
+        merged[name].projected_spent += item.projected_spent || 0;
+      } 
+      // otherwise, treat it as historical base data
+      else {
+        merged[name].count += item.count || 0;
+        merged[name].total_spent += item.total_spent || 0;
+      }
+
+      // handle Vendors
       if (Array.isArray(item.vendors)) {
-        item.vendors.forEach((realVendor: string) => {
-          // Only add the vendor if it isn't already in the array to prevent duplicates
-          if (!merged[name].vendors.includes(realVendor)) {
-            merged[name].vendors.push(realVendor);
+        item.vendors.forEach((vendorData: any) => {
+          const vName = typeof vendorData === 'string' ? vendorData : vendorData.name;
+          const vCount = vendorData.count || 0;
+          const vSpend = vendorData.spend || 0;
+
+          const existingVendor = merged[name].vendors.find((v: any) => v.name === vName);
+          if (existingVendor) {
+            existingVendor.count += vCount;
+            existingVendor.spend += vSpend;
+          } else {
+            merged[name].vendors.push({ name: vName, count: vCount, spend: vSpend });
           }
         });
       }
@@ -52,13 +79,15 @@ const mergePreviewData = (rawPreview: any, tab: string) => {
   };
 
   if (tab === 'Overall') {
-    Object.entries(rawPreview).forEach(([key, val]) => processDataset(val as any[], key));
+    Object.entries(rawPreview).forEach(([key, val]) => processDataset(val as any[]));
   } else {
     const key = tabToKeyMap[tab];
-    if (key && rawPreview[key]) processDataset(rawPreview[key], key);
+    if (key && rawPreview[key]) processDataset(rawPreview[key]);
   }
 
-  return Object.values(merged).sort((a: any, b: any) => b.count - a.count);
+  return Object.values(merged).sort((a: any, b: any) => 
+    (b.count + b.projected_count) - (a.count + a.projected_count)
+  );
 };
 
 
@@ -71,11 +100,16 @@ export function Dashboard() {
   // passive cache states
   const [liveRawTopItems, setLiveRawTopItems] = useState<any>(null);
   const [liveRawSpend, setLiveRawSpend] = useState<any>(null);
+  const [projectedData, setProjectedData] = useState<{
+      dataset: string, 
+      data: any[], 
+      time_data: {period: string, pending_spend: number}[] 
+  } | null>(null);
 
   // active display states
   const [topItems, setTopItems] = useState<any[]>([]);
   const [isLoadingTopItems, setIsLoadingTopItems] = useState(true);
-  const [spendSeries, setSpendSeries] = useState<{ period: string; spend: number }[]>([]);
+  const [spendSeries, setSpendSeries] = useState<{ period: string; spend: number; pending_spend?: number }[]>([]);
   const [isLoadingSpend, setIsLoadingSpend] = useState(true);
   const [showDetails, setShowDetails] = useState(false);
 
@@ -123,28 +157,76 @@ export function Dashboard() {
 
   // runs instantly on tab changes (e.g. Amazon -> Pcard) using cached data
   useEffect(() => {
-      // Route Top Items
-      if (isPreviewMode) {
-        setTopItems(mergePreviewData(previewData, activeTab));
-      } else if (liveRawTopItems) {
-        setTopItems(mergePreviewData(liveRawTopItems, activeTab));
-      }
+    // --- Route Top Items ---
+    let baseTopItems = isPreviewMode ? previewData : liveRawTopItems;
+    
+    if (baseTopItems) {
+      // Deep copy to avoid mutating the original JSON/cache
+      const combinedData = JSON.parse(JSON.stringify(baseTopItems));
+      
+      // Ensure we are in Preview Mode and have staged data
+      if (projectedData && isPreviewMode) {
+        const targetKey = projectedData.dataset; // e.g., 'amazon'
+        
+        if (!combinedData[targetKey]) {
+            combinedData[targetKey] = [];
+        }
 
-      // Route Spend Over Time
-      const seriesKey = tabToSeriesKeyMap[activeTab] || 'combined';
-      if (isPreviewMode) {
-        const combinedSeries = previewSpendByTab.combined || buildCombinedSpendSeries(previewSpendByTab);
-        setSpendSeries(previewSpendByTab[seriesKey] || combinedSeries || []);
-      } else if (liveRawSpend) {
-        const liveSeriesByKey: { [key: string]: { period: string; spend: number }[] } = {
-          combined: liveRawSpend.combined || [],
-          amazon: liveRawSpend.datasets?.amazon || [],
-          cruzbuy: liveRawSpend.datasets?.cruzbuy || [],
-          pcard: liveRawSpend.datasets?.pcard || [],
-        };
-        setSpendSeries(liveSeriesByKey[seriesKey] || liveSeriesByKey.combined || []);
+        // TAG THE DATA: Convert 'count' to 'projected_count' so the Chart and Table can see the purple difference
+        const taggedProjectedData = projectedData.data.map((item: any) => ({
+            ...item,
+            projected_count: item.count,      // Map backend 'count' to UI 'projected_count'
+            projected_spent: item.total_spent // Map backend 'total_spent' to UI 'projected_spent'
+        }));
+
+        combinedData[targetKey] = [
+            ...combinedData[targetKey], 
+            ...taggedProjectedData
+        ];
       }
-    }, [activeTab, isPreviewMode, liveRawTopItems, liveRawSpend]);
+      
+      setTopItems(mergePreviewData(combinedData, activeTab));
+    }
+
+    // --- Route Spend Over Time (Historical Stacking) ---
+    const seriesKey = tabToSeriesKeyMap[activeTab] || 'combined';
+    let currentSpendSeries: { period: string; spend: number; pending_spend?: number }[] = [];
+
+    if (isPreviewMode) {
+      const combinedSeries = previewSpendByTab.combined || buildCombinedSpendSeries(previewSpendByTab);
+      currentSpendSeries = [...(previewSpendByTab[seriesKey] || combinedSeries || [])];
+    } else if (liveRawSpend) {
+      const liveSeriesByKey: { [key: string]: any } = {
+        combined: liveRawSpend.combined || [],
+        amazon: liveRawSpend.datasets?.amazon || [],
+        cruzbuy: liveRawSpend.datasets?.cruzbuy || [],
+        pcard: liveRawSpend.datasets?.pcard || [],
+      };
+      currentSpendSeries = [...(liveSeriesByKey[seriesKey] || liveSeriesByKey.combined || [])];
+    }
+
+    // Merge the time data for the line chart
+    if (projectedData && isPreviewMode) {
+      if (activeTab === 'Overall' || tabToSeriesKeyMap[activeTab] === projectedData.dataset) {
+        projectedData.time_data.forEach(pendingMonth => {
+          const existingMonthIndex = currentSpendSeries.findIndex(s => s.period === pendingMonth.period);
+          if (existingMonthIndex >= 0) {
+              currentSpendSeries[existingMonthIndex].pending_spend = pendingMonth.pending_spend;
+          } else {
+              currentSpendSeries.push({
+                  period: pendingMonth.period,
+                  spend: 0,
+                  pending_spend: pendingMonth.pending_spend
+              });
+          }
+        });
+        currentSpendSeries.sort((a, b) => a.period.localeCompare(b.period));
+      }
+    }
+
+    setSpendSeries(currentSpendSeries);
+
+  }, [activeTab, isPreviewMode, liveRawTopItems, liveRawSpend, projectedData]);
 
   return (
     <div className="space-y-6">
@@ -164,6 +246,17 @@ export function Dashboard() {
           {isPreviewMode ? "Switch to Live" : "View Preview"}
         </button>
       </div>
+
+      {/* --- PROJECTION UPLOADER --- */}
+      {isPreviewMode && (
+        <ProjectionUploader 
+          onProjectionSuccess={(dataset, data, time_data) => 
+            setProjectedData({ dataset, data, time_data })
+          }
+          onClearProjection={() => setProjectedData(null)}
+          hasActiveProjection={projectedData !== null}
+        />
+      )}
 
       {/* --- CHART SECTION --- */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 min-h-[650px] flex flex-col">
