@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { TabNavigation } from './TabNavigation';
 import { FilterBar } from './FilterBar';
 import { useAuth } from '../context/AuthContext';
@@ -23,7 +23,7 @@ const buildCombinedSpendSeries = (preview: { [key: string]: { period: string; sp
 };
 
 
-const mergePreviewData = (rawPreview: any, tab: string) => {
+const mergePreviewData = (rawPreview: any, tab: string,filterYear: string) => {
   const merged: { [key: string]: any } = {};
   const tabToKeyMap: { [key: string]: string } = {
     'Amazon': 'amazon',
@@ -34,6 +34,11 @@ const mergePreviewData = (rawPreview: any, tab: string) => {
 
   const processDataset = (dataset: any[]) => {
     dataset.forEach((item: any) => {
+      // if a specific year is selected, ignore rows from other years
+      if (filterYear !== 'All Time' && item.year && item.year !== filterYear) {
+        return; 
+      }
+
       // use the clean_item_name or fallback to "Unknown Item" if empty string
       const name = item.clean_item_name || "Miscellaneous";
 
@@ -112,13 +117,15 @@ export function Dashboard() {
   const [spendSeries, setSpendSeries] = useState<{ period: string; spend: number; pending_spend?: number }[]>([]);
   const [isLoadingSpend, setIsLoadingSpend] = useState(true);
   const [showDetails, setShowDetails] = useState(false);
+  const [selectedYear, setSelectedYear] = useState('All Time');
+  const [selectedCategory, setSelectedCategory] = useState('all');
+  const [searchQuery, setSearchQuery] = useState('');
 
   const tabToSeriesKeyMap: { [key: string]: string } = {
-    Overall: 'combined',
-    Amazon: 'amazon',
-    ProCard: 'pcard',
-    OneBuy: 'cruzbuy',
-    Bookstore: 'combined',
+    'Amazon': 'amazon',
+    'OneCard': 'onecard',
+    'CruzBuy': 'cruzbuy',
+    'Bookstore': 'baytree'
   };
 
   const previewSpendByTab = previewSpendOverTimeData as { [key: string]: { period: string; spend: number }[] };
@@ -185,7 +192,7 @@ export function Dashboard() {
         ];
       }
       
-      setTopItems(mergePreviewData(combinedData, activeTab));
+      setTopItems(mergePreviewData(combinedData, activeTab, selectedYear));
     }
 
     // --- Route Spend Over Time (Historical Stacking) ---
@@ -200,7 +207,7 @@ export function Dashboard() {
         combined: liveRawSpend.combined || [],
         amazon: liveRawSpend.datasets?.amazon || [],
         cruzbuy: liveRawSpend.datasets?.cruzbuy || [],
-        pcard: liveRawSpend.datasets?.pcard || [],
+        pcard: liveRawSpend.datasets?.onecard || [],
       };
       currentSpendSeries = [...(liveSeriesByKey[seriesKey] || liveSeriesByKey.combined || [])];
     }
@@ -226,7 +233,46 @@ export function Dashboard() {
 
     setSpendSeries(currentSpendSeries);
 
-  }, [activeTab, isPreviewMode, liveRawTopItems, liveRawSpend, projectedData]);
+  }, [activeTab, isPreviewMode, liveRawTopItems, liveRawSpend, projectedData, selectedYear]);
+
+
+// --- DYNAMIC FILTERING ---
+  const filteredTopItems = useMemo(() => {
+    if (!topItems) return [];
+    
+    return topItems.filter(item => {
+      const name = item.clean_item_name.toLowerCase();
+
+      // 1. Search Query Filter
+      if (searchQuery) {
+        const query = searchQuery.toLowerCase();
+        // Check both item name and vendor name
+        const hasVendorMatch = item.vendors?.some((v: { name: string }) => v.name.toLowerCase().includes(query));
+        
+        if (!name.includes(query) && !hasVendorMatch) {
+          return false;
+        }
+      }
+
+      // 2. Category Filter (Regex mapping to your Python seed data)
+      if (selectedCategory !== 'all') {
+        if (selectedCategory === 'technology' && !(/laptop|monitor|adapter|switch|drive|ipad|macbook|workstation|mouse|battery/.test(name))) return false;
+        if (selectedCategory === 'lab-supplies' && !(/centrifuge|glove|pipette|beaker|dna|microscope|slide|goggle|parafilm/.test(name))) return false;
+        if (selectedCategory === 'office' && !(/paper|marker|board|chair|stapler|pad|post-it|binder|toner/.test(name))) return false;
+        if (selectedCategory === 'facilities' && !(/bulb|filter|trash|ladder|vest|handle|soap|wipe/.test(name))) return false;
+      }
+
+      // 3. Year Filter 
+      if (selectedYear !== 'All Time') {
+        // If the backend attached a year to this item, enforce the filter
+        if (item.year && item.year !== selectedYear) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+  }, [topItems, searchQuery, selectedCategory, selectedYear]);
 
   return (
     <div className="space-y-6">
@@ -258,14 +304,26 @@ export function Dashboard() {
         />
       )}
 
-      {/* --- CHART SECTION --- */}
+      {/* --- FILTER BAR --- */}
+      <div className="my-6">
+        <FilterBar 
+          selectedYear={selectedYear}
+          selectedCategory={selectedCategory}
+          searchQuery={searchQuery}
+          onYearChange={setSelectedYear}
+          onCategoryChange={setSelectedCategory}
+          onSearchChange={setSearchQuery}
+        />
+      </div>
+
+      {/* --- CHART AND TABLE SECTION --- */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 min-h-[650px] flex flex-col">
         {isLoadingTopItems ? (
           <div className="flex flex-1 items-center justify-center">Loading...</div>
         ) : (
           <div className="space-y-8 flex-1">
             <div className="h-[450px] w-full">
-               <TopItemsChart data={topItems} />
+               <TopItemsChart data={filteredTopItems} />
             </div>
 
             <TransactionsOverTimeChart
@@ -280,7 +338,7 @@ export function Dashboard() {
               </button>
             </div>
 
-            {showDetails && <TopItemsTable data={topItems} />}
+            {showDetails && <TopItemsTable data={filteredTopItems} />}
           </div>
         )}
       </div>

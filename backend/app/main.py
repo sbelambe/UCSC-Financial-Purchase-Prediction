@@ -149,27 +149,27 @@ async def project_csv_data(
             price_col = find_col(["Item Total", "Price", "Total"])
             vendor_col = find_col(["Seller", "Merchant"])
             date_col = find_col(["Order Date", "Date"])
+
         elif dataset_lower == "cruzbuy":
-            # Looking for variations of Product Description
             item_col = find_col(["Product Description", "Description", "Item Description"])
             price_col = find_col(["Extended Price", "Total Price", "Amount"])
             vendor_col = find_col(["Supplier Name", "Supplier", "Vendor"])
             date_col = find_col(["PO Date", "Date", "Created Date"])
-        elif dataset_lower == "pcard":
+
+        elif dataset_lower == "onecard":
             item_col = find_col(["Transaction Description", "Description"])
             price_col = find_col(["Amount", "Transaction Amount"])
             vendor_col = find_col(["Merchant", "Vendor Name"])
             date_col = find_col(["Transaction Date", "Date"])
+            
         else:
             raise ValueError(f"Unknown dataset type: {dataset}")
 
         # --- LOGGING FOR DEBUGGING ---
+        # inside the /project_csv_data endpoint
         print(f"Detected columns - Item: {item_col}, Price: {price_col}, Date: {date_col}")
 
-        # process Top Items
-        projected_items = compute_top_items_detailed(
-            df=df, item_col=item_col, price_col=price_col, vendor_col=vendor_col, n=100 
-        )
+        projected_items = compute_top_items_detailed(df, item_col, price_col, vendor_col, date_col)
         
         # process Spend Over Time (Group by YYYY-MM)
         df_time = df.copy()
