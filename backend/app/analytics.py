@@ -46,10 +46,27 @@ def _map_columns(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def _find_preferred_source_file(base_dir: str) -> str | None:
-    candidates: list[str] = []
-
     clean_dir = os.path.join(base_dir, "data_cleaning", "clean")
     raw_dir = os.path.join(base_dir, "data_cleaning", "raw")
+
+    preferred_names = [
+        "bookstore_clean.csv",
+        "bookstore.csv",
+        "campus_store_clean.csv",
+        "campus_store.csv",
+        "bay_tree_clean.csv",
+        "bay_tree.csv",
+    ]
+
+    for folder in [clean_dir, raw_dir]:
+        if not os.path.isdir(folder):
+            continue
+        for name in preferred_names:
+            candidate = os.path.join(folder, name)
+            if os.path.exists(candidate):
+                return candidate
+
+    candidates: list[str] = []
 
     for folder in [clean_dir, raw_dir]:
         if not os.path.isdir(folder):
@@ -66,7 +83,7 @@ def _find_preferred_source_file(base_dir: str) -> str | None:
         name = os.path.basename(path).lower()
         is_clean = 1 if "clean" in path else 0
         keyword_points = 0
-        for keyword in ["cruzbuy", "campus", "store", "transaction"]:
+        for keyword in ["bookstore", "baytree", "campus", "store", "transaction", "cruzbuy"]:
             if keyword in name:
                 keyword_points += 1
         return (is_clean + keyword_points, len(name) * -1)

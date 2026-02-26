@@ -1,5 +1,6 @@
 from data_cleaning.src.clean_amazon import load_amazon
 from data_cleaning.src.clean_cruzbuy import clean_cruzbuy
+from data_cleaning.src.clean_bookstore import load_bookstore
 import os
 from datetime import datetime
 
@@ -11,7 +12,7 @@ def run_pipeline():
     # Clean each dataset
     amazon_df = load_amazon()
     cruzbuy_df = clean_cruzbuy()
-    # pcard_df = clean_pcard()
+    bookstore_df = load_bookstore()
     
     # TODO: currently adds csv based on time, should only upload if any major cleaning is happening to an additional csv
     ts = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
@@ -21,23 +22,30 @@ def run_pipeline():
     cruzbuy_local = os.path.abspath(
         os.path.join(os.path.dirname(__file__), "..", "clean", "cruzbuy_clean.csv")
     )
+    bookstore_local = os.path.abspath(
+        os.path.join(os.path.dirname(__file__), "..", "clean", "bookstore_clean.csv")
+    )
 
     # Storage paths
     amazon_storage = f"clean/amazon/amazon_clean_{ts}.csv"
     cruzbuy_storage = f"clean/cruzbuy/cruzbuy_clean_{ts}.csv"
+    bookstore_storage = f"clean/bookstore/bookstore_clean_{ts}.csv"
 
     # Upload both (amazon may be empty/missing if raw file missing)
     upload_csv_to_storage(amazon_local, amazon_storage)
     upload_csv_to_storage(cruzbuy_local, cruzbuy_storage)
+    upload_csv_to_storage(bookstore_local, bookstore_storage)
 
     # Create Summary
     result = {
         "amazon_rows": len(amazon_df),
         "cruzbuy_rows": len(cruzbuy_df),
-        "bundle_keys": ["amazon", "cruzbuy"],
+        "bookstore_rows": len(bookstore_df),
+        "bundle_keys": ["amazon", "cruzbuy", "bookstore"],
         "uploaded": {
             "amazon": amazon_storage,
             "cruzbuy": cruzbuy_storage,
+            "bookstore": bookstore_storage,
         },
     }
     return result

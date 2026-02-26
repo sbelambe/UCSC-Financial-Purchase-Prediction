@@ -20,6 +20,8 @@ app.add_middleware(
     allow_origins=[
         "http://localhost:5173",
         "http://127.0.0.1:5173",
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
     ],
     allow_credentials=True,
     allow_methods=["*"],  # Allows all methods (GET, POST, etc.)
@@ -62,17 +64,43 @@ def refresh_data():
         raise HTTPException(status_code=500, detail=str(e))
 
 
+def _bookstore_items_response(top_n: int, lookback_days: int, account: str):
+    return get_campus_store_item_insights(
+        top_n=top_n,
+        lookback_days=lookback_days,
+        account_filter=account,
+    )
+
+
 @app.get("/analytics/campus-store-items")
 def campus_store_items(top_n: int = 5, lookback_days: int = 90, account: str = "Campus Store"):
     """
     Returns most/least purchased Campus Store items and stock priority recommendations.
     """
     try:
-        return get_campus_store_item_insights(
-            top_n=top_n,
-            lookback_days=lookback_days,
-            account_filter=account,
-        )
+        return _bookstore_items_response(top_n, lookback_days, account)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/analytics/bookstore-items")
+def api_bookstore_items(top_n: int = 5, lookback_days: int = 90, account: str = "Campus Store"):
+    """
+    Standardized Bookstore analytics endpoint.
+    """
+    try:
+        return _bookstore_items_response(top_n, lookback_days, account)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/analytics/campus-store-items")
+def api_campus_store_items(top_n: int = 5, lookback_days: int = 90, account: str = "Campus Store"):
+    """
+    Alias for Campus Store analytics endpoint.
+    """
+    try:
+        return _bookstore_items_response(top_n, lookback_days, account)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     
