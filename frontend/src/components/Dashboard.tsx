@@ -120,6 +120,7 @@ export function Dashboard() {
   const [selectedYear, setSelectedYear] = useState('All Time');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [minSpend, setMinSpend] = useState<number>(0);
 
   const tabToSeriesKeyMap: { [key: string]: string } = {
     'Amazon': 'amazon',
@@ -159,7 +160,7 @@ export function Dashboard() {
           })
           .catch(() => setIsLoadingSpend(false));
       }
-    }, [user, isPreviewMode]); // Note: activeTab is REMOVED from the dependency array!
+    }, [user, isPreviewMode]);
 
 
   // runs instantly on tab changes (e.g. Amazon -> Pcard) using cached data
@@ -270,9 +271,18 @@ export function Dashboard() {
         }
       }
 
+      // 4. Minimum Spend Filter
+      if (minSpend > 0) {
+        // look at combined historical + staged spend
+        const combinedSpend = (item.total_spent || 0) + (item.projected_spent || 0);
+        if (combinedSpend < minSpend) {
+          return false;
+        }
+      }
+
       return true;
     });
-  }, [topItems, searchQuery, selectedCategory, selectedYear]);
+  }, [topItems, searchQuery, selectedCategory, selectedYear, minSpend]);
 
   return (
     <div className="space-y-6">
@@ -310,9 +320,11 @@ export function Dashboard() {
           selectedYear={selectedYear}
           selectedCategory={selectedCategory}
           searchQuery={searchQuery}
+          minSpend={minSpend}
           onYearChange={setSelectedYear}
           onCategoryChange={setSelectedCategory}
           onSearchChange={setSearchQuery}
+          onMinSpendChange={setMinSpend}
         />
       </div>
 

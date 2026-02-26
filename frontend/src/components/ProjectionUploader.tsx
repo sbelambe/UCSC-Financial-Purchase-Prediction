@@ -94,7 +94,7 @@ export function ProjectionUploader({ onProjectionSuccess, onClearProjection, has
       <div className="p-4 bg-purple-50 border border-purple-200 rounded-xl flex justify-between items-center shadow-sm">
         <div className="flex items-center space-x-3">
           <div className="w-3 h-3 rounded-full bg-purple-500 animate-pulse" />
-          <span className="font-bold text-purple-900">What-If Projection Active</span>
+          <span className="font-bold text-purple-900">Projection Active</span>
         </div>
         <button 
           onClick={onClearProjection}
@@ -107,7 +107,7 @@ export function ProjectionUploader({ onProjectionSuccess, onClearProjection, has
   }
 
   return (
-    <form onSubmit={handleUpload} className="p-4 bg-gray-50 border border-gray-200 rounded-xl flex flex-wrap gap-4 justify-between items-center shadow-sm">
+    <form onSubmit={handleUpload} className="p-4 bg-gray-50 border border-gray-200 rounded-xl flex flex-wrap gap-4 items-center shadow-sm">
       <div className="flex items-center gap-2 font-semibold text-sm text-gray-700">
         Project New Data:
         {wasAutoDetected && (
