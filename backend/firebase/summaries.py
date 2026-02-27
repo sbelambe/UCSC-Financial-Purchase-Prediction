@@ -52,14 +52,15 @@ def top_counts_payload(
 def spend_over_time_payload(
     *,
     title: str,
-    interval: str,
+    time_period: str,
     points: List[Dict[str, Any]],
     currency: str = "USD",
 ) -> Dict[str, Any]:
     return {
         "type": "spend_over_time",
         "title": title,
-        "interval": interval,
+        "time_period": time_period,
+        "interval": time_period,  # Backward-compatible field
         "currency": currency,
         "points": points,
     }
@@ -104,15 +105,17 @@ def compute_spend_over_time(
     *,
     date_col: str = "Transaction Date",
     amount_col: str = "Total Price",
-    interval: str = "month",
+    time_period: str = "month",
+    interval: Optional[str] = None,  # Backward-compatible alias
     transaction_type_col: Optional[str] = None,
     include_refunds: bool = True,
 ) -> List[Dict[str, Any]]:
     """
-    Returns [{"period": <YYYY-MM|YYYY-MM-DD|YYYY-Www>, "spend": <float>}, ...].
+    Returns [{"period": <YYYY|YYYY-MM|YYYY-MM-DD|YYYY-Www>, "spend": <float>}, ...].
     """
-    if interval not in {"day", "week", "month"}:
-        raise ValueError("interval must be one of: day, week, month")
+    chosen_time_period = interval or time_period
+    if chosen_time_period not in {"day", "week", "month", "year"}:
+        raise ValueError("time_period must be one of: day, week, month, year")
 
     if date_col not in df.columns or amount_col not in df.columns:
         print(f"[WARNING] Missing required columns: {date_col}, {amount_col}")
@@ -139,11 +142,13 @@ def compute_spend_over_time(
     if tmp.empty:
         return []
 
-    if interval == "day":
+    if chosen_time_period == "day":
         tmp["period"] = tmp[date_col].dt.strftime("%Y-%m-%d")
-    elif interval == "week":
+    elif chosen_time_period == "week":
         iso = tmp[date_col].dt.isocalendar()
         tmp["period"] = iso["year"].astype(str) + "-W" + iso["week"].astype(str).str.zfill(2)
+    elif chosen_time_period == "year":
+        tmp["period"] = tmp[date_col].dt.strftime("%Y")
     else:
         tmp["period"] = tmp[date_col].dt.strftime("%Y-%m")
 
@@ -292,22 +297,24 @@ def save_spend_over_time_summary(
     df: pd.DataFrame,
     date_col: str = "Transaction Date",
     amount_col: str = "Total Price",
-    interval: str = "month",
+    time_period: str = "month",
+    interval: Optional[str] = None,  # Backward-compatible alias
     transaction_type_col: Optional[str] = None,
     include_refunds: bool = True,
 ) -> None:
+    chosen_time_period = interval or time_period
     points = compute_spend_over_time(
         df,
         date_col=date_col,
         amount_col=amount_col,
-        interval=interval,
+        time_period=chosen_time_period,
         transaction_type_col=transaction_type_col,
         include_refunds=include_refunds,
     )
     if not points:
         return
 
-    payload = spend_over_time_payload(title=title, interval=interval, points=points)
+    payload = spend_over_time_payload(title=title, time_period=chosen_time_period, points=points)
     save_summary(
         upload_id=upload_id,
         name=summary_name,

@@ -1,9 +1,9 @@
 import os
 from typing import Dict, Any
 
-from backend.data_cleaning.src.clean_amazon import load_amazon
-from backend.data_cleaning.src.clean_cruzbuy import load_cruzbuy
-from backend.data_cleaning.src.clean_pcard import load_pcard
+from data_cleaning.src.clean_amazon import load_amazon
+from data_cleaning.src.clean_cruzbuy import load_cruzbuy
+from data_cleaning.src.clean_pcard import load_pcard
 
 
 def _clean_csv_paths() -> Dict[str, str]:

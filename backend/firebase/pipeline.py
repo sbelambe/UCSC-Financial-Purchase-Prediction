@@ -9,6 +9,7 @@ DEFAULT_UPLOAD_IDS = {
     "cruzbuy": "cruzbuy",
     "pcard": "pcard",
 }
+SPEND_PERIODS = ("day", "week", "month", "year")
 
 def upload_cleaned_data(
     *,
@@ -79,43 +80,44 @@ def upload_cleaned_data(
         n=10,
     )
 
-    save_spend_over_time_summary(
-        upload_id=upload_ids["amazon"],
-        dataset="amazon",
-        storage_path=storage_paths["amazon"],
-        summary_name="spend_over_time_monthly",
-        title="Spend over time",
-        df=dataframes["amazon"],
-        date_col="Transaction Date",
-        amount_col="Total Price",
-        interval="month",
-    )
+    for period in SPEND_PERIODS:
+        save_spend_over_time_summary(
+            upload_id=upload_ids["amazon"],
+            dataset="amazon",
+            storage_path=storage_paths["amazon"],
+            summary_name=f"spend_over_time_{period}",
+            title=f"Spend over time ({period})",
+            df=dataframes["amazon"],
+            date_col="Transaction Date",
+            amount_col="Total Price",
+            time_period=period,
+        )
 
-    save_spend_over_time_summary(
-        upload_id=upload_ids["cruzbuy"],
-        dataset="cruzbuy",
-        storage_path=storage_paths["cruzbuy"],
-        summary_name="spend_over_time_monthly",
-        title="Spend over time",
-        df=dataframes["cruzbuy"],
-        date_col="Transaction Date",
-        amount_col="Total Price",
-        interval="month",
-    )
+        save_spend_over_time_summary(
+            upload_id=upload_ids["cruzbuy"],
+            dataset="cruzbuy",
+            storage_path=storage_paths["cruzbuy"],
+            summary_name=f"spend_over_time_{period}",
+            title=f"Spend over time ({period})",
+            df=dataframes["cruzbuy"],
+            date_col="Transaction Date",
+            amount_col="Total Price",
+            time_period=period,
+        )
 
-    save_spend_over_time_summary(
-        upload_id=upload_ids["pcard"],
-        dataset="pcard",
-        storage_path=storage_paths["pcard"],
-        summary_name="spend_over_time_monthly",
-        title="Spend over time",
-        df=dataframes["pcard"],
-        date_col="Transaction Date",
-        amount_col="Total Price",
-        interval="month",
-        transaction_type_col="Transaction Type",
-        include_refunds=True,
-    )
+        save_spend_over_time_summary(
+            upload_id=upload_ids["pcard"],
+            dataset="pcard",
+            storage_path=storage_paths["pcard"],
+            summary_name=f"spend_over_time_{period}",
+            title=f"Spend over time ({period})",
+            df=dataframes["pcard"],
+            date_col="Transaction Date",
+            amount_col="Total Price",
+            time_period=period,
+            transaction_type_col="Transaction Type",
+            include_refunds=True,
+        )
 
     return {
         "uploaded": storage_paths,
