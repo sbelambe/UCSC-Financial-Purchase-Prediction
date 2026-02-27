@@ -21,6 +21,7 @@ from firebase.summaries import compute_top_items_detailed, compute_spend_over_ti
 
 # --- Environment Controls ---
 MOCK_FIRESTORE = os.getenv("MOCK_FIRESTORE", "False").lower() == "true"
+SPEND_PERIODS = ("day", "week", "month", "year")
 print(f"ENV: MOCK_FIRESTORE is {'ENABLED' if MOCK_FIRESTORE else 'DISABLED'}")
 
 def test_dashboard_integration(all_results: dict):
@@ -82,28 +83,28 @@ def run_pre_upload_audit():
             "pcard": compute_top_items_detailed(pcard_df, "Item Name", "Subtotal", "Merchant Name")
         }
 
-        local_spend_trend_previews = {
-            "amazon": compute_spend_over_time(
+        local_spend_trend_previews = {"amazon": {}, "cruzbuy": {}, "pcard": {}}
+        for period in SPEND_PERIODS:
+            local_spend_trend_previews["amazon"][period] = compute_spend_over_time(
                 amazon_df,
                 date_col="Transaction Date",
                 amount_col="Total Price",
-                interval="month",
-            ),
-            "cruzbuy": compute_spend_over_time(
+                time_period=period,
+            )
+            local_spend_trend_previews["cruzbuy"][period] = compute_spend_over_time(
                 cruzbuy_df,
                 date_col="Transaction Date",
                 amount_col="Total Price",
-                interval="month",
-            ),
-            "pcard": compute_spend_over_time(
+                time_period=period,
+            )
+            local_spend_trend_previews["pcard"][period] = compute_spend_over_time(
                 pcard_df,
                 date_col="Transaction Date",
                 amount_col="Total Price",
-                interval="month",
+                time_period=period,
                 transaction_type_col="Transaction Type",
                 include_refunds=True,
-            ),
-        }
+            )
 
         # 3. Display the terminal summary for immediate audit
         test_dashboard_integration(local_top_items_previews)
@@ -113,19 +114,32 @@ def run_pre_upload_audit():
         preview_top_items_file = os.path.abspath(
             os.path.join(BACKEND_ROOT, "..", "frontend", "src", "data", "preview_top_20_data.json")
         )
-        preview_spend_file = os.path.abspath(
+        preview_spend_monthly_file = os.path.abspath(
             os.path.join(BACKEND_ROOT, "..", "frontend", "src", "data", "preview_spend_over_time_data.json")
+        )
+        preview_spend_all_periods_file = os.path.abspath(
+            os.path.join(BACKEND_ROOT, "..", "frontend", "src", "data", "preview_spend_over_time_all_periods.json")
         )
         os.makedirs(os.path.dirname(preview_top_items_file), exist_ok=True)
         
         with open(preview_top_items_file, 'w') as f:
             json.dump(local_top_items_previews, f, indent=4)
 
-        with open(preview_spend_file, 'w') as f:
+        # Backward-compatible monthly JSON used by current frontend code.
+        monthly_only_payload = {
+            dataset: periods.get("month", [])
+            for dataset, periods in local_spend_trend_previews.items()
+        }
+        with open(preview_spend_monthly_file, 'w') as f:
+            json.dump(monthly_only_payload, f, indent=4)
+
+        # Full JSON payload with day/week/month/year.
+        with open(preview_spend_all_periods_file, 'w') as f:
             json.dump(local_spend_trend_previews, f, indent=4)
-        
+
         print(f"[SUCCESS] Top-items preview saved to: {preview_top_items_file}")
-        print(f"[SUCCESS] Spend-trend preview saved to: {preview_spend_file}")
+        print(f"[SUCCESS] Spend-trend monthly preview saved to: {preview_spend_monthly_file}")
+        print(f"[SUCCESS] Spend-trend all-period preview saved to: {preview_spend_all_periods_file}")
         print("Audit complete.")
 
     except Exception as e:
