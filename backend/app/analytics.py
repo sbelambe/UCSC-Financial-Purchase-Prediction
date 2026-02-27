@@ -71,6 +71,30 @@ def _dataset_rows(upload_id: str) -> List[Dict[str, Any]]:
     return [doc.to_dict() for doc in docs]
 
 
+def _dataset_spend_summary(upload_id: str, time_period: str) -> List[Dict[str, Any]]:
+    doc = (
+        db.collection("uploads")
+        .document(upload_id)
+        .collection("summaries")
+        .document(f"spend_over_time_{time_period}")
+        .get()
+    )
+
+    if not doc.exists:
+        return []
+
+    payload = doc.to_dict().get("payload", {})
+    points = payload.get("points", [])
+    normalized: List[Dict[str, Any]] = []
+    for point in points:
+        period = str(point.get("period", "")).strip()
+        spend = _parse_amount(point.get("spend"))
+        if not period or spend is None:
+            continue
+        normalized.append({"period": period, "spend": round(float(spend), 2)})
+    return normalized
+
+
 def get_spend_over_time(
     *,
     upload_ids: Optional[Dict[str, str]] = None,
@@ -83,7 +107,7 @@ def get_spend_over_time(
         raise ValueError("time_period must be one of: day, week, month, year")
 
     chosen_upload_ids = upload_ids or DEFAULT_UPLOAD_IDS
-    dataset_series: Dict[str, Dict[str, float]] = {}
+    dataset_series: Dict[str, List[Dict[str, Any]]] = {}
     combined = defaultdict(float)
     errors = {}
 
@@ -91,48 +115,32 @@ def get_spend_over_time(
         upload_id = chosen_upload_ids.get(dataset)
         if not upload_id:
             errors[dataset] = "missing upload_id"
-            dataset_series[dataset] = {}
+            dataset_series[dataset] = []
             continue
 
         try:
-            rows = _dataset_rows(upload_id)
+            points = _dataset_spend_summary(upload_id, chosen_time_period)
         except Exception as e:
             errors[dataset] = str(e)
-            dataset_series[dataset] = {}
+            dataset_series[dataset] = []
             continue
 
-        agg = defaultdict(float)
-        for row in rows:
-            dt = _parse_transaction_date(row.get("Transaction_Date"))
-            if dt is None:
-                continue
+        if dataset == "pcard" and not include_refunds:
+            errors[dataset] = (
+                "summary data is generated with refunds included; rerun ETL with "
+                "a no-refund summary if you need exclude_refunds behavior"
+            )
 
-            amount = _parse_amount(row.get("Total_Price"))
-            if amount is None:
-                amount = _parse_amount(row.get("Subtotal"))
-            if amount is None:
-                continue
-
-            # Optional exclusion of refunds for pcard.
-            if dataset == "pcard" and not include_refunds:
-                if str(row.get("Transaction_Type", "")).lower() == "refund" or amount < 0:
-                    continue
-
-            key = _period_key(dt, chosen_time_period)
-            agg[key] += amount
-            combined[key] += amount
-
-        dataset_series[dataset] = dict(sorted(agg.items()))
+        dataset_series[dataset] = points
+        for point in points:
+            combined[str(point["period"])] += float(point["spend"])
 
     return {
         "time_period": chosen_time_period,
         "interval": chosen_time_period,  # Kept for existing frontend compatibility
         "include_refunds": include_refunds,
         "upload_ids": chosen_upload_ids,
-        "datasets": {
-            name: [{"period": p, "spend": round(v, 2)} for p, v in series.items()]
-            for name, series in dataset_series.items()
-        },
+        "datasets": dataset_series,
         "combined": [{"period": p, "spend": round(v, 2)} for p, v in sorted(combined.items())],
         "errors": errors,
     }

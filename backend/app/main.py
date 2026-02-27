@@ -3,17 +3,16 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from typing import Optional
 from .analytics import get_item_freq, get_spend_over_time
-from backend.app.drive import sync_drive_folder
 from dotenv import load_dotenv
-from backend.jobs.run_full_pipeline import run_full_pipeline
-
-load_dotenv()
 
 # --- Path Configuration ---
 # Add backend/ to sys.path so app, jobs, firebase, and data_cleaning packages can be imported.
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from jobs.run_firebase_uploads import run_firebase_uploads
+from app.drive import sync_drive_folder
+from jobs.run_full_pipeline import run_full_pipeline
+
+load_dotenv()
 
 app = FastAPI(title="UCSC Financial Dashboard API")
 
