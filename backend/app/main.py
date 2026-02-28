@@ -5,8 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from typing import Optional
 from .analytics import get_item_freq, get_spend_over_time
 from firebase.summaries import compute_top_items_detailed
-# from backend.app.drive import sync_drive_folder
-# from backend.jobs.run_full_pipeline import run_full_pipeline
+# # from backend.jobs.run_full_pipeline import run_full_pipeline
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -15,7 +14,10 @@ load_dotenv()
 # Add backend/ to sys.path so app, jobs, firebase, and data_cleaning packages can be imported.
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from jobs.run_firebase_uploads import run_firebase_uploads
+from app.drive import sync_drive_folder
+from jobs.run_full_pipeline import run_full_pipeline
+
+load_dotenv()
 
 app = FastAPI(title="UCSC Financial Dashboard API")
 
@@ -96,7 +98,8 @@ def get_top_items(user_id: str):
 
 @app.get("/api/analytics/spend-over-time")
 def spend_over_time(
-    interval: str = "month",
+    time_period: str = "month",
+    interval: Optional[str] = None,  # Backward-compatible alias
     include_refunds: bool = True,
     amazon_upload_id: Optional[str] = None,
     cruzbuy_upload_id: Optional[str] = None,
@@ -113,6 +116,7 @@ def spend_over_time(
 
         data = get_spend_over_time(
             upload_ids=upload_ids,
+            time_period=time_period,
             interval=interval,
             include_refunds=include_refunds,
         )

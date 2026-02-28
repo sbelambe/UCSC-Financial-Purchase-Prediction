@@ -7,8 +7,9 @@ from firebase.summaries import save_top_values_summary, save_top_items_detailed_
 DEFAULT_UPLOAD_IDS = {
     "amazon": "amazon",
     "cruzbuy": "cruzbuy",
-    "pcard": "pcard",
+    "onecard": "onecard",
 }
+SPEND_PERIODS = ("day", "week", "month", "year")
 
 def upload_cleaned_data(
     *,
@@ -37,16 +38,15 @@ def upload_cleaned_data(
             upload_id=chosen_upload_ids["cruzbuy"],
             write_rows=False,
         ),
-        "pcard": df_to_firestore(
-            dataframes["pcard"],
-            dataset="pcard",
-            storage_path=storage_paths["pcard"],
-            upload_id=chosen_upload_ids["pcard"],
+        "onecard": df_to_firestore(
+            dataframes["onecard"],
+            dataset="onecard",
+            storage_path=storage_paths["onecard"],
+            upload_id=chosen_upload_ids["onecard"],
             write_rows=False,
         ),
     }
 
-    # ---------------- CRUZBUY SUMMARIES ----------------
     save_top_values_summary(
         upload_id=upload_ids["cruzbuy"],
         dataset="cruzbuy",
@@ -55,6 +55,28 @@ def upload_cleaned_data(
         title="Top manufacturers",
         df=dataframes["cruzbuy"],
         column="Manufacturer",
+        n=10,
+    )
+
+    save_top_values_summary(
+        upload_id=upload_ids["amazon"],
+        dataset="amazon",
+        storage_path=storage_paths["amazon"],
+        summary_name="top_manufacturers_10",
+        title="Top manufacturers",
+        df=dataframes["amazon"],
+        column="Merchant Name",
+        n=10,
+    )
+
+    save_top_values_summary(
+        upload_id=upload_ids["onecard"],
+        dataset="onecard",
+        storage_path=storage_paths["onecard"],
+        summary_name="top_merchants_10",
+        title="Top merchants",
+        df=dataframes["onecard"],
+        column="Merchant Name",
         n=10,
     )
 
@@ -71,30 +93,6 @@ def upload_cleaned_data(
         n=20
     )
 
-    save_spend_over_time_summary(
-        upload_id=upload_ids["cruzbuy"],
-        dataset="cruzbuy",
-        storage_path=storage_paths["cruzbuy"],
-        summary_name="spend_over_time_monthly",
-        title="Spend over time",
-        df=dataframes["cruzbuy"],
-        date_col="Transaction Date",
-        amount_col="Total Price",
-        interval="month",
-    )
-
-    # ---------------- AMAZON SUMMARIES ----------------
-    save_top_values_summary(
-        upload_id=upload_ids["amazon"],
-        dataset="amazon",
-        storage_path=storage_paths["amazon"],
-        summary_name="top_manufacturers_10",
-        title="Top manufacturers",
-        df=dataframes["amazon"],
-        column="Merchant Name",
-        n=10,
-    )
-
     save_top_items_detailed_summary(
         upload_id=upload_ids["amazon"],
         dataset="amazon",
@@ -108,57 +106,57 @@ def upload_cleaned_data(
         n=20
     )
 
-    save_spend_over_time_summary(
-        upload_id=upload_ids["amazon"],
-        dataset="amazon",
-        storage_path=storage_paths["amazon"],
-        summary_name="spend_over_time_monthly",
-        title="Spend over time",
-        df=dataframes["amazon"],
-        date_col="Transaction Date",
-        amount_col="Total Price",
-        interval="month",
-    )
-
-    # ---------------- PCARD SUMMARIES ----------------
-    save_top_values_summary(
-        upload_id=upload_ids["pcard"],
-        dataset="pcard",
-        storage_path=storage_paths["pcard"],
-        summary_name="top_merchants_10",
-        title="Top merchants",
-        df=dataframes["pcard"],
-        column="Merchant Name",
-        n=10,
-    )
-
-
     save_top_items_detailed_summary(
-        upload_id=upload_ids["pcard"],
-        dataset="pcard",
-        storage_path=storage_paths["pcard"],
+        upload_id=upload_ids["onecard"],
+        dataset="onecard",
+        storage_path=storage_paths["onecard"],
         summary_name="top_items_detailed",
         title="Top Purchased Items",
-        df=dataframes["pcard"],
+        df=dataframes["onecard"],
         item_col="Item Name",
         price_col="Subtotal",
         vendor_col="Merchant Name",
         n=20
     )
 
-    save_spend_over_time_summary(
-        upload_id=upload_ids["pcard"],
-        dataset="pcard",
-        storage_path=storage_paths["pcard"],
-        summary_name="spend_over_time_monthly",
-        title="Spend over time",
-        df=dataframes["pcard"],
-        date_col="Transaction Date",
-        amount_col="Total Price",
-        interval="month",
-        transaction_type_col="Transaction Type",
-        include_refunds=True,
-    )
+    for period in SPEND_PERIODS:
+        save_spend_over_time_summary(
+            upload_id=upload_ids["amazon"],
+            dataset="amazon",
+            storage_path=storage_paths["amazon"],
+            summary_name=f"spend_over_time_{period}",
+            title=f"Spend over time ({period})",
+            df=dataframes["amazon"],
+            date_col="Transaction Date",
+            amount_col="Total Price",
+            time_period=period,
+        )
+
+        save_spend_over_time_summary(
+            upload_id=upload_ids["cruzbuy"],
+            dataset="cruzbuy",
+            storage_path=storage_paths["cruzbuy"],
+            summary_name=f"spend_over_time_{period}",
+            title=f"Spend over time ({period})",
+            df=dataframes["cruzbuy"],
+            date_col="Transaction Date",
+            amount_col="Total Price",
+            time_period=period,
+        )
+
+        save_spend_over_time_summary(
+            upload_id=upload_ids["onecard"],
+            dataset="onecard",
+            storage_path=storage_paths["onecard"],
+            summary_name=f"spend_over_time_{period}",
+            title=f"Spend over time ({period})",
+            df=dataframes["onecard"],
+            date_col="Transaction Date",
+            amount_col="Total Price",
+            time_period=period,
+            transaction_type_col="Transaction Type",
+            include_refunds=True,
+        )
 
     return {
         "uploaded": storage_paths,
