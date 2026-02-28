@@ -2,7 +2,7 @@ from typing import Dict, Any, Optional
 
 from firebase.storage import upload_all_to_storage
 from firebase.firestore import df_to_firestore
-from firebase.summaries import save_top_values_summary, save_spend_over_time_summary
+from firebase.summaries import save_top_values_summary, save_spend_over_time_summary, save_top_items_detailed_summary
 
 DEFAULT_UPLOAD_IDS = {
     "amazon": "amazon",
@@ -10,7 +10,6 @@ DEFAULT_UPLOAD_IDS = {
     "pcard": "pcard",
     "bookstore": "bookstore",
 }
-SPEND_PERIODS = ("day", "week", "month", "year")
 
 def upload_cleaned_data(
     *,
@@ -66,6 +65,19 @@ def upload_cleaned_data(
         n=10,
     )
 
+    save_top_items_detailed_summary(
+        upload_id=upload_ids["cruzbuy"],
+        dataset="cruzbuy",
+        storage_path=storage_paths["cruzbuy"],
+        summary_name="top_items_detailed",
+        title="Top Purchased Items",
+        df=dataframes["cruzbuy"],
+        item_col="Product Description",     
+        price_col="Total Price",       
+        vendor_col="Supplier Name",
+        n=20
+    )
+
     save_top_values_summary(
         upload_id=upload_ids["amazon"],
         dataset="amazon",
@@ -75,6 +87,19 @@ def upload_cleaned_data(
         df=dataframes["amazon"],
         column="Merchant Name",
         n=10,
+    )
+
+    save_top_items_detailed_summary(
+        upload_id=upload_ids["amazon"],
+        dataset="amazon",
+        storage_path=storage_paths["amazon"],
+        summary_name="top_items_detailed",
+        title="Top Purchased Items",
+        df=dataframes["amazon"],
+        item_col="Item Description",
+        price_col="Subtotal",
+        vendor_col="Merchant Name",
+        n=20
     )
 
     save_top_values_summary(
@@ -88,6 +113,19 @@ def upload_cleaned_data(
         n=10,
     )
 
+    save_top_items_detailed_summary(
+        upload_id=upload_ids["pcard"],
+        dataset="pcard",
+        storage_path=storage_paths["pcard"],
+        summary_name="top_items_detailed",
+        title="Top Purchased Items",
+        df=dataframes["pcard"],
+        item_col="Item Name",
+        price_col="Subtotal",
+        vendor_col="Merchant Name",
+        n=20
+    )
+
     save_top_values_summary(
         upload_id=upload_ids["bookstore"],
         dataset="bookstore",
@@ -97,6 +135,19 @@ def upload_cleaned_data(
         df=dataframes["bookstore"],
         column="Merchant Name",
         n=10,
+    )
+
+    save_top_items_detailed_summary(
+        upload_id=upload_ids["bookstore"],
+        dataset="bookstore",
+        storage_path=storage_paths["bookstore"],
+        summary_name="top_items_detailed",
+        title="Top Purchased Items",
+        df=dataframes["bookstore"],
+        item_col="Item Name",
+        price_col="Subtotal",
+        vendor_col="Merchant Name",
+        n=20
     )
 
     for period in SPEND_PERIODS:

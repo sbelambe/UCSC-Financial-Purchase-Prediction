@@ -1,30 +1,37 @@
 import { Search } from 'lucide-react';
+import React from 'react';
 
 interface FilterBarProps {
   selectedYear: string;
   selectedCategory: string;
   searchQuery: string;
+  minSpend: number;
   onYearChange: (year: string) => void;
   onCategoryChange: (category: string) => void;
   onSearchChange: (query: string) => void;
+  onMinSpendChange: (minSpend: number) => void;
 }
 
 export function FilterBar({
   selectedYear,
   selectedCategory,
   searchQuery,
+  minSpend,
   onYearChange,
   onCategoryChange,
   onSearchChange,
+  onMinSpendChange,
 }: FilterBarProps) {
-  const years = ['2022', '2023', '2024', '2025', '2026'];
+  // Added 'All Time' so the dashboard doesn't default to an empty view
+  const years = ['All Time', '2026', '2025', '2024']; 
+  
+  // Custom categories matching your campus procurement data
   const categories = [
     { value: 'all', label: 'All Categories' },
-    { value: 'office-supplies', label: 'Office Supplies' },
-    { value: 'electronics', label: 'Electronics' },
-    { value: 'furniture', label: 'Furniture' },
-    { value: 'food-beverages', label: 'Food & Beverages' },
-    { value: 'books', label: 'Books' },
+    { value: 'technology', label: 'Technology & IT' },
+    { value: 'lab-supplies', label: 'Lab & Science Supplies' },
+    { value: 'office', label: 'Office & Classroom' },
+    { value: 'facilities', label: 'Facilities & Maintenance' },
   ];
 
   return (
@@ -41,7 +48,7 @@ export function FilterBar({
         >
           {years.map((year) => (
             <option key={year} value={year}>
-              Year: {year}
+              {year === 'All Time' ? year : `Year: ${year}`}
             </option>
           ))}
         </select>
@@ -60,6 +67,23 @@ export function FilterBar({
           ))}
         </select>
 
+        
+
+        {/* Minimum Spend Filter */}
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-gray-500 font-medium">Min $</span>
+          <input
+            type="number"
+            min="0"
+            step="100"
+            value={minSpend || ''}
+            onChange={(e) => onMinSpendChange(Number(e.target.value))}
+            placeholder="0"
+            className="w-24 p-1 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-opacity-50 text-sm"
+            style={{ outlineColor: '#003c6c' }}
+          />
+        </div>
+
         {/* Search Bar */}
         <div className="flex-1 relative">
           <Search
@@ -70,11 +94,12 @@ export function FilterBar({
             type="text"
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
-            placeholder="Search product name, etc."
+            placeholder="Search item name, vendor, etc."
             className="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-opacity-50 text-sm"
             style={{ outlineColor: '#003c6c' }}
           />
         </div>
+
       </div>
     </div>
   );

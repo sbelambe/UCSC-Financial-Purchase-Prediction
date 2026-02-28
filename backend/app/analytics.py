@@ -1,5 +1,5 @@
 from .firebase import db
-from google.cloud.firestore import FieldFilter
+from google.cloud.firestore import FieldFilter, Query
 from datetime import datetime
 from collections import defaultdict
 from typing import Dict, Any, Optional, List
@@ -149,53 +149,116 @@ def get_spend_over_time(
 
 def get_item_freq(user_id: str, limit: int = 20):
     """
-    Queries the 'summaries' collection group for all 'top_items_detailed' documents, 
-    merges the results, and returns the highest frequency items.
+    Queries the 'summaries' collection group for all 'top_items_detailed' documents.
+    Groups the results by dataset (amazon, cruzbuy, pcard) to perfectly match 
+    the structure of the frontend's preview_data.json.
     """
     print("Fetching pre-calculated summaries from 'summaries' collection group...")
     
     try:
-        # Fetch only documents named "top_items_detailed" across all uploads
-        docs = db.collection_group("summaries").where(filter=FieldFilter("name", "==", "top_items_detailed")).stream()
+        datasets = ["amazon", "cruzbuy", "pcard"]
         
-        # Merge dictionary to combine stats across multiple uploads
-        merged_stats = {}
+        grouped_stats = {
+            "amazon": {},
+            "cruzbuy": {},
+            "pcard": {}
+        }
         
         doc_count = 0
-        for doc in docs:
-            doc_count += 1
-            payload = doc.to_dict().get("payload", {})
-            items = payload.get("items", [])
+        
+        # query for the absolute newest document per dataset
+        for ds in datasets:
+            latest_upload_query = db.collection("uploads") \
+                .where(filter=FieldFilter("dataset", "==", ds)) \
+                .order_by("createdAt", direction=Query.DESCENDING) \
+                .limit(1) \
+                .stream()
+                
+            latest_doc = next(latest_upload_query, None)
             
+            if not latest_doc:
+                print(f"No recent uploads found for dataset: {ds}")
+                continue
+                
+            upload_id = latest_doc.id
+            
+            # fetch only the summary belonging to this specific latest upload
+            summary_doc = db.collection("uploads").document(upload_id) \
+                .collection("summaries").document("top_items_detailed").get()
+                
+            if not summary_doc.exists:
+                continue
+
+            doc_count += 1
+            data = summary_doc.to_dict()
+            payload = data.get("payload", {})
+            items = payload.get("items", [])
+            target_group = grouped_stats[ds]
+
             for item in items:
-                name = item["clean_item_name"]
-                if name not in merged_stats:
-                    merged_stats[name] = {
+                name = item.get("clean_item_name", "").strip()
+                if not name:
+                    continue
+
+                if name not in target_group:
+                    target_group[name] = {
                         "clean_item_name": name,
                         "count": 0,
                         "total_spent": 0.0,
-                        "vendors": set()
+                        "vendors": {} 
                     }
                 
-                merged_stats[name]["count"] += item["count"]
-                merged_stats[name]["total_spent"] += item["total_spent"]
-                for v in item["vendors"]:
-                    merged_stats[name]["vendors"].add(v)
+                # --- Handle legacy string data ---
+                raw_spent = item.get("total_spent", 0.0)
+                if isinstance(raw_spent, str):
+                    try:
+                        clean_spent = float(raw_spent.replace('$', '').replace(',', '').strip())
+                    except ValueError:
+                        clean_spent = 0.0
+                else:
+                    clean_spent = float(raw_spent)
+                # --------------------------------------------
+                
+                target_group[name]["count"] += item.get("count", 0)
+                target_group[name]["total_spent"] += clean_spent
+                
+                # --- Map Vendor Financial Objects ---
+                vendors = item.get("vendors", [])
+                for v in vendors:
+                    # fallback support for older summaries where vendors were just strings
+                    v_name = v if isinstance(v, str) else v.get("name", "Unknown")
+                    v_count = 0 if isinstance(v, str) else v.get("count", 0)
+                    v_spend = 0.0 if isinstance(v, str) else v.get("spend", 0.0)
+                    
+                    if v_name not in target_group[name]["vendors"]:
+                        target_group[name]["vendors"][v_name] = {
+                            "name": v_name, 
+                            "count": 0, 
+                            "spend": 0.0
+                        }
+                    
+                    target_group[name]["vendors"][v_name]["count"] += v_count
+                    target_group[name]["vendors"][v_name]["spend"] += v_spend
 
         if doc_count == 0:
             print("No detailed summary documents found! Run the ETL script first.")
-            return []
+            return {"amazon": [], "cruzbuy": [], "pcard": []}
             
-        print(f"Successfully merged data from {doc_count} summary documents.")
+        print(f"Successfully fetched and grouped data from {doc_count} summary documents.")
         
-        # Convert sets back to lists for JSON serialization
-        final_list = list(merged_stats.values())
-        for item in final_list:
-            item["vendors"] = list(item["vendors"])
-            
-        # Sort by count descending and apply limit
-        final_list.sort(key=lambda x: x["count"], reverse=True)
-        return final_list[:limit]
+        # Format the final output to mirror preview_data.json
+        final_result = {}
+        for ds, items_dict in grouped_stats.items():
+            final_list = list(items_dict.values())
+            for item in final_list:
+                # convert the nested vendor dictionary back into a clean array for the frontend
+                item["vendors"] = list(item["vendors"].values())
+                
+            # Sort each section independently and apply the limit
+            final_list.sort(key=lambda x: x["count"], reverse=True)
+            final_result[ds] = final_list[:limit]
+
+        return final_result
             
     except Exception as e:
         print(f"CRITICAL FIREBASE ERROR: {e}")

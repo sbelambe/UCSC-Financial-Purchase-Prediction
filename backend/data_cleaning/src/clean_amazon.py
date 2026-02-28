@@ -173,11 +173,11 @@ def finalize_dataframe(df):
     df = df.sort_values(by="Transaction Date")
 
     # Add dollar signs back to price categories
-    price_cols = ["Subtotal",
-                  "Sales Tax",
-                  "Total Price"
-    ]
-    df = format_currency(df, price_cols)
+    # price_cols = ["Subtotal",
+    #               "Sales Tax",
+    #               "Total Price"
+    # ]
+    # df = format_currency(df, price_cols)
 
     return df
 
