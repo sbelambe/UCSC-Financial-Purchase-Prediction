@@ -4,6 +4,7 @@ from typing import Dict, Any
 from data_cleaning.src.clean_amazon import load_amazon
 from data_cleaning.src.clean_cruzbuy import load_cruzbuy
 from data_cleaning.src.clean_pcard import load_pcard
+from data_cleaning.src.clean_bookstore import load_bookstore
 
 
 def _clean_csv_paths() -> Dict[str, str]:
@@ -12,6 +13,7 @@ def _clean_csv_paths() -> Dict[str, str]:
         "amazon": os.path.join(base, "amazon_clean.xlsx"),
         "cruzbuy": os.path.join(base, "cruzbuy_clean.xlsx"),
         "pcard": os.path.join(base, "procard_clean.xlsx"),
+        "bookstore": os.path.join(base, "bookstore_clean.csv"),
     }
 
 
@@ -22,12 +24,14 @@ def run_data_cleaning() -> Dict[str, Any]:
     amazon_df = load_amazon()
     cruzbuy_df = load_cruzbuy()
     pcard_df = load_pcard()
+    bookstore_df = load_bookstore()
 
     return {
         "dataframes": {
             "amazon": amazon_df,
             "cruzbuy": cruzbuy_df,
             "pcard": pcard_df,
+            "bookstore": bookstore_df,
         },
         "local_paths": _clean_csv_paths(),
     }

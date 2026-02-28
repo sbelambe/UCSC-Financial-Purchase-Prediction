@@ -4,6 +4,7 @@ from fastapi import FastAPI, HTTPException, File, UploadFile, Form
 from fastapi.middleware.cors import CORSMiddleware
 from typing import Optional
 from .analytics import get_item_freq, get_spend_over_time
+from .analytics_bookstore import get_campus_store_item_insights
 from firebase.summaries import compute_top_items_detailed
 # # from backend.jobs.run_full_pipeline import run_full_pipeline
 from dotenv import load_dotenv
@@ -121,6 +122,46 @@ def spend_over_time(
             include_refunds=include_refunds,
         )
         return {"status": "success", "data": data}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    
+def _bookstore_items_response(top_n: int, lookback_days: int, account: str):
+    return get_campus_store_item_insights(
+        top_n=top_n,
+        lookback_days=lookback_days,
+        account_filter=account,
+    )
+
+
+@app.get("/analytics/campus-store-items")
+def campus_store_items(top_n: int = 5, lookback_days: int = 90, account: str = "Campus Store"):
+    """
+    Returns most/least purchased Campus Store items and stock priority recommendations.
+    """
+    try:
+        return _bookstore_items_response(top_n, lookback_days, account)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/analytics/bookstore-items")
+def api_bookstore_items(top_n: int = 5, lookback_days: int = 90, account: str = "Campus Store"):
+    """
+    Standardized Bookstore analytics endpoint.
+    """
+    try:
+        return _bookstore_items_response(top_n, lookback_days, account)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/analytics/campus-store-items")
+def api_campus_store_items(top_n: int = 5, lookback_days: int = 90, account: str = "Campus Store"):
+    """
+    Alias for Campus Store analytics endpoint.
+    """
+    try:
+        return _bookstore_items_response(top_n, lookback_days, account)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     

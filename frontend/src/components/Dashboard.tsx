@@ -7,18 +7,18 @@ import TransactionsOverTimeChart from './TransactionsOverTimeChart';
 import { TopItemsTable } from './TopItemsTable';
 import { ProjectionUploader } from './ProjectionUploader';
 import previewData from '../data/preview_top_20_data.json';
-import previewSpendOverTimeData from '../data/preview_spend_over_time_all_periods.json';
+import previewSpendOverTimeData from '../data/preview_spend_over_time_data.json';
 
-// --- TYPES AND CONSTANTS ---
+// --- TYPES & CONSTANTS ---
 type SpendPoint = { period: string; spend: number; pending_spend?: number };
 type SpendTimePeriod = 'day' | 'week' | 'month' | 'year';
-type DatasetKey = 'amazon' | 'bookstore' | 'cruzbuy' | 'onecard';
-type SpendPreviewByTab = Record<DatasetKey, Partial<Record<SpendTimePeriod, SpendPoint[]>>>;
+type DatasetKey = 'amazon' | 'cruzbuy' | 'pcard' | 'bookstore';
+type SpendPreviewByTab = Record<DatasetKey, Partial<Record<SpendTimePeriod, SpendPoint[]>>> & { combined?: any };
 type QuarterKey = 'fall24' | 'winter25' | 'spring25' | 'summer25' | 'fall25' | 'winter26';
 type SpendRangeMode = 'term' | 'year';
 
 const QUARTER_RANGES: Record<QuarterKey, { label: string; startMonth: string; endMonth: string }> = {
-  // Update these date windows as needed.
+   // Update these date windows as needed.
   fall24: { label: 'Fall24', startMonth: '2024-10', endMonth: '2024-12' },
   winter25: { label: 'Winter25', startMonth: '2025-01', endMonth: '2025-03' },
   spring25: { label: 'Spring25', startMonth: '2025-04', endMonth: '2025-06' },
@@ -30,7 +30,7 @@ const QUARTER_RANGES: Record<QuarterKey, { label: string; startMonth: string; en
 // --- HELPER FUNCTIONS ---
 const buildCombinedSpendSeries = (preview: SpendPreviewByTab, timePeriod: SpendTimePeriod) => {
   const combinedMap: { [period: string]: number } = {};
-  (['amazon', 'bookstore', 'cruzbuy', 'onecard'] as DatasetKey[]).forEach((key) => {
+  (['amazon', 'cruzbuy', 'pcard', 'bookstore'] as DatasetKey[]).forEach((key) => {
     (preview[key]?.[timePeriod] || []).forEach((point) => {
       combinedMap[point.period] = (combinedMap[point.period] || 0) + Number(point.spend || 0);
     });
@@ -92,51 +92,35 @@ const filterSeriesByYear = (points: SpendPoint[], year: string): SpendPoint[] =>
   }));
 };
 
-
 const mergePreviewData = (rawPreview: any, tab: string, filterYear: string) => {
   const merged: { [key: string]: any } = {};
   const tabToKeyMap: { [key: string]: string } = {
     'Amazon': 'amazon',
-    'Bookstore': 'bookstore',
-    'CruzBuy': 'cruzbuy',
-    'OneCard': 'onecard',
+    'ProCard': 'pcard',
+    'OneBuy': 'cruzbuy',
+    'Bookstore': 'bookstore'
   };
 
-
-  const processDataset = (dataset: any[], source: string) => {
+  const processDataset = (dataset: any[]) => {
     dataset.forEach((item: any) => {
-      // if a specific year is selected, ignore rows from other years
-      if (filterYear !== 'All Time' && item.year && item.year !== filterYear) {
-        return; 
-      }
+      if (filterYear !== 'All Time' && item.year && item.year !== filterYear) return; 
 
-        // use the clean_item_name or fallback to "Unknown Item" if empty string
       const name = item.clean_item_name || "Miscellaneous";
 
       if (!merged[name]) {
         merged[name] = { 
-          clean_item_name: name, 
-          count: 0, 
-          total_spent: 0, 
-          vendors: [],
-          projected_count: 0,
-          projected_spent: 0 
+          clean_item_name: name, count: 0, total_spent: 0, vendors: [], projected_count: 0, projected_spent: 0 
         };
       }
 
-      // if tagged as projected data from router
       if (item.projected_count || item.projected_spent) {
         merged[name].projected_count += item.projected_count || 0;
         merged[name].projected_spent += item.projected_spent || 0;
-      } 
-
-      // otherwise, treat as historical data
-      else {
+      } else {
         merged[name].count += item.count || 0;
         merged[name].total_spent += item.total_spent || 0;
       }
 
-      // handle Vendors
       if (Array.isArray(item.vendors)) {
         item.vendors.forEach((vendorData: any) => {
           const vName = typeof vendorData === 'string' ? vendorData : vendorData.name;
@@ -152,15 +136,14 @@ const mergePreviewData = (rawPreview: any, tab: string, filterYear: string) => {
           }
         });
       }
-
     });
   };
 
   if (tab === 'Overall') {
-    Object.entries(rawPreview).forEach(([key, val]) => processDataset(val as any[], key));
+    Object.entries(rawPreview).forEach(([key, val]) => processDataset(val as any[]));
   } else {
     const key = tabToKeyMap[tab];
-    if (key && rawPreview[key]) processDataset(rawPreview[key], key);
+    if (key && rawPreview[key]) processDataset(rawPreview[key] as any[]);
   }
 
   return Object.values(merged).sort((a: any, b: any) => 
@@ -168,13 +151,12 @@ const mergePreviewData = (rawPreview: any, tab: string, filterYear: string) => {
   );
 };
 
-
 export function Dashboard() {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState<'Overall' | 'Amazon' | 'Bookstore' | 'CruzBuy' | 'OneCard'>('Overall');
+  const [activeTab, setActiveTab] = useState<'Overall' | 'OneBuy' | 'ProCard' | 'Amazon' | 'Bookstore'>('Overall');
   const [isPreviewMode, setIsPreviewMode] = useState(true);
 
-  // passive cache states
+  // Passive cache states
   const [liveRawTopItems, setLiveRawTopItems] = useState<any>(null);
   const [liveRawSpend, setLiveRawSpend] = useState<any>(null);
   const [projectedData, setProjectedData] = useState<{
@@ -183,16 +165,16 @@ export function Dashboard() {
       time_data: {period: string, pending_spend: number}[] 
   } | null>(null);
 
-  // active display states
+  // Active display states
   const [topItems, setTopItems] = useState<any[]>([]);
   const [isLoadingTopItems, setIsLoadingTopItems] = useState(true);
-
-  // spend states
+  
+  // Spend states
   const [rawSpendSeries, setRawSpendSeries] = useState<SpendPoint[]>([]);
   const [spendSeries, setSpendSeries] = useState<SpendPoint[]>([]);
   const [isLoadingSpend, setIsLoadingSpend] = useState(true);
-
-  // filter and UI states
+  
+  // Filter & UI States
   const [showDetails, setShowDetails] = useState(false);
   const [selectedYear, setSelectedYear] = useState('All Time');
   const [selectedQuarter, setSelectedQuarter] = useState<QuarterKey>('winter25');
@@ -206,14 +188,13 @@ export function Dashboard() {
     Overall: 'combined',
     Amazon: 'amazon',
     Bookstore: 'bookstore',
-    CruzBuy: 'cruzbuy',
-    OneCard: 'onecard',
+    OneBuy: 'cruzbuy',
+    ProCard: 'pcard',
   };
 
-  const previewSpendByTab = previewSpendOverTimeData as SpendPreviewByTab;
+  const previewSpendByTab = previewSpendOverTimeData as unknown as SpendPreviewByTab;
 
-  // --- RAW DATA FETCH ---
-  // only fetch once per session
+  // 1. RAW DATA FETCH (Runs once per session)
   useEffect(() => {
     if (!user || isPreviewMode) return;
 
@@ -233,7 +214,7 @@ export function Dashboard() {
   }, [user, isPreviewMode, liveRawTopItems, liveRawSpend]);
 
 
-  // --- TAB SWITCHING: TOP ITEMS & PROJECTIONS ---
+  // 2. TAB SWITCHING: TOP ITEMS & PROJECTIONS
   useEffect(() => {
     setIsLoadingTopItems(true);
     let baseTopItems = isPreviewMode ? previewData : liveRawTopItems;
@@ -241,7 +222,7 @@ export function Dashboard() {
     if (baseTopItems) {
       const combinedData = JSON.parse(JSON.stringify(baseTopItems));
       
-      // Merge projections if active
+      // Merge staged projections
       if (projectedData && isPreviewMode) {
         const targetKey = projectedData.dataset; 
         if (!combinedData[targetKey]) combinedData[targetKey] = [];
@@ -264,8 +245,7 @@ export function Dashboard() {
     }
   }, [user, isPreviewMode, activeTab, liveRawTopItems, projectedData, selectedYear]);
 
-
-  // --- TAB SWITCHING: SPEND SERIES ---
+  // 3. TAB SWITCHING: SPEND SERIES (Historical + Projections)
   useEffect(() => {
     setIsLoadingSpend(true);
     const seriesKey = tabToSeriesKeyMap[activeTab] || 'combined';
@@ -275,7 +255,8 @@ export function Dashboard() {
       const periodSeriesByKey: Record<string, SpendPoint[]> = {
         amazon: previewSpendByTab.amazon?.month || [],
         cruzbuy: previewSpendByTab.cruzbuy?.month || [],
-        onecard: previewSpendByTab.onecard?.month || [],
+        pcard: previewSpendByTab.pcard?.month || [],
+        bookstore: previewSpendByTab.bookstore?.month || [],
         combined: buildCombinedSpendSeries(previewSpendByTab, 'month'),
       };
       currentRawSeries = [...(periodSeriesByKey[seriesKey] || periodSeriesByKey.combined || [])];
@@ -284,12 +265,13 @@ export function Dashboard() {
         combined: liveRawSpend?.combined || [],
         amazon: liveRawSpend?.datasets?.amazon || [],
         cruzbuy: liveRawSpend?.datasets?.cruzbuy || [],
-        onecard: liveRawSpend?.datasets?.onecard || [],
+        pcard: liveRawSpend?.datasets?.pcard || [],
+        bookstore: liveRawSpend?.datasets?.bookstore || [],
       };
       currentRawSeries = [...(liveSeriesByKey[seriesKey] || liveSeriesByKey.combined || [])];
     }
 
-    // merge projected pending spend into the raw series
+    // Merge projected pending spend into the raw series
     if (projectedData && isPreviewMode && (activeTab === 'Overall' || tabToSeriesKeyMap[activeTab] === projectedData.dataset)) {
       projectedData.time_data.forEach(pendingMonth => {
         const existingMonthIndex = currentRawSeries.findIndex(s => s.period === pendingMonth.period);
@@ -306,46 +288,41 @@ export function Dashboard() {
     setIsLoadingSpend(false);
   }, [isPreviewMode, activeTab, liveRawSpend, projectedData]);
 
-
-  // --- UPDATE AVAILABLE YEARS FOR CHART ---
+  // 4. UPDATE AVAILABLE YEARS FOR CHART
   useEffect(() => {
     const years = availableYearsFromSeries(rawSpendSeries);
     setAvailableYears(years);
-    if (years.length && (!selectedYear || selectedYear === 'All Time')) {
-      // Don't auto-switch the master FilterBar year, just ensure chart has a valid fallback
-    }
-  }, [rawSpendSeries, selectedYear]);
+  }, [rawSpendSeries]);
 
-
-  // --- APPLY TIME FILTERS TO CHART ---
+  // 5. APPLY TIME FILTERS TO SPEND CHART
   useEffect(() => {
     if (spendRangeMode === 'term') {
       setSpendSeries(filterSeriesByQuarter(rawSpendSeries, selectedQuarter));
     } else {
-      // if selectedYear is 'All Time', default to the most recent year available for the chart
       const targetYear = selectedYear === 'All Time' ? availableYears[availableYears.length - 1] : selectedYear;
       if (targetYear) {
-        setSpendSeries(filterSeriesByYear(rawSpendSeries, targetYear));
+         setSpendSeries(filterSeriesByYear(rawSpendSeries, targetYear));
       } else {
-        setSpendSeries(rawSpendSeries);
+         setSpendSeries(rawSpendSeries);
       }
     }
-  }, [rawSpendSeries, selectedQuarter, spendRangeMode, selectedYear, availableYears]); 
+  }, [rawSpendSeries, selectedQuarter, spendRangeMode, selectedYear, availableYears]);
 
-
-  // --- APPLY ITEM FILTERS TO CHART/TABLE ---
+  // 6. APPLY ITEM FILTERS TO TABLE/CHART (Search, Categories, Min Spend)
   const filteredTopItems = useMemo(() => {
     if (!topItems) return [];
     
     return topItems.filter(item => {
       const name = item.clean_item_name.toLowerCase();
 
+      // Search
       if (searchQuery) {
         const query = searchQuery.toLowerCase();
         const hasVendorMatch = item.vendors?.some((v: { name: string }) => v.name.toLowerCase().includes(query));
         if (!name.includes(query) && !hasVendorMatch) return false;
       }
 
+      // Categories
       if (selectedCategory !== 'all') {
         if (selectedCategory === 'technology' && !(/laptop|monitor|adapter|switch|drive|ipad|macbook|workstation|mouse|battery/.test(name))) return false;
         if (selectedCategory === 'lab-supplies' && !(/centrifuge|glove|pipette|beaker|dna|microscope|slide|goggle|parafilm/.test(name))) return false;
@@ -353,6 +330,7 @@ export function Dashboard() {
         if (selectedCategory === 'facilities' && !(/bulb|filter|trash|ladder|vest|handle|soap|wipe/.test(name))) return false;
       }
 
+      // Minimum Spend (Historical + Staged)
       if (minSpend > 0) {
         const combinedSpend = (item.total_spent || 0) + (item.projected_spent || 0);
         if (combinedSpend < minSpend) return false;
@@ -362,7 +340,7 @@ export function Dashboard() {
     });
   }, [topItems, searchQuery, selectedCategory, minSpend]);
 
-return (
+  return (
     <div className="space-y-6">
       <div className="sticky top-0 z-40 bg-gray-50/95 backdrop-blur py-2">
         <TabNavigation activeTab={activeTab} onTabChange={setActiveTab} />
@@ -467,5 +445,4 @@ return (
       </div>
     </div>
   );
-
 }
