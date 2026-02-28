@@ -24,6 +24,7 @@ def run_cleaning() -> Dict[str, Any]:
             "amazon": len(dataframes["amazon"]),
             "cruzbuy": len(dataframes["cruzbuy"]),
             "pcard": len(dataframes["pcard"]),
+            "bookstore": len(dataframes["bookstore"]),
         },
     }
 

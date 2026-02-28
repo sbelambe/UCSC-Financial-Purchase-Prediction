@@ -8,6 +8,7 @@ DEFAULT_UPLOAD_IDS = {
     "cruzbuy": "050b029b-8c03-41ea-aad6-668ae16f0985",
     "amazon": "36938f90-f75f-462d-b18c-beb7141964bf",
     "pcard": "40165d34-fd1f-4e50-b5f5-40484e8cd6a3",
+    "bookstore": "bookstore",
 }
 
 
@@ -111,7 +112,7 @@ def get_spend_over_time(
     combined = defaultdict(float)
     errors = {}
 
-    for dataset in ("amazon", "cruzbuy", "pcard"):
+    for dataset in ("amazon", "cruzbuy", "pcard", "bookstore"):
         upload_id = chosen_upload_ids.get(dataset)
         if not upload_id:
             errors[dataset] = "missing upload_id"
