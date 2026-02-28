@@ -9,7 +9,7 @@ import previewSpendOverTimeData from '../data/preview_spend_over_time_all_period
 
 type SpendPoint = { period: string; spend: number };
 type SpendTimePeriod = 'day' | 'week' | 'month' | 'year';
-type DatasetKey = 'amazon' | 'cruzbuy' | 'pcard';
+type DatasetKey = 'amazon' | 'cruzbuy' | 'pcard' | 'bookstore';
 type SpendPreviewByTab = Record<DatasetKey, Partial<Record<SpendTimePeriod, SpendPoint[]>>>;
 type QuarterKey = 'fall24' | 'winter25' | 'spring25' | 'summer25' | 'fall25' | 'winter26';
 type SpendRangeMode = 'term' | 'year';
@@ -26,7 +26,7 @@ const QUARTER_RANGES: Record<QuarterKey, { label: string; startMonth: string; en
 
 const buildCombinedSpendSeries = (preview: SpendPreviewByTab, timePeriod: SpendTimePeriod) => {
   const combinedMap: { [period: string]: number } = {};
-  (['amazon', 'cruzbuy', 'pcard'] as DatasetKey[]).forEach((key) => {
+  (['amazon', 'cruzbuy', 'pcard', 'bookstore'] as DatasetKey[]).forEach((key) => {
     (preview[key]?.[timePeriod] || []).forEach((point) => {
       combinedMap[point.period] = (combinedMap[point.period] || 0) + Number(point.spend || 0);
     });
@@ -90,7 +90,8 @@ const mergePreviewData = (rawPreview: any, tab: string) => {
   const tabToKeyMap: { [key: string]: string } = {
     'Amazon': 'amazon',
     'ProCard': 'pcard',
-    'OneBuy': 'cruzbuy'
+    'OneBuy': 'cruzbuy',
+    'Bookstore': 'bookstore',
   };
 
 
@@ -140,7 +141,7 @@ export function Dashboard() {
     Amazon: 'amazon',
     ProCard: 'pcard',
     OneBuy: 'cruzbuy',
-    Bookstore: 'combined',
+    Bookstore: 'bookstore',
   };
 
   const previewSpendByTab = previewSpendOverTimeData as SpendPreviewByTab;
@@ -173,6 +174,7 @@ export function Dashboard() {
         amazon: previewSpendByTab.amazon?.[sourcePeriod] || [],
         cruzbuy: previewSpendByTab.cruzbuy?.[sourcePeriod] || [],
         pcard: previewSpendByTab.pcard?.[sourcePeriod] || [],
+        bookstore: previewSpendByTab.bookstore?.[sourcePeriod] || [],
         combined: buildCombinedSpendSeries(previewSpendByTab, sourcePeriod),
       };
       setRawSpendSeries(periodSeriesByKey[seriesKey] || periodSeriesByKey.combined || []);
@@ -189,6 +191,7 @@ export function Dashboard() {
           amazon: apiData?.datasets?.amazon || [],
           cruzbuy: apiData?.datasets?.cruzbuy || [],
           pcard: apiData?.datasets?.pcard || [],
+          bookstore: apiData?.datasets?.bookstore || [],
         };
         setRawSpendSeries(liveSeriesByKey[seriesKey] || liveSeriesByKey.combined || []);
         setIsLoadingSpend(false);

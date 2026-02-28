@@ -34,7 +34,8 @@ def run_firebase_uploads(
         "amazon_rows": len(dataframes["amazon"]),
         "cruzbuy_rows": len(dataframes["cruzbuy"]),
         "pcard_rows": len(dataframes["pcard"]),
-        "bundle_keys": ["amazon", "cruzbuy", "pcard"],
+        "bookstore_rows": len(dataframes["bookstore"]),
+        "bundle_keys": ["amazon", "cruzbuy", "pcard", "bookstore"],
         "uploaded": upload_result["uploaded"],
         "firestore_upload_ids": upload_result["firestore_upload_ids"],
     }

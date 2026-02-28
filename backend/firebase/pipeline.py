@@ -8,6 +8,7 @@ DEFAULT_UPLOAD_IDS = {
     "amazon": "amazon",
     "cruzbuy": "cruzbuy",
     "pcard": "pcard",
+    "bookstore": "bookstore",
 }
 SPEND_PERIODS = ("day", "week", "month", "year")
 
@@ -45,6 +46,13 @@ def upload_cleaned_data(
             upload_id=chosen_upload_ids["pcard"],
             write_rows=False,
         ),
+        "bookstore": df_to_firestore(
+            dataframes["bookstore"],
+            dataset="bookstore",
+            storage_path=storage_paths["bookstore"],
+            upload_id=chosen_upload_ids["bookstore"],
+            write_rows=False,
+        ),
     }
 
     save_top_values_summary(
@@ -76,6 +84,17 @@ def upload_cleaned_data(
         summary_name="top_merchants_10",
         title="Top merchants",
         df=dataframes["pcard"],
+        column="Merchant Name",
+        n=10,
+    )
+
+    save_top_values_summary(
+        upload_id=upload_ids["bookstore"],
+        dataset="bookstore",
+        storage_path=storage_paths["bookstore"],
+        summary_name="top_merchants_10",
+        title="Top merchants",
+        df=dataframes["bookstore"],
         column="Merchant Name",
         n=10,
     )
@@ -117,6 +136,18 @@ def upload_cleaned_data(
             time_period=period,
             transaction_type_col="Transaction Type",
             include_refunds=True,
+        )
+
+        save_spend_over_time_summary(
+            upload_id=upload_ids["bookstore"],
+            dataset="bookstore",
+            storage_path=storage_paths["bookstore"],
+            summary_name=f"spend_over_time_{period}",
+            title=f"Spend over time ({period})",
+            df=dataframes["bookstore"],
+            date_col="Transaction Date",
+            amount_col="Total Price",
+            time_period=period,
         )
 
     return {
