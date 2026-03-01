@@ -4,13 +4,14 @@ import pandas as pd
 RAW_DIR = os.path.join(os.path.dirname(__file__), "..", "data", "raw")
 CLEAN_DIR = os.path.join(os.path.dirname(__file__), "..", "data", "clean")
 
-
+# ------------------------------- STEP 1: LOAD -------------------------------
+# Read the dataset file and load into a Pandas dataframe
 def load_bookstore():
     file_path = os.path.join(RAW_DIR, "bookstore.csv")
 
     if not os.path.exists(file_path):
         print(f"[WARNING] File not found: {file_path}")
-        return pd.DataFrame()
+        return pd.DataFrame()  # return empty df
 
     df = pd.read_csv(file_path)
     df = clean_bookstore(df)
@@ -18,117 +19,101 @@ def load_bookstore():
     save_clean_data(df)
     return df
 
+# ----------------------------------------------------------------------------
 
-def clean_bookstore(df: pd.DataFrame) -> pd.DataFrame:
-    if df.empty:
-        return df
 
+# ------------------------------- STEP 2: CLEAN ------------------------------
+# Clean the columns, numeric data, and categorical data in any ways appropriate
+def clean_bookstore(df):
     df = clean_columns(df)
     df = clean_numbers(df)
     df = clean_categories(df)
     df = finalize_dataframe(df)
     return df
 
+# STEP 2.1 - CLEAN COLUMNS
+# ------------------------
+def clean_columns(df):
+    # Drop unnecessary columns
+    df.drop(columns=["Account", "UPC Code"], inplace=True, errors="ignore")
 
-def clean_columns(df: pd.DataFrame) -> pd.DataFrame:
+    # Normalize missing values
     missing_vals = ["N/A", "n/a", "NULL", "None", "?", "", "<NA>"]
     df.replace(missing_vals, pd.NA, inplace=True)
 
-    rename_candidates = {
-        "Transaction Date": ["Transaction Date", "Date", "Creation Date", "Order Date", "Posting Date"],
-        "Merchant Name": ["Merchant Name", "Supplier Name", "Vendor", "Store Name"],
-        "Item Description": ["Item Description", "Product Description", "Description", "Item Name", "Product Name"],
-        "Category": ["Category", "Category Level 1", "Department"],
-        "Subcategory": ["Subcategory", "Category Level 2", "Sub Department", "Class"],
-        "Quantity": ["Quantity", "Qty", "Order Quantity"],
-        "Subtotal": ["Subtotal", "Extended Price", "Transaction Amount", "Amount", "Net Amount", "Price"],
-        "Sales Tax": ["Sales Tax", "Tax", "Order Tax"],
-        "Total Price": ["Total Price", "Order Net Total", "Total", "Total Amount"],
-    }
+    # Change column names (for consistency)
+    df = df.rename(columns={
+        "Product Category": "Category",
+        "Item": "Item Name",
+        "Date": "Transaction Date"
+    })
 
-    selected_renames = {}
-    existing_cols = set(df.columns)
-    for canonical, candidates in rename_candidates.items():
-        for candidate in candidates:
-            if candidate in existing_cols:
-                selected_renames[candidate] = canonical
-                break
+    # For Transaction Date, change to datetime
+    df["Transaction Date"] = pd.to_datetime(df["Transaction Date"], errors="coerce")
 
-    if selected_renames:
-        df = df.rename(columns=selected_renames)
+    # Clean column names
+    df.columns = (
+        df.columns
+        .str.strip()
+        .str.title()
+    )
 
-    if "Merchant Name" not in df.columns:
-        df["Merchant Name"] = "Campus Store"
-
-    if "Transaction Date" in df.columns:
-        df["Transaction Date"] = pd.to_datetime(df["Transaction Date"], errors="coerce")
-
-    df.columns = df.columns.str.strip().str.title()
     return df
 
 
-def clean_numbers(df: pd.DataFrame) -> pd.DataFrame:
-    number_cols = ["Quantity", "Subtotal", "Sales Tax", "Total Price"]
-
-    for col in number_cols:
-        if col in df.columns:
-            df[col] = (
-                df[col]
-                .astype(str)
-                .str.replace(r"[\$,]", "", regex=True)
-                .str.strip()
-            )
-            df[col] = pd.to_numeric(df[col], errors="coerce")
-
-    if "Subtotal" in df.columns:
-        df = df[df["Subtotal"] != 0]
-
+# STEP 2.2 - CLEAN NUMERIC DATA
+# -----------------------------
+def clean_numbers(df):
+    # For Quantity, should be numeric and >= 1
     if "Quantity" in df.columns:
-        df = df[df["Quantity"].fillna(1) > 0]
-
-    if "Total Price" not in df.columns:
-        if "Subtotal" in df.columns and "Sales Tax" in df.columns:
-            df["Total Price"] = df["Subtotal"].fillna(0) + df["Sales Tax"].fillna(0)
-        elif "Subtotal" in df.columns:
-            df["Total Price"] = df["Subtotal"]
+        df["Quantity"] = pd.to_numeric(df["Quantity"], errors="coerce")
+        df = df[df["Quantity"] > 0]
 
     return df
 
 
-def clean_categories(df: pd.DataFrame) -> pd.DataFrame:
-    text_cols = [
-        "Merchant Name",
-        "Item Description",
-        "Category",
-        "Subcategory",
+# STEP 2.3 - CLEAN CATEGORIES
+# ---------------------------
+def clean_categories(df):
+    text_cols = ["Category",
+                 "Item Name"
     ]
 
+    # Clean up and title case category columns
     for col in text_cols:
         if col in df.columns:
             df[col] = (
-                df[col]
-                .astype(str)
-                .str.replace(r"\s+", " ", regex=True)
-                .str.strip()
+                normalize_whitespace(df[col])
                 .str.title()
-            )
-
+        ) 
+    
     return df
 
+def normalize_whitespace(series):
+    return (
+        series
+        .astype(str)
+        .str.replace(r"\s+", " ", regex=True)
+        .str.strip()
+    )
 
-def finalize_dataframe(df: pd.DataFrame) -> pd.DataFrame:
-    if "Transaction Date" in df.columns:
-        df = df.sort_values(by="Transaction Date")
+# ----------------------------------------------------------------------------
 
-    price_cols = ["Subtotal", "Sales Tax", "Total Price"]
-    for col in price_cols:
-        if col in df.columns:
-            df[col] = df[col].apply(lambda x: f"${x:,.2f}" if pd.notna(x) else x)
+
+# ------------------------------ STEP 3: FINALIZE ----------------------------
+# Any final touches to clean the dataframe
+def finalize_dataframe(df): 
+    # Sort rows by date
+    df = df.sort_values(by="Transaction Date")
 
     return df
+# ----------------------------------------------------------------------------
 
 
-def save_clean_data(df: pd.DataFrame) -> None:
+# -------------------------------- STEP 4: SAVE ------------------------------
+# Save the cleaned dataset
+def save_clean_data(df):
     output_path = os.path.join(CLEAN_DIR, "bookstore_clean.csv")
     os.makedirs(CLEAN_DIR, exist_ok=True)
     df.to_csv(output_path, index=False)
+# ----------------------------------------------------------------------------

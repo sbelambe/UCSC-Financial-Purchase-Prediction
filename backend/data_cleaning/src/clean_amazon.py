@@ -92,7 +92,7 @@ def clean_numbers(df):
     df = df[df["Subtotal"] != 0]
 
     # For Quantity, should be numeric and >= 1
-    if "Quantitiy" in df.columns:
+    if "Quantity" in df.columns:
         df["Quantity"] = pd.to_numeric(df["Quantity"], errors="coerce")
         df = df[df["Quantity"] > 0]
 
