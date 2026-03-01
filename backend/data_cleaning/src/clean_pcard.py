@@ -51,7 +51,7 @@ def clean_columns(df):
         "Transaction Amount": "Subtotal",
         "Merchant Category Code Description": "Category",
         "Merchant State/Province": "Merchant State",
-        "ITEM_DSC": "Item Name",
+        "ITEM_DSC": "Item Description",
         "ITEM_QTY": "Quantity"
     })
 
@@ -114,7 +114,7 @@ def clean_categories(df):
                  "Merchant Name",
                  "Merchant City",
                  "Merchant State",
-                 "Item Name",
+                 "Item Description",
     ]
  
     # For Merchant Name, remove number/letter weirdness to make names consistent
@@ -252,6 +252,3 @@ def save_clean_data(df):
     os.makedirs(CLEAN_DIR, exist_ok=True)
     df.to_csv(output_path, index=False)
 # ----------------------------------------------------------------------------
-
-# Future ideas:
-# - Clean Item Names column (it's really messy)
