@@ -44,7 +44,7 @@ def clean_columns(df):
     # Change column names (for consistency)
     df = df.rename(columns={
         "Product Category": "Category",
-        "Item": "Item Name",
+        "Item": "Item Description",
         "Date": "Transaction Date"
     })
 
@@ -76,7 +76,7 @@ def clean_numbers(df):
 # ---------------------------
 def clean_categories(df):
     text_cols = ["Category",
-                 "Item Name"
+                 "Item Description"
     ]
 
     # Clean up and title case category columns
