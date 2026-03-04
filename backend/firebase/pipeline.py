@@ -7,7 +7,7 @@ from firebase.summaries import save_top_values_summary, save_spend_over_time_sum
 DEFAULT_UPLOAD_IDS = {
     "amazon": "amazon",
     "cruzbuy": "cruzbuy",
-    "pcard": "pcard",
+    "onecard": "onecard",
     "bookstore": "bookstore",
 }
 
@@ -39,18 +39,7 @@ def upload_cleaned_data(
             write_rows=False,
         ),
         "pcard": df_to_firestore(
-            dataframes["pcard"],
-            dataset="pcard",
-            storage_path=storage_paths["pcard"],
-            upload_id=chosen_upload_ids["pcard"],
-            write_rows=False,
-        ),
-        "bookstore": df_to_firestore(
-            dataframes["bookstore"],
-            dataset="bookstore",
-            storage_path=storage_paths["bookstore"],
-            upload_id=chosen_upload_ids["bookstore"],
-            write_rows=False,
+            dataframes["onecard"], dataset="onecard", storage_path=storage_paths["onecard"]
         ),
     }
 
@@ -103,23 +92,23 @@ def upload_cleaned_data(
     )
 
     save_top_values_summary(
-        upload_id=upload_ids["pcard"],
-        dataset="pcard",
-        storage_path=storage_paths["pcard"],
+        upload_id=upload_ids["onecard"],
+        dataset="onecard",
+        storage_path=storage_paths["onecard"],
         summary_name="top_merchants_10",
         title="Top merchants",
-        df=dataframes["pcard"],
+        df=dataframes["onecard"],
         column="Merchant Name",
         n=10,
     )
 
     save_top_items_detailed_summary(
-        upload_id=upload_ids["pcard"],
-        dataset="pcard",
-        storage_path=storage_paths["pcard"],
+        upload_id=upload_ids["onecard"],
+        dataset="onecard",
+        storage_path=storage_paths["onecard"],
         summary_name="top_items_detailed",
         title="Top Purchased Items",
-        df=dataframes["pcard"],
+        df=dataframes["onecard"],
         item_col="Item Name",
         price_col="Subtotal",
         vendor_col="Merchant Name",
@@ -176,12 +165,12 @@ def upload_cleaned_data(
         )
 
         save_spend_over_time_summary(
-            upload_id=upload_ids["pcard"],
-            dataset="pcard",
-            storage_path=storage_paths["pcard"],
+            upload_id=upload_ids["onecard"],
+            dataset="onecard",
+            storage_path=storage_paths["onecard"],
             summary_name=f"spend_over_time_{period}",
             title=f"Spend over time ({period})",
-            df=dataframes["pcard"],
+            df=dataframes["onecard"],
             date_col="Transaction Date",
             amount_col="Total Price",
             time_period=period,

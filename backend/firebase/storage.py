@@ -10,8 +10,7 @@ def build_storage_paths() -> Dict[str, str]:
     return {
         "amazon": f"clean/amazon/amazon_clean_{ts}.csv",
         "cruzbuy": f"clean/cruzbuy/cruzbuy_clean_{ts}.csv",
-        "pcard": f"clean/pcard/pcard_clean_{ts}.csv",
-        "bookstore": f"clean/bookstore/bookstore_clean_{ts}.csv",
+        "onecard": f"clean/onecard/onecard_clean_{ts}.csv",
     }
 
 
@@ -33,6 +32,6 @@ def upload_all_to_storage(local_paths: Dict[str, str]) -> Dict[str, str]:
     Uploads all cleaned CSV files to Firebase Storage and returns storage paths.
     """
     storage_paths = build_storage_paths()
-    for dataset in ("amazon", "cruzbuy", "pcard", "bookstore"):
+    for dataset in ("amazon", "cruzbuy", "onecard"):
         upload_csv_to_storage(local_paths[dataset], storage_paths[dataset])
     return storage_paths
