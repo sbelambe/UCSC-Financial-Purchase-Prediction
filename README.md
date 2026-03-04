@@ -1,6 +1,6 @@
 # UCSC Financial Purchase Prediction Dashboard
 
-This repository contains a full-stack data dashboard for analyzing UCSC purchasing data across multiple sources, including Amazon, CruzBuy, and ProCard.
+This repository contains a full-stack data dashboard for analyzing UCSC purchasing data across multiple sources, including Amazon, CruzBuy, and OneCard.
 
 The frontend never reads raw spreadsheets directly. All data is processed by the backend and a Python data-cleaning pipeline before being served to the UI.
 

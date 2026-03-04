@@ -8,7 +8,7 @@ export function Dashboard() {
   const { user } = useAuth();
 
   const [activeTab, setActiveTab] = useState<
-    'Overall' | 'OneBuy' | 'ProCard' | 'Amazon' | 'Bookstore'
+    'Overall' | 'CruzBuy' | 'OneCard' | 'Amazon' | 'Bookstore'
   >('Overall');
 
   const [topItems, setTopItems] = useState<any[]>([]);
