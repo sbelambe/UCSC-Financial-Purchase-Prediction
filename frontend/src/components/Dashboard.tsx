@@ -153,17 +153,8 @@ const mergePreviewData = (rawPreview: any, tab: string, filterYear: string) => {
 
 export function Dashboard() {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState<'Overall' | 'OneBuy' | 'ProCard' | 'Amazon' | 'Bookstore'>('Overall');
+  const [activeTab, setActiveTab] = useState<'Overall' | 'CruzBuy' | 'OneCard' | 'Amazon' | 'Bookstore'>('Overall');
   const [isPreviewMode, setIsPreviewMode] = useState(true);
-
-  // Passive cache states
-  const [liveRawTopItems, setLiveRawTopItems] = useState<any>(null);
-  const [liveRawSpend, setLiveRawSpend] = useState<any>(null);
-  const [projectedData, setProjectedData] = useState<{
-      dataset: string, 
-      data: any[], 
-      time_data: {period: string, pending_spend: number}[] 
-  } | null>(null);
 
   // Active display states
   const [topItems, setTopItems] = useState<any[]>([]);
