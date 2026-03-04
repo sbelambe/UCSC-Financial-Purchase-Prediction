@@ -12,7 +12,7 @@ URL_PATTERN = re.compile(r"(http|www|\.com|\.net|\.org)", re.IGNORECASE)
 
 # ------------------------------- STEP 1: LOAD -------------------------------
 # Read the dataset file and load into a Pandas dataframe
-def load_pcard():
+def load_onecard():
     file_path = os.path.join(RAW_DIR, "onecard.csv")
 
     if not os.path.exists(file_path):
@@ -20,7 +20,7 @@ def load_pcard():
         return pd.DataFrame()
 
     df = pd.read_csv(file_path)
-    df = clean_pcard(df)
+    df = clean_onecard(df)
 
     save_clean_data(df)
     return df
@@ -29,7 +29,7 @@ def load_pcard():
 
 # ------------------------------- STEP 2: CLEAN ------------------------------
 # Clean the columns, numeric data, and categorical data in any ways appropriate
-def clean_pcard(df):
+def clean_onecard(df):
     df = clean_columns(df)
     df = clean_numbers(df)
     df = clean_categories(df)

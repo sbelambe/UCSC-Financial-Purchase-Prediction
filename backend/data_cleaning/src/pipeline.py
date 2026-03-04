@@ -11,7 +11,7 @@ def _clean_csv_paths() -> Dict[str, str]:
     return {
         "amazon": os.path.join(base, "amazon_clean.xlsx"),
         "cruzbuy": os.path.join(base, "cruzbuy_clean.xlsx"),
-        "pcard": os.path.join(base, "onecard_clean.xlsx"),
+        "onecard": os.path.join(base, "onecard_clean.xlsx"),
         "bookstore": os.path.join(base, "bookstore_clean.csv"),
     }
 
@@ -22,14 +22,14 @@ def run_data_cleaning() -> Dict[str, Any]:
     """
     amazon_df = load_amazon()
     cruzbuy_df = load_cruzbuy()
-    pcard_df = load_onecard()
+    onecard_df = load_onecard()
     bookstore_df = load_bookstore()
 
     return {
         "dataframes": {
             "amazon": amazon_df,
             "cruzbuy": cruzbuy_df,
-            "pcard": onecard_df,
+            "onecard": onecard_df,
             "bookstore": bookstore_df,
         },
         "local_paths": _clean_csv_paths(),
