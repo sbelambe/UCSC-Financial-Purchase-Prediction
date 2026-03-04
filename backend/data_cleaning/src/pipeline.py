@@ -4,6 +4,7 @@ from typing import Dict, Any
 from backend.data_cleaning.src.clean_amazon import load_amazon
 from backend.data_cleaning.src.clean_cruzbuy import load_cruzbuy
 from backend.data_cleaning.src.clean_onecard import load_onecard
+from backend.data_cleaning.src.clean_bookstore import load_bookstore
 
 
 def _clean_csv_paths() -> Dict[str, str]:
@@ -12,7 +13,7 @@ def _clean_csv_paths() -> Dict[str, str]:
         "amazon": os.path.join(base, "amazon_clean.xlsx"),
         "cruzbuy": os.path.join(base, "cruzbuy_clean.xlsx"),
         "onecard": os.path.join(base, "onecard_clean.xlsx"),
-        "bookstore": os.path.join(base, "bookstore_clean.csv"),
+        "bookstore": os.path.join(base, "bookstore_clean.xlsx"),
     }
 
 
