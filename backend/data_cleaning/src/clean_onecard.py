@@ -1,7 +1,7 @@
 import os
 import pandas as pd
 import re
-from data_cleaning.config.procard_config import STATE_MAP, UNNECESSARY_COLUMNS, MERCHANT_MAP
+from backend.data_cleaning.config.onecard_config import STATE_MAP, UNNECESSARY_COLUMNS, MERCHANT_MAP
 
 RAW_DIR = os.path.join(os.path.dirname(__file__), "..", "data", "raw")
 CLEAN_DIR = os.path.join(os.path.dirname(__file__), "..", "data", "clean")
@@ -13,7 +13,7 @@ URL_PATTERN = re.compile(r"(http|www|\.com|\.net|\.org)", re.IGNORECASE)
 # ------------------------------- STEP 1: LOAD -------------------------------
 # Read the dataset file and load into a Pandas dataframe
 def load_pcard():
-    file_path = os.path.join(RAW_DIR, "procard.csv")
+    file_path = os.path.join(RAW_DIR, "onecard.csv")
 
     if not os.path.exists(file_path):
         print(f"[WARNING] File not found: {file_path}")
@@ -248,7 +248,7 @@ def format_currency(df, cols):
 # -------------------------------- STEP 4: SAVE ------------------------------
 # Save the cleaned dataset
 def save_clean_data(df):
-    output_path = os.path.join(CLEAN_DIR, "procard_clean.csv")
+    output_path = os.path.join(CLEAN_DIR, "onecard_clean.csv")
     os.makedirs(CLEAN_DIR, exist_ok=True)
     df.to_csv(output_path, index=False)
 # ----------------------------------------------------------------------------

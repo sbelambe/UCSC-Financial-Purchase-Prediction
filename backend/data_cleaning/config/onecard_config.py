@@ -1,4 +1,4 @@
-# Holds lists and dictionaries used in clean_procard.py
+# Holds lists and dictionaries used in clean_onecard.py
 
 # Used in clean_columns() to drop unnecessary columns
 UNNECESSARY_COLUMNS = [

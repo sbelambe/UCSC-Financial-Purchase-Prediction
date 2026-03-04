@@ -81,8 +81,8 @@ def sync_drive_folder(folder_id, raw_dir):
                 base_name = "amazon"
             elif "CruzBuy" in name:
                 base_name = "cruzbuy"
-            elif "ProCard" in name:
-                base_name = "procard"
+            elif "OneCard" in name:
+                base_name = "onecard"
             elif "Bay Tree" in name or "Bookstore" in name:
                 base_name = "bookstore"
             else:

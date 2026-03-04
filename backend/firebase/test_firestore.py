@@ -16,8 +16,8 @@ load_dotenv(os.path.join(BACKEND_ROOT, ".env"))
 # Import real cleaning and summarization logic
 from data_cleaning.src.clean_amazon import load_amazon
 from data_cleaning.src.clean_cruzbuy import load_cruzbuy
-from data_cleaning.src.clean_pcard import load_pcard
-from firebase.summaries import compute_top_items_detailed, compute_spend_over_time
+from data_cleaning.src.clean_onecard import load_pcard
+from summaries import compute_top_items_detailed
 
 # --- Environment Controls ---
 MOCK_FIRESTORE = os.getenv("MOCK_FIRESTORE", "False").lower() == "true"
@@ -72,7 +72,7 @@ def run_pre_upload_audit():
     try:
         print("[INFO] Loading real DataFrames from local storage...")
         amazon_df = load_amazon()
-        pcard_df = load_pcard()
+        onecard_df = load_onecard()
         cruzbuy_df = load_cruzbuy()
 
         # 2. Compute summaries using real production logic
@@ -80,7 +80,7 @@ def run_pre_upload_audit():
         local_top_items_previews = {
             "amazon": compute_top_items_detailed(amazon_df, "Item Description", "Subtotal", "Merchant Name"),
             "cruzbuy": compute_top_items_detailed(cruzbuy_df, "Item Description", "Subtotal", "Merchant Name"),
-            "onecard": compute_top_items_detailed(pcard_df, "Item Name", "Subtotal", "Merchant Name")
+            "pcard": compute_top_items_detailed(onecard_df, "Item Name", "Subtotal", "Merchant Name")
         }
 
         local_spend_trend_previews = {"amazon": {}, "cruzbuy": {}, "onecard": {}}
@@ -98,7 +98,7 @@ def run_pre_upload_audit():
                 time_period=period,
             )
             local_spend_trend_previews["onecard"][period] = compute_spend_over_time(
-                pcard_df,
+                onecard_df,
                 date_col="Transaction Date",
                 amount_col="Total Price",
                 time_period=period,
