@@ -1,7 +1,7 @@
 import os
 import pandas as pd
 import re
-from backend.data_cleaning.config.procard_config import STATE_MAP, UNNECESSARY_COLUMNS, MERCHANT_MAP
+from data_cleaning.config.procard_config import STATE_MAP, UNNECESSARY_COLUMNS, MERCHANT_MAP
 
 RAW_DIR = os.path.join(os.path.dirname(__file__), "..", "data", "raw")
 CLEAN_DIR = os.path.join(os.path.dirname(__file__), "..", "data", "clean")
@@ -51,7 +51,7 @@ def clean_columns(df):
         "Transaction Amount": "Subtotal",
         "Merchant Category Code Description": "Category",
         "Merchant State/Province": "Merchant State",
-        "ITEM_DSC": "Item Name",
+        "ITEM_DSC": "Item Description",
         "ITEM_QTY": "Quantity"
     })
 
@@ -114,7 +114,7 @@ def clean_categories(df):
                  "Merchant Name",
                  "Merchant City",
                  "Merchant State",
-                 "Item Name",
+                 "Item Description",
     ]
  
     # For Merchant Name, remove number/letter weirdness to make names consistent
@@ -224,8 +224,8 @@ def finalize_dataframe(df):
         df = df.sort_values(by="Transaction Date")
 
     # Add dollar signs back to price categories
-    price_cols = ["Subtotal", "Sales Tax", "Total Price"]
-    df = format_currency(df, price_cols)
+    # price_cols = ["Subtotal", "Sales Tax", "Total Price"]
+    # df = format_currency(df, price_cols)
 
     # Create a new column called Merchant Type, labels a row as "Campus" if
     # the purchase comes from the campus store, else "External"
@@ -252,6 +252,3 @@ def save_clean_data(df):
     os.makedirs(CLEAN_DIR, exist_ok=True)
     df.to_csv(output_path, index=False)
 # ----------------------------------------------------------------------------
-
-# Future ideas:
-# - Clean Item Names column (it's really messy)

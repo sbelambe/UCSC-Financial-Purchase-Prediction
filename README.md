@@ -138,7 +138,7 @@ python run_cleaning.py
 ```
 To upload to Firebase Storage and Firestore (including summaries), run:
 ```bash
-python run_firebase_upload.py
+python run_firebase_uploads.py
 ```
 
 ### 4.2 Backend Setup (Terminal C)
@@ -208,4 +208,3 @@ Cleaned data processed/stored
         ↓
 Frontend fetches cleaned results
 ```
-

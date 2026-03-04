@@ -17,10 +17,11 @@ load_dotenv(os.path.join(BACKEND_ROOT, ".env"))
 from data_cleaning.src.clean_amazon import load_amazon
 from data_cleaning.src.clean_cruzbuy import load_cruzbuy
 from data_cleaning.src.clean_pcard import load_pcard
-from summaries import compute_top_items_detailed
+from firebase.summaries import compute_top_items_detailed, compute_spend_over_time
 
 # --- Environment Controls ---
 MOCK_FIRESTORE = os.getenv("MOCK_FIRESTORE", "False").lower() == "true"
+SPEND_PERIODS = ("day", "week", "month", "year")
 print(f"ENV: MOCK_FIRESTORE is {'ENABLED' if MOCK_FIRESTORE else 'DISABLED'}")
 
 def test_dashboard_integration(all_results: dict):
@@ -37,14 +38,15 @@ def test_dashboard_integration(all_results: dict):
                 merged[name] = {"count": 0, "total": 0.0, "sources": set()}
             
             # --- Safe Numeric Parsing ---
-            raw_total = item.get('total_spent', 0)
-            try:
-                if isinstance(raw_total, str):
-                    clean_total = float(raw_total.replace('$', '').replace(',', '').strip())
-                else:
-                    clean_total = float(raw_total)
-            except (ValueError, TypeError):
-                clean_total = 0.0
+            raw_total = item.get('total_spent', 0) 
+            # If the cleaner failed and output a string (e.g., "$1,234.56"), crash the test loudly
+            if isinstance(raw_total, str):
+                print(f"\n[TYPE ERROR] Found a string instead of a float in {dataset.upper()}!")
+                print(f"Item: {name} | Value: '{raw_total}'")
+                raise TypeError(f"Database requires pure floats, but received string: {raw_total}")
+            
+            # If it passes, it's a pure number!
+            clean_total = float(raw_total)
 
             merged[name]["count"] += item['count']
             merged[name]["total"] += clean_total
@@ -75,24 +77,69 @@ def run_pre_upload_audit():
 
         # 2. Compute summaries using real production logic
         print("[INFO] Computing summaries...")
-        local_previews = {
+        local_top_items_previews = {
             "amazon": compute_top_items_detailed(amazon_df, "Item Description", "Subtotal", "Merchant Name"),
             "cruzbuy": compute_top_items_detailed(cruzbuy_df, "Item Description", "Subtotal", "Merchant Name"),
-            "pcard": compute_top_items_detailed(pcard_df, "Item Name", "Subtotal", "Merchant Name")
+            "onecard": compute_top_items_detailed(pcard_df, "Item Name", "Subtotal", "Merchant Name")
         }
 
+        local_spend_trend_previews = {"amazon": {}, "cruzbuy": {}, "onecard": {}}
+        for period in SPEND_PERIODS:
+            local_spend_trend_previews["amazon"][period] = compute_spend_over_time(
+                amazon_df,
+                date_col="Transaction Date",
+                amount_col="Total Price",
+                time_period=period,
+            )
+            local_spend_trend_previews["cruzbuy"][period] = compute_spend_over_time(
+                cruzbuy_df,
+                date_col="Transaction Date",
+                amount_col="Total Price",
+                time_period=period,
+            )
+            local_spend_trend_previews["onecard"][period] = compute_spend_over_time(
+                pcard_df,
+                date_col="Transaction Date",
+                amount_col="Total Price",
+                time_period=period,
+                transaction_type_col="Transaction Type",
+                include_refunds=True,
+            )
+
         # 3. Display the terminal summary for immediate audit
-        test_dashboard_integration(local_previews)
+        test_dashboard_integration(local_top_items_previews)
 
         # 4. Export to frontend for visual verification
-        # Path assumes: project_root/frontend/src/data/preview_data.json
-        preview_file = os.path.abspath(os.path.join(BACKEND_ROOT, "..", "frontend", "src", "data", "preview_data.json"))
-        os.makedirs(os.path.dirname(preview_file), exist_ok=True)
+        # Path assumes: project_root/frontend/src/data/preview_top_20_data.json
+        preview_top_items_file = os.path.abspath(
+            os.path.join(BACKEND_ROOT, "..", "frontend", "src", "data", "preview_top_20_data.json")
+        )
+        preview_spend_monthly_file = os.path.abspath(
+            os.path.join(BACKEND_ROOT, "..", "frontend", "src", "data", "preview_spend_over_time_data.json")
+        )
+        preview_spend_all_periods_file = os.path.abspath(
+            os.path.join(BACKEND_ROOT, "..", "frontend", "src", "data", "preview_spend_over_time_all_periods.json")
+        )
+        os.makedirs(os.path.dirname(preview_top_items_file), exist_ok=True)
         
-        with open(preview_file, 'w') as f:
-            json.dump(local_previews, f, indent=4)
-        
-        print(f"[SUCCESS] Real data preview saved to: {preview_file}")
+        with open(preview_top_items_file, 'w') as f:
+            json.dump(local_top_items_previews, f, indent=4)
+
+        # Backward-compatible monthly JSON used by current frontend code.
+        monthly_only_payload = {
+            dataset: periods.get("month", [])
+            for dataset, periods in local_spend_trend_previews.items()
+        }
+        with open(preview_spend_monthly_file, 'w') as f:
+            json.dump(monthly_only_payload, f, indent=4)
+
+        # Full JSON payload with day/week/month/year.
+        with open(preview_spend_all_periods_file, 'w') as f:
+            json.dump(local_spend_trend_previews, f, indent=4)
+
+        print(f"[SUCCESS] Top-items preview saved to: {preview_top_items_file}")
+        print(f"[SUCCESS] Spend-trend monthly preview saved to: {preview_spend_monthly_file}")
+        print(f"[SUCCESS] Spend-trend all-period preview saved to: {preview_spend_all_periods_file}")
         print("Audit complete.")
 
     except Exception as e:

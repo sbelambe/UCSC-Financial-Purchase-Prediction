@@ -61,6 +61,7 @@ def df_to_firestore(
     dataset: str,
     storage_path: Optional[str] = None,
     upload_id: Optional[str] = None,
+    write_rows: bool = True,
 ) -> str:
     """
     Stores a dataframe into Firestore under:
@@ -85,23 +86,31 @@ def df_to_firestore(
         merge=True,
     )
 
+    if not write_rows:
+        print(f"[INFO] {dataset}: wrote metadata only (row writes disabled, upload_id={upload_id})")
+        return upload_id
+    
+
     if df.empty:
         print(f"[INFO] {dataset}: df is empty; wrote metadata only (upload_id={upload_id})")
         return upload_id
 
-    # Prepare rows collection
+    # optimized rows collection
     rows_col = meta_ref.collection("rows")
+    df_upload = df.copy()
+    df_upload.columns = [_sanitize_field_name(c) for c in df_upload.columns]
+
+    # converting to python dicts
+    records = df_upload.to_dict(orient="records")
 
     # Write rows in batches
     batch = db.batch()
     op_count = 0
 
-    # Pre-sanitize columns once
-    col_map: Dict[str, str] = {c: _sanitize_field_name(c) for c in df.columns}
-
-    for _, row in df.iterrows():
+    for row_dict in records:
         doc_ref = rows_col.document()  # auto ID
-        doc_data = {col_map[k]: _clean_value(v) for k, v in row.items()}
+
+        doc_data = {k: _clean_value(v) for k, v in row_dict.items()}
 
         batch.set(doc_ref, doc_data)
         op_count += 1

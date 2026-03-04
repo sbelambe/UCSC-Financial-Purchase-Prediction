@@ -11,7 +11,10 @@ from firebase.pipeline import upload_cleaned_data
 from jobs.run_cleaning import run_cleaning
 
 
-def run_firebase_uploads(cleaning_result: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+def run_firebase_uploads(
+    cleaning_result: Optional[Dict[str, Any]] = None,
+    upload_ids: Optional[Dict[str, str]] = None,
+) -> Dict[str, Any]:
     """
     Runs Firebase upload pipeline.
     If cleaning_result is not provided, this job runs cleaning first.
@@ -21,13 +24,18 @@ def run_firebase_uploads(cleaning_result: Optional[Dict[str, Any]] = None) -> Di
 
     dataframes = cleaning_result["dataframes"]
     local_paths = cleaning_result["local_paths"]
-    upload_result = upload_cleaned_data(dataframes=dataframes, local_paths=local_paths)
+    upload_result = upload_cleaned_data(
+        dataframes=dataframes,
+        local_paths=local_paths,
+        upload_ids=upload_ids,
+    )
 
     return {
         "amazon_rows": len(dataframes["amazon"]),
         "cruzbuy_rows": len(dataframes["cruzbuy"]),
         "pcard_rows": len(dataframes["pcard"]),
-        "bundle_keys": ["amazon", "cruzbuy", "pcard"],
+        "bookstore_rows": len(dataframes["bookstore"]),
+        "bundle_keys": ["amazon", "cruzbuy", "pcard", "bookstore"],
         "uploaded": upload_result["uploaded"],
         "firestore_upload_ids": upload_result["firestore_upload_ids"],
     }

@@ -21,3 +21,5 @@ venv/
 sync_branch.sh
 serviceAccountKey.json
 google-drive-service.json
+
+**google-drive-service.json

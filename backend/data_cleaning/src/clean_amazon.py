@@ -1,6 +1,6 @@
 import os
 import pandas as pd
-from backend.data_cleaning.config.amazon_config import STATE_MAP, UNNECESSARY_COLUMNS
+from data_cleaning.config.amazon_config import STATE_MAP, UNNECESSARY_COLUMNS
 
 RAW_DIR = os.path.join(os.path.dirname(__file__), "..", "data", "raw")
 CLEAN_DIR = os.path.join(os.path.dirname(__file__), "..", "data", "clean")
@@ -92,7 +92,7 @@ def clean_numbers(df):
     df = df[df["Subtotal"] != 0]
 
     # For Quantity, should be numeric and >= 1
-    if "Quantitiy" in df.columns:
+    if "Quantity" in df.columns:
         df["Quantity"] = pd.to_numeric(df["Quantity"], errors="coerce")
         df = df[df["Quantity"] > 0]
 
@@ -174,8 +174,8 @@ def finalize_dataframe(df):
 
     # Add dollar signs back to price categories
     price_cols = ["Subtotal",
-                  "Sales Tax",
-                  "Total Price"
+                   "Sales Tax",
+                   "Total Price"
     ]
     df = format_currency(df, price_cols)
 
