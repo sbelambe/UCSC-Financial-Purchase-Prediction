@@ -28,10 +28,10 @@ const QUARTER_RANGES: Record<QuarterKey, { label: string; startMonth: string; en
 };
 
 // --- HELPER FUNCTIONS ---
-const buildCombinedSpendSeries = (preview: SpendPreviewByTab, timePeriod: SpendTimePeriod) => {
+const buildCombinedSpendSeries = (preview: any, timePeriod: SpendTimePeriod) => {
   const combinedMap: { [period: string]: number } = {};
   (['amazon', 'cruzbuy', 'onecard', 'bookstore'] as DatasetKey[]).forEach((key) => {
-    (preview[key]?.[timePeriod] || []).forEach((point) => {
+    (preview[key] || []).forEach((point: SpendPoint) => {
       combinedMap[point.period] = (combinedMap[point.period] || 0) + Number(point.spend || 0);
     });
   });
@@ -253,10 +253,10 @@ export function Dashboard() {
 
     if (isPreviewMode) {
       const periodSeriesByKey: Record<string, SpendPoint[]> = {
-        amazon: previewSpendByTab.amazon?.month || [],
-        cruzbuy: previewSpendByTab.cruzbuy?.month || [],
-        onecard: previewSpendByTab.onecard?.month || [],
-        bookstore: previewSpendByTab.bookstore?.month || [],
+        amazon: previewSpendByTab.amazon as any || [],
+        cruzbuy: previewSpendByTab.cruzbuy as any || [],
+        onecard: previewSpendByTab.onecard as any || [],
+        bookstore: previewSpendByTab.bookstore as any || [],
         combined: buildCombinedSpendSeries(previewSpendByTab, 'month'),
       };
       currentRawSeries = [...(periodSeriesByKey[seriesKey] || periodSeriesByKey.combined || [])];
@@ -439,7 +439,12 @@ export function Dashboard() {
               </button>
             </div>
 
-            {showDetails && <TopItemsTable data={filteredTopItems} />}
+            {showDetails && (
+              <TopItemsTable 
+                data={filteredTopItems} 
+                isProjectionActive={isPreviewMode && projectedData !== null} 
+              />
+            )}
           </div>
         )}
       </div>
