@@ -12,7 +12,7 @@ import previewSpendOverTimeData from '../data/preview_spend_over_time_data.json'
 // --- TYPES & CONSTANTS ---
 type SpendPoint = { period: string; spend: number; pending_spend?: number };
 type SpendTimePeriod = 'day' | 'week' | 'month' | 'year';
-type DatasetKey = 'amazon' | 'cruzbuy' | 'pcard' | 'bookstore';
+type DatasetKey = 'amazon' | 'cruzbuy' | 'onecard' | 'bookstore';
 type SpendPreviewByTab = Record<DatasetKey, Partial<Record<SpendTimePeriod, SpendPoint[]>>> & { combined?: any };
 type QuarterKey = 'fall24' | 'winter25' | 'spring25' | 'summer25' | 'fall25' | 'winter26';
 type SpendRangeMode = 'term' | 'year';
@@ -30,7 +30,7 @@ const QUARTER_RANGES: Record<QuarterKey, { label: string; startMonth: string; en
 // --- HELPER FUNCTIONS ---
 const buildCombinedSpendSeries = (preview: SpendPreviewByTab, timePeriod: SpendTimePeriod) => {
   const combinedMap: { [period: string]: number } = {};
-  (['amazon', 'cruzbuy', 'pcard', 'bookstore'] as DatasetKey[]).forEach((key) => {
+  (['amazon', 'cruzbuy', 'onecard', 'bookstore'] as DatasetKey[]).forEach((key) => {
     (preview[key]?.[timePeriod] || []).forEach((point) => {
       combinedMap[point.period] = (combinedMap[point.period] || 0) + Number(point.spend || 0);
     });
@@ -96,8 +96,8 @@ const mergePreviewData = (rawPreview: any, tab: string, filterYear: string) => {
   const merged: { [key: string]: any } = {};
   const tabToKeyMap: { [key: string]: string } = {
     'Amazon': 'amazon',
-    'ProCard': 'pcard',
-    'OneBuy': 'cruzbuy',
+    'OneCard': 'onecard',
+    'CruzBuy': 'cruzbuy',
     'Bookstore': 'bookstore'
   };
 
@@ -179,8 +179,8 @@ export function Dashboard() {
     Overall: 'combined',
     Amazon: 'amazon',
     Bookstore: 'bookstore',
-    OneBuy: 'cruzbuy',
-    ProCard: 'pcard',
+    CruzBuy: 'cruzbuy',
+    OneCard: 'onecard',
   };
 
   const previewSpendByTab = previewSpendOverTimeData as unknown as SpendPreviewByTab;
@@ -246,7 +246,7 @@ export function Dashboard() {
       const periodSeriesByKey: Record<string, SpendPoint[]> = {
         amazon: previewSpendByTab.amazon?.month || [],
         cruzbuy: previewSpendByTab.cruzbuy?.month || [],
-        pcard: previewSpendByTab.pcard?.month || [],
+        onecard: previewSpendByTab.onecard?.month || [],
         bookstore: previewSpendByTab.bookstore?.month || [],
         combined: buildCombinedSpendSeries(previewSpendByTab, 'month'),
       };
@@ -256,7 +256,7 @@ export function Dashboard() {
         combined: liveRawSpend?.combined || [],
         amazon: liveRawSpend?.datasets?.amazon || [],
         cruzbuy: liveRawSpend?.datasets?.cruzbuy || [],
-        pcard: liveRawSpend?.datasets?.pcard || [],
+        onecard: liveRawSpend?.datasets?.onecard || [],
         bookstore: liveRawSpend?.datasets?.bookstore || [],
       };
       currentRawSeries = [...(liveSeriesByKey[seriesKey] || liveSeriesByKey.combined || [])];

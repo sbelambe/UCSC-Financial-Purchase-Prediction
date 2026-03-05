@@ -35,7 +35,7 @@ function DashboardLayout() {
 
       if (data?.result) {
         setRefreshMsg(
-          `Refreshed successfully. Amazon rows: ${data.result.amazon_rows}, CruzBuy rows: ${data.result.cruzbuy_rows}, ProCard rows: ${data.result.pcard_rows}`
+          `Refreshed successfully. Amazon rows: ${data.result.amazon_rows}, CruzBuy rows: ${data.result.cruzbuy_rows}, OneCard rows: ${data.result.onecard_rows}`
         );
       } else {
         setRefreshMsg('Refresh completed');

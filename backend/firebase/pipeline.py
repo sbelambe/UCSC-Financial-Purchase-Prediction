@@ -38,7 +38,7 @@ def upload_cleaned_data(
             upload_id=chosen_upload_ids["cruzbuy"],
             write_rows=False,
         ),
-        "pcard": df_to_firestore(
+        "onecard": df_to_firestore(
             dataframes["onecard"], dataset="onecard", storage_path=storage_paths["onecard"]
         ),
     }

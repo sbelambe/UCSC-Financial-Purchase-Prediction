@@ -23,7 +23,7 @@ def run_cleaning() -> Dict[str, Any]:
         "row_counts": {
             "amazon": len(dataframes["amazon"]),
             "cruzbuy": len(dataframes["cruzbuy"]),
-            "pcard": len(dataframes["pcard"]),
+            "onecard": len(dataframes["onecard"]),
             "bookstore": len(dataframes["bookstore"]),
         },
     }
