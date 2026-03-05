@@ -135,7 +135,7 @@ def _bookstore_items_response(top_n: int, lookback_days: int, account: str):
     )
 
 
-@app.get("/analytics/campus-store-items")
+@app.get("/api/analytics/campus-store-items")
 def campus_store_items(top_n: int = 5, lookback_days: int = 90, account: str = "Campus Store"):
     """
     Returns most/least purchased Campus Store items and stock priority recommendations.

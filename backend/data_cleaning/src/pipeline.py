@@ -1,10 +1,10 @@
 import os,sys
 from typing import Dict, Any
 
-from data_cleaning.src.clean_amazon import load_amazon
-from data_cleaning.src.clean_cruzbuy import load_cruzbuy
-from data_cleaning.src.clean_onecard import load_onecard
-from data_cleaning.src.clean_bookstore import load_bookstore
+from .clean_amazon import load_amazon
+from .clean_cruzbuy import load_cruzbuy
+from .clean_onecard import load_onecard
+from .clean_bookstore import load_bookstore
 
 
 def _clean_csv_paths() -> Dict[str, str]:

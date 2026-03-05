@@ -113,7 +113,7 @@ def create_cruzbuy_csv():
     df.to_csv("test_cruzbuy.csv", index=False)
     print("[OK] Generated test_cruzbuy.csv with 8,000 rows")
 
-def create_pcard_csv():
+def create_onecard_csv():
     data = generate_rows(3000)
     df = pd.DataFrame({
         "Transaction Date": [r["date"] for r in data],
@@ -121,12 +121,12 @@ def create_pcard_csv():
         "Merchant": [r["vendor"] for r in data],
         "Amount": [r["price"] for r in data],
     })
-    df.to_csv("test_pcard.csv", index=False)
-    print("[OK] Generated test_pcard.csv with 3,000 rows")
+    df.to_csv("test_onecard.csv", index=False)
+    print("[OK] Generated test_onecard.csv with 3,000 rows")
 
 if __name__ == "__main__":
     print("🚀 Generating high-variance campus procurement data...")
     create_amazon_csv()
     create_cruzbuy_csv()
-    create_pcard_csv()
+    create_onecard_csv()
     print("\n✨ Done! Your sandbox is ready for high-volume testing.")
