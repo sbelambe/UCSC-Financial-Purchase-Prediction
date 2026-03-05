@@ -7,7 +7,7 @@ from typing import Dict, Any, Optional, List
 DEFAULT_UPLOAD_IDS = {
     "cruzbuy": "050b029b-8c03-41ea-aad6-668ae16f0985",
     "amazon": "36938f90-f75f-462d-b18c-beb7141964bf",
-    "pcard": "40165d34-fd1f-4e50-b5f5-40484e8cd6a3",
+    "onecard": "40165d34-fd1f-4e50-b5f5-40484e8cd6a3",
     "bookstore": "bookstore",
 }
 
@@ -112,7 +112,7 @@ def get_spend_over_time(
     combined = defaultdict(float)
     errors = {}
 
-    for dataset in ("amazon", "cruzbuy", "pcard", "bookstore"):
+    for dataset in ("amazon", "cruzbuy", "onecard", "bookstore"):
         upload_id = chosen_upload_ids.get(dataset)
         if not upload_id:
             errors[dataset] = "missing upload_id"
@@ -126,7 +126,7 @@ def get_spend_over_time(
             dataset_series[dataset] = []
             continue
 
-        if dataset == "pcard" and not include_refunds:
+        if dataset == "onecard" and not include_refunds:
             errors[dataset] = (
                 "summary data is generated with refunds included; rerun ETL with "
                 "a no-refund summary if you need exclude_refunds behavior"
@@ -150,18 +150,18 @@ def get_spend_over_time(
 def get_item_freq(user_id: str, limit: int = 20):
     """
     Queries the 'summaries' collection group for all 'top_items_detailed' documents.
-    Groups the results by dataset (amazon, cruzbuy, pcard) to perfectly match 
+    Groups the results by dataset (amazon, cruzbuy, onecard) to perfectly match 
     the structure of the frontend's preview_data.json.
     """
     print("Fetching pre-calculated summaries from 'summaries' collection group...")
     
     try:
-        datasets = ["amazon", "cruzbuy", "pcard"]
+        datasets = ["amazon", "cruzbuy", "onecard"]
         
         grouped_stats = {
             "amazon": {},
             "cruzbuy": {},
-            "pcard": {}
+            "onecard": {}
         }
         
         doc_count = 0
@@ -242,7 +242,7 @@ def get_item_freq(user_id: str, limit: int = 20):
 
         if doc_count == 0:
             print("No detailed summary documents found! Run the ETL script first.")
-            return {"amazon": [], "cruzbuy": [], "pcard": []}
+            return {"amazon": [], "cruzbuy": [], "onecard": []}
             
         print(f"Successfully fetched and grouped data from {doc_count} summary documents.")
         

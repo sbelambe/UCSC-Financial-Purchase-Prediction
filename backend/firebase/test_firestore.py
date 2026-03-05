@@ -16,7 +16,7 @@ load_dotenv(os.path.join(BACKEND_ROOT, ".env"))
 # Import real cleaning and summarization logic
 from data_cleaning.src.clean_amazon import load_amazon
 from data_cleaning.src.clean_cruzbuy import load_cruzbuy
-from data_cleaning.src.clean_onecard import load_pcard
+from data_cleaning.src.clean_onecard import load_onecard
 from summaries import compute_top_items_detailed
 
 # --- Environment Controls ---
@@ -80,7 +80,7 @@ def run_pre_upload_audit():
         local_top_items_previews = {
             "amazon": compute_top_items_detailed(amazon_df, "Item Description", "Subtotal", "Merchant Name"),
             "cruzbuy": compute_top_items_detailed(cruzbuy_df, "Item Description", "Subtotal", "Merchant Name"),
-            "pcard": compute_top_items_detailed(onecard_df, "Item Name", "Subtotal", "Merchant Name")
+            "onecard": compute_top_items_detailed(onecard_df, "Item Name", "Subtotal", "Merchant Name")
         }
 
         local_spend_trend_previews = {"amazon": {}, "cruzbuy": {}, "onecard": {}}
