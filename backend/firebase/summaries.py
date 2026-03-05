@@ -190,7 +190,7 @@ def save_top_values_summary(
         )
 
 
-def compute_top_items_detailed(df, item_col, price_col, vendor_col, date_col=None, n=20):
+def compute_top_items_detailed(df, item_col, price_col, vendor_col, date_col=None, quantity_col=None, n=20):
     df_clean = df.copy()
     
     # Standardize column names (case-insensitive search)
@@ -230,11 +230,17 @@ def compute_top_items_detailed(df, item_col, price_col, vendor_col, date_col=Non
     df_clean[price_col] = df_clean[price_col].astype(str).str.replace(r'[\$,]', '', regex=True)
     df_clean[price_col] = pd.to_numeric(df_clean[price_col], errors='coerce').fillna(0.0)
 
+    # Default to 1 (like Amazon/CruzBuy), but use the actual quantity if provided (like BayTree)
+    if quantity_col and quantity_col in df_clean.columns:
+        df_clean['numeric_quantity'] = pd.to_numeric(df_clean[quantity_col], errors='coerce').fillna(1)
+    else:
+        df_clean['numeric_quantity'] = 1
+
 
 
     # Calculate precise stats for every Item + Year + Vendor combination
     vendor_stats = df_clean.groupby(['clean_item_name', 'year', 'clean_vendor_name']).agg(
-        vendor_count=('clean_item_name', 'count'),
+        vendor_count=('numeric_quantity', 'sum'), # <--- Changed to sum the numeric_quantity!
         vendor_spent=(price_col, 'sum')
     ).reset_index()
 

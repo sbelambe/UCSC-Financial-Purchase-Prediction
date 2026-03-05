@@ -16,8 +16,9 @@ load_dotenv(os.path.join(BACKEND_ROOT, ".env"))
 # Import real cleaning and summarization logic
 from data_cleaning.src.clean_amazon import load_amazon
 from data_cleaning.src.clean_cruzbuy import load_cruzbuy
-from data_cleaning.src.clean_onecard import load_pcard
-from summaries import compute_top_items_detailed
+from data_cleaning.src.clean_onecard import load_onecard
+from data_cleaning.src.clean_bookstore import load_bookstore
+from firebase.summaries import compute_top_items_detailed, compute_spend_over_time
 
 # --- Environment Controls ---
 MOCK_FIRESTORE = os.getenv("MOCK_FIRESTORE", "False").lower() == "true"
@@ -62,6 +63,20 @@ def test_dashboard_integration(all_results: dict):
         print(f"{i:<5} | {name[:40]:<40} | {stats['count']:<6} | ${stats['total']:>12,.2f} | {platforms}")
     print("-" * 90 + "\n")
 
+
+def find_col(df, possible_names):
+    """
+    Detailed description: Scans the DataFrame columns for known aliases.
+    Prevents KeyErrors when different datasets use varying column headers.
+    """
+    for name in possible_names:
+        if name in df.columns: 
+            return name
+    # If no match is found, print a warning to help with debugging
+    print(f"[WARNING] Could not find any of {possible_names} in columns: {df.columns.tolist()}")
+    return df.columns[0]
+
+
 def run_pre_upload_audit():
     """
     Detailed description: Loads real data from the local cleaned CSVs and 
@@ -74,16 +89,43 @@ def run_pre_upload_audit():
         amazon_df = load_amazon()
         onecard_df = load_onecard()
         cruzbuy_df = load_cruzbuy()
+        bookstore_df = load_bookstore()
 
-        # 2. Compute summaries using real production logic
-        print("[INFO] Computing summaries...")
+        # Inject a mock Price column so Pandas can still run financial aggregations safely
+        if "Price" not in bookstore_df.columns:
+            bookstore_df["Price"] = 0.0
+
+        # use dynamic col detection to get top items even if the cols has differences
         local_top_items_previews = {
-            "amazon": compute_top_items_detailed(amazon_df, "Item Description", "Subtotal", "Merchant Name"),
-            "cruzbuy": compute_top_items_detailed(cruzbuy_df, "Item Description", "Subtotal", "Merchant Name"),
-            "pcard": compute_top_items_detailed(onecard_df, "Item Name", "Subtotal", "Merchant Name")
+            "amazon": compute_top_items_detailed(
+                amazon_df, 
+                item_col=find_col(amazon_df, ["Item Description", "Item Name", "Title"]), 
+                price_col=find_col(amazon_df, ["Subtotal", "Item Total", "Price"]), 
+                vendor_col=find_col(amazon_df, ["Merchant Name", "Seller"])
+            ),
+            "cruzbuy": compute_top_items_detailed(
+                cruzbuy_df, 
+                item_col=find_col(cruzbuy_df, ["Item Description", "Description"]), 
+                price_col=find_col(cruzbuy_df, ["Subtotal", "Extended Price"]), 
+                vendor_col=find_col(cruzbuy_df, ["Merchant Name", "Supplier"])
+            ),
+            "onecard": compute_top_items_detailed(
+                onecard_df, 
+                item_col=find_col(onecard_df, ["Item Description", "Transaction Description", "Item Name"]), 
+                price_col=find_col(onecard_df, ["Subtotal", "Amount", "Total Price"]), 
+                vendor_col=find_col(onecard_df, ["Merchant Name", "Merchant"])
+            ),
+            "bookstore": compute_top_items_detailed(
+                bookstore_df, 
+                item_col=find_col(bookstore_df, ["Item Description", "Item"]), 
+                price_col="Price",
+                vendor_col=find_col(bookstore_df, ["Category", "Department"]), 
+                date_col=find_col(bookstore_df, ["Transaction Date", "Date"]),
+                quantity_col=find_col(bookstore_df, ["Quantity", "Qty"])
+            ),
         }
 
-        local_spend_trend_previews = {"amazon": {}, "cruzbuy": {}, "onecard": {}}
+        local_spend_trend_previews = {"amazon": {}, "cruzbuy": {}, "onecard": {}, "bookstore": {} }
         for period in SPEND_PERIODS:
             local_spend_trend_previews["amazon"][period] = compute_spend_over_time(
                 amazon_df,
@@ -104,6 +146,12 @@ def run_pre_upload_audit():
                 time_period=period,
                 transaction_type_col="Transaction Type",
                 include_refunds=True,
+            )
+            local_spend_trend_previews["bookstore"][period] = compute_spend_over_time(
+                bookstore_df,
+                date_col=find_col(bookstore_df, ["Transaction Date", "Date"]),
+                amount_col="Price", # Using the mock column
+                time_period=period,
             )
 
         # 3. Display the terminal summary for immediate audit

@@ -104,15 +104,17 @@ def spend_over_time(
     include_refunds: bool = True,
     amazon_upload_id: Optional[str] = None,
     cruzbuy_upload_id: Optional[str] = None,
-    pcard_upload_id: Optional[str] = None,
+    onecard_upload_id: Optional[str] = None,
+    bookstore_upload_id: Optional[str] = None,
 ):
     try:
         upload_ids = None
-        if amazon_upload_id or cruzbuy_upload_id or pcard_upload_id:
+        if amazon_upload_id or cruzbuy_upload_id or onecard_upload_id:
             upload_ids = {
                 "amazon": amazon_upload_id,
                 "cruzbuy": cruzbuy_upload_id,
-                "pcard": pcard_upload_id,
+                "onecard": onecard_upload_id,
+                "bookstore": bookstore_upload_id
             }
 
         data = get_spend_over_time(
@@ -202,6 +204,12 @@ async def project_csv_data(
             date_col = find_col(["PO Date", "Date", "Created Date"])
 
         elif dataset_lower == "onecard":
+            item_col = find_col(["Transaction Description", "Description"])
+            price_col = find_col(["Amount", "Transaction Amount"])
+            vendor_col = find_col(["Merchant", "Vendor Name"])
+            date_col = find_col(["Transaction Date", "Date"])
+
+        elif dataset_lower == "bookstore":
             item_col = find_col(["Transaction Description", "Description"])
             price_col = find_col(["Amount", "Transaction Amount"])
             vendor_col = find_col(["Merchant", "Vendor Name"])
