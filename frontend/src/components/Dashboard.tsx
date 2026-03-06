@@ -31,7 +31,7 @@ const QUARTER_RANGES: Record<QuarterKey, { label: string; startMonth: string; en
 const buildCombinedSpendSeries = (preview: SpendPreviewByTab, timePeriod: SpendTimePeriod) => {
   const combinedMap: { [period: string]: number } = {};
   (['amazon', 'cruzbuy', 'onecard', 'bookstore'] as DatasetKey[]).forEach((key) => {
-    (preview[key]?.[timePeriod] || []).forEach((point) => {
+    (getPreviewSeries(preview, key, timePeriod) || []).forEach((point) => {
       combinedMap[point.period] = (combinedMap[point.period] || 0) + Number(point.spend || 0);
     });
   });
@@ -39,6 +39,21 @@ const buildCombinedSpendSeries = (preview: SpendPreviewByTab, timePeriod: SpendT
   return Object.entries(combinedMap)
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([period, spend]) => ({ period, spend }));
+};
+
+const getPreviewSeries = (
+  preview: any,
+  key: DatasetKey,
+  timePeriod: SpendTimePeriod = 'month'
+): SpendPoint[] => {
+  // just in case there are instances of pcard
+  const source = key === 'onecard'
+    ? (preview?.onecard ?? preview?.pcard)
+    : preview?.[key];
+
+  if (Array.isArray(source)) return source as SpendPoint[];
+  if (source && Array.isArray(source[timePeriod])) return source[timePeriod] as SpendPoint[];
+  return [];
 };
 
 const monthWindow = (startMonth: string, endMonth: string) => {
@@ -146,9 +161,15 @@ const mergePreviewData = (rawPreview: any, tab: string, filterYear: string) => {
     if (key && rawPreview[key]) processDataset(rawPreview[key] as any[]);
   }
 
-  return Object.values(merged).sort((a: any, b: any) => 
-    (b.count + b.projected_count) - (a.count + a.projected_count)
-  );
+  return Object.values(merged)
+    .filter((item: any) => {
+      const totalCount = Number(item.count || 0) + Number(item.projected_count || 0);
+      const totalSpend = Number(item.total_spent || 0) + Number(item.projected_spent || 0);
+      return totalCount > 0 || totalSpend > 0;
+    })
+    .sort((a: any, b: any) =>
+      (b.count + b.projected_count) - (a.count + a.projected_count)
+    );
 };
 
 export function Dashboard() {
@@ -196,9 +217,9 @@ export function Dashboard() {
 
   // 1. RAW DATA FETCH (Runs once per session)
   useEffect(() => {
-    if (!user || isPreviewMode) return;
+    if (isPreviewMode) return;
 
-    if (!liveRawTopItems) {
+    if (user && !liveRawTopItems) {
       fetch(`http://127.0.0.1:8000/api/analytics/top-items?user_id=${user.uid}`)
         .then(res => res.json())
         .then(res => setLiveRawTopItems(res.data || {}))
@@ -253,10 +274,10 @@ export function Dashboard() {
 
     if (isPreviewMode) {
       const periodSeriesByKey: Record<string, SpendPoint[]> = {
-        amazon: previewSpendByTab.amazon?.month || [],
-        cruzbuy: previewSpendByTab.cruzbuy?.month || [],
-        onecard: previewSpendByTab.onecard?.month || [],
-        bookstore: previewSpendByTab.bookstore?.month || [],
+        amazon: getPreviewSeries(previewSpendByTab, 'amazon', 'month'),
+        cruzbuy: getPreviewSeries(previewSpendByTab, 'cruzbuy', 'month'),
+        onecard: getPreviewSeries(previewSpendByTab, 'onecard', 'month'),
+        bookstore: getPreviewSeries(previewSpendByTab, 'bookstore', 'month'),
         combined: buildCombinedSpendSeries(previewSpendByTab, 'month'),
       };
       currentRawSeries = [...(periodSeriesByKey[seriesKey] || periodSeriesByKey.combined || [])];
@@ -439,7 +460,7 @@ export function Dashboard() {
               </button>
             </div>
 
-            {showDetails && <TopItemsTable data={filteredTopItems} />}
+            {showDetails && <TopItemsTable data={filteredTopItems} showProjected={isPreviewMode && projectedData !== null} />}
           </div>
         )}
       </div>
