@@ -73,6 +73,11 @@ const formatCurrency = (amount: number) => {
   }).format(amount);
 };
 
+const formatSpendOrNA = (amount: number) => {
+  const numeric = Number(amount || 0);
+  return numeric > 0 ? formatCurrency(numeric) : 'N/A';
+};
+
 // --- Main Component ---
 
 /**
@@ -82,7 +87,7 @@ const formatCurrency = (amount: number) => {
  * 2. Combined Sorting: Ranks items based on the sum of current + projected data.
  * 3. Expandable Rows: Shows a detailed, sortable vendor breakdown.
  */
-export function TopItemsTable({ data, isProjectionActive = false }: { data: TopItem[], isProjectionActive?: boolean }) {
+export function TopItemsTable({ data, showProjected = false }: { data: TopItem[]; showProjected?: boolean }) {
   // Main Table State
   const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'count', direction: 'desc' });
   const [expandedRow, setExpandedRow] = useState<number | null>(null);
@@ -180,7 +185,10 @@ export function TopItemsTable({ data, isProjectionActive = false }: { data: TopI
           <tbody className="divide-y divide-gray-100">
             {displayData.map((item, index) => {
               const isExpanded = expandedRow === index;
-              const hasMultipleVendors = item.vendors && item.vendors.length > 1;
+              const nonZeroVendors = (item.vendors || []).filter(
+                (v) => Number(v.count || 0) > 0 || Number(v.spend || 0) > 0
+              );
+              const hasMultipleVendors = nonZeroVendors.length > 1;
 
               return (
                 <React.Fragment key={index}>
@@ -205,24 +213,23 @@ export function TopItemsTable({ data, isProjectionActive = false }: { data: TopI
                         <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-bold bg-blue-50 text-blue-700 ring-1 ring-inset ring-blue-700/10">
                           {item.count.toLocaleString()}
                         </span>
-                        {/* Added isProjectionActive check here */}
-                        {isProjectionActive && item.projected_count && item.projected_count > 0 ? (
+                        {showProjected && Number(item.projected_count || 0) > 0 && (
                           <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-50 text-purple-700 ring-1 ring-inset ring-purple-700/20">
-                            +{item.projected_count.toLocaleString()}
+                            +{Number(item.projected_count).toLocaleString()}
                           </span>
-                        ) : null}
+                        )}
                       </div>
                     </td>
 
                     {/* SPEND CELL */}
                     <td className="p-4 text-right font-mono font-medium text-slate-900">
                       <div className="flex flex-col items-end justify-center">
-                        <span>{formatCurrency(item.total_spent)}</span>
-                        {isProjectionActive && item.projected_spent && item.projected_spent > 0 ? (
+                        <span>{formatSpendOrNA(item.total_spent)}</span>
+                        {showProjected && Number(item.projected_spent || 0) > 0 && (
                           <span className="text-[10px] font-bold text-purple-600 mt-0.5">
-                            (+{formatCurrency(item.projected_spent)})
+                            (+{formatCurrency(Number(item.projected_spent))})
                           </span>
-                        ) : null}
+                        )}
                       </div>
                     </td>
 
@@ -251,7 +258,7 @@ export function TopItemsTable({ data, isProjectionActive = false }: { data: TopI
                               </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-100">
-                              {[...item.vendors].sort((a, b) => {
+                              {[...nonZeroVendors].sort((a, b) => {
                                 if (!nestedSortConfig) return 0;
                                 const { key, direction } = nestedSortConfig;
                                 if (key === 'name') return direction === 'asc' ? a.name.localeCompare(b.name) : b.name.localeCompare(a.name);
@@ -261,7 +268,7 @@ export function TopItemsTable({ data, isProjectionActive = false }: { data: TopI
                                 <tr key={vIndex} className="hover:bg-slate-50 transition-colors">
                                   <td className="px-4 py-2 font-semibold text-slate-800">{vendor.name}</td>
                                   <td className="px-4 py-2 text-center font-mono text-slate-600">{vendor.count}</td>
-                                  <td className="px-4 py-2 text-right font-mono font-medium text-slate-900">{formatCurrency(vendor.spend)}</td>
+                                  <td className="px-4 py-2 text-right font-mono font-medium text-slate-900">{formatSpendOrNA(vendor.spend)}</td>
                                 </tr>
                               ))}
                             </tbody>

@@ -10,10 +10,10 @@ from .clean_bookstore import load_bookstore
 def _clean_csv_paths() -> Dict[str, str]:
     base = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "data", "clean"))
     return {
-        "amazon": os.path.join(base, "amazon_clean.xlsx"),
-        "cruzbuy": os.path.join(base, "cruzbuy_clean.xlsx"),
-        "onecard": os.path.join(base, "onecard_clean.xlsx"),
-        "bookstore": os.path.join(base, "bookstore_clean.xlsx"),
+        "amazon": os.path.join(base, "amazon_clean.csv"),
+        "cruzbuy": os.path.join(base, "cruzbuy_clean.csv"),
+        "onecard": os.path.join(base, "onecard_clean.csv"),
+        "bookstore": os.path.join(base, "bookstore_clean.csv"),
     }
 
 

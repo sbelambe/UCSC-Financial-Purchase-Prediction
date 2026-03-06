@@ -11,18 +11,29 @@ DEFAULT_UPLOAD_IDS = {
     "bookstore": "bookstore",
 }
 
+SPEND_PERIODS = ("day", "week", "month", "year")
+
 def upload_cleaned_data(
     *,
     dataframes: Dict[str, Any],
     local_paths: Dict[str, str],
     upload_ids: Optional[Dict[str, str]] = None,
-) -> Dict[str, Dict[str, str]]:
+    upload_storage: bool = False,
+) -> Dict[str, Any]:
     """
-    Uploads cleaned CSVs to Storage, writes upload metadata to Firestore,
+    Optionally uploads cleaned CSVs to Storage, writes upload metadata to Firestore,
     and stores summary docs in Firestore (without writing row documents).
     """
     chosen_upload_ids = {**DEFAULT_UPLOAD_IDS, **(upload_ids or {})}
-    storage_paths = upload_all_to_storage(local_paths)
+    if upload_storage:
+        storage_paths = upload_all_to_storage(local_paths)
+    else:
+        storage_paths = {
+            "amazon": None,
+            "cruzbuy": None,
+            "onecard": None,
+            "bookstore": None,
+        }
     upload_ids = {
         "amazon": df_to_firestore(
             dataframes["amazon"],
@@ -39,7 +50,18 @@ def upload_cleaned_data(
             write_rows=False,
         ),
         "onecard": df_to_firestore(
-            dataframes["onecard"], dataset="onecard", storage_path=storage_paths["onecard"]
+            dataframes["onecard"],
+            dataset="onecard",
+            storage_path=storage_paths["onecard"],
+            upload_id=chosen_upload_ids["onecard"],
+            write_rows=False,
+        ),
+        "bookstore": df_to_firestore(
+            dataframes["bookstore"],
+            dataset="bookstore",
+            storage_path=storage_paths["bookstore"],
+            upload_id=chosen_upload_ids["bookstore"],
+            write_rows=False,
         ),
     }
 
@@ -61,7 +83,7 @@ def upload_cleaned_data(
         summary_name="top_items_detailed",
         title="Top Purchased Items",
         df=dataframes["cruzbuy"],
-        item_col="Product Description",     
+        item_col="Item Description",     
         price_col="Total Price",       
         vendor_col="Supplier Name",
         n=20
@@ -109,7 +131,7 @@ def upload_cleaned_data(
         summary_name="top_items_detailed",
         title="Top Purchased Items",
         df=dataframes["onecard"],
-        item_col="Item Name",
+        item_col="Item Description",
         price_col="Subtotal",
         vendor_col="Merchant Name",
         n=20
@@ -133,9 +155,9 @@ def upload_cleaned_data(
         summary_name="top_items_detailed",
         title="Top Purchased Items",
         df=dataframes["bookstore"],
-        item_col="Item Name",
-        price_col="Subtotal",
-        vendor_col="Merchant Name",
+        item_col="Item Description",
+        price_col="Quantity",
+        vendor_col="Category",
         n=20
     )
 

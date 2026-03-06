@@ -5,9 +5,9 @@ from collections import defaultdict
 from typing import Dict, Any, Optional, List
 
 DEFAULT_UPLOAD_IDS = {
-    "cruzbuy": "050b029b-8c03-41ea-aad6-668ae16f0985",
-    "amazon": "36938f90-f75f-462d-b18c-beb7141964bf",
-    "onecard": "40165d34-fd1f-4e50-b5f5-40484e8cd6a3",
+    "cruzbuy": "cruzbuy",
+    "amazon": "amazon",
+    "onecard": "onecard",
     "bookstore": "bookstore",
 }
 
@@ -96,6 +96,18 @@ def _dataset_spend_summary(upload_id: str, time_period: str) -> List[Dict[str, A
     return normalized
 
 
+def _latest_upload_id_for_dataset(dataset: str) -> Optional[str]:
+    docs = (
+        db.collection("uploads")
+        .where(filter=FieldFilter("dataset", "==", dataset))
+        .order_by("createdAt", direction=Query.DESCENDING)
+        .limit(1)
+        .stream()
+    )
+    latest = next(docs, None)
+    return latest.id if latest else None
+
+
 def get_spend_over_time(
     *,
     upload_ids: Optional[Dict[str, str]] = None,
@@ -113,14 +125,22 @@ def get_spend_over_time(
     errors = {}
 
     for dataset in ("amazon", "cruzbuy", "onecard", "bookstore"):
-        upload_id = chosen_upload_ids.get(dataset)
-        if not upload_id:
+        preferred_upload_id = chosen_upload_ids.get(dataset)
+        if not preferred_upload_id:
             errors[dataset] = "missing upload_id"
             dataset_series[dataset] = []
             continue
 
         try:
-            points = _dataset_spend_summary(upload_id, chosen_time_period)
+            points = _dataset_spend_summary(preferred_upload_id, chosen_time_period)
+            used_upload_id = preferred_upload_id
+            if not points:
+                latest_upload_id = _latest_upload_id_for_dataset(dataset)
+                if latest_upload_id and latest_upload_id != preferred_upload_id:
+                    latest_points = _dataset_spend_summary(latest_upload_id, chosen_time_period)
+                    if latest_points:
+                        points = latest_points
+                        used_upload_id = latest_upload_id
         except Exception as e:
             errors[dataset] = str(e)
             dataset_series[dataset] = []
@@ -133,6 +153,7 @@ def get_spend_over_time(
             )
 
         dataset_series[dataset] = points
+        chosen_upload_ids[dataset] = used_upload_id
         for point in points:
             combined[str(point["period"])] += float(point["spend"])
 
