@@ -1,5 +1,6 @@
 import os
 from datetime import datetime, timedelta
+from typing import Optional
 
 import pandas as pd
 
@@ -45,7 +46,7 @@ def _map_columns(df: pd.DataFrame) -> pd.DataFrame:
     return df[CANONICAL_COLUMNS].copy()
 
 
-def _find_preferred_source_file(base_dir: str) -> str | None:
+def _find_preferred_source_file(base_dir: str) -> Optional[str]:
     clean_dir = os.path.join(base_dir, "data_cleaning", "clean")
     raw_dir = os.path.join(base_dir, "data_cleaning", "raw")
 
@@ -136,7 +137,7 @@ def _serialize_item_rows(df: pd.DataFrame) -> list[dict]:
 def get_campus_store_item_insights(
     top_n: int = 5,
     lookback_days: int = 90,
-    account_filter: str | None = "Campus Store",
+    account_filter: Optional[str] = "Campus Store",
 ) -> dict:
     df = _load_campus_store_sheet()
 

@@ -196,6 +196,7 @@ def compute_top_items_detailed(df, item_col, price_col, vendor_col, date_col=Non
     # Standardize column names (case-insensitive search)
     cols_lower = {c.lower(): c for c in df.columns}
     actual_item_col = cols_lower.get(item_col.lower(), item_col)
+    actual_price_col = cols_lower.get(price_col.lower(), price_col)
     
     # Safely get the actual vendor column name
     actual_vendor_col = cols_lower.get(vendor_col.lower(), vendor_col)
@@ -204,6 +205,13 @@ def compute_top_items_detailed(df, item_col, price_col, vendor_col, date_col=Non
     actual_date_col = None
     if date_col:
         actual_date_col = cols_lower.get(date_col.lower(), date_col)
+
+    if actual_item_col not in df_clean.columns:
+        print(f"[WARNING] Item column '{item_col}' not found; skipping top-items detailed.")
+        return []
+    if actual_price_col not in df_clean.columns:
+        print(f"[WARNING] Price column '{price_col}' not found; skipping top-items detailed.")
+        return []
     
     # Extract and clean the strings
     df_clean['clean_item_name'] = df_clean[actual_item_col].fillna("").astype(str).str.strip()
@@ -227,15 +235,15 @@ def compute_top_items_detailed(df, item_col, price_col, vendor_col, date_col=Non
         return []
 
     # Clean the price column
-    df_clean[price_col] = df_clean[price_col].astype(str).str.replace(r'[\$,]', '', regex=True)
-    df_clean[price_col] = pd.to_numeric(df_clean[price_col], errors='coerce').fillna(0.0)
+    df_clean[actual_price_col] = df_clean[actual_price_col].astype(str).str.replace(r'[\$,]', '', regex=True)
+    df_clean[actual_price_col] = pd.to_numeric(df_clean[actual_price_col], errors='coerce').fillna(0.0)
 
 
 
     # Calculate precise stats for every Item + Year + Vendor combination
     vendor_stats = df_clean.groupby(['clean_item_name', 'year', 'clean_vendor_name']).agg(
         vendor_count=('clean_item_name', 'count'),
-        vendor_spent=(price_col, 'sum')
+        vendor_spent=(actual_price_col, 'sum')
     ).reset_index()
 
     # Pack these stats into a dictionary column so it serializes cleanly to JSON
