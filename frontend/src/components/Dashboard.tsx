@@ -331,7 +331,7 @@ export function Dashboard() {
 
   // 6. APPLY ITEM FILTERS TO TABLE/CHART (Search, Categories, Min Spend)
   const filteredTopItems = useMemo(() => {
-    if (!topItems) return [];
+    if (!topItems || !Array.isArray(topItems)) return [];
     
     return topItems.filter(item => {
       const name = item.clean_item_name.toLowerCase();
@@ -345,10 +345,14 @@ export function Dashboard() {
 
       // Categories
       if (selectedCategory !== 'all') {
-        if (selectedCategory === 'technology' && !(/laptop|monitor|adapter|switch|drive|ipad|macbook|workstation|mouse|battery/.test(name))) return false;
-        if (selectedCategory === 'lab-supplies' && !(/centrifuge|glove|pipette|beaker|dna|microscope|slide|goggle|parafilm/.test(name))) return false;
-        if (selectedCategory === 'office' && !(/paper|marker|board|chair|stapler|pad|post-it|binder|toner/.test(name))) return false;
-        if (selectedCategory === 'facilities' && !(/bulb|filter|trash|ladder|vest|handle|soap|wipe/.test(name))) return false;
+        // 1. Combine item name and vendor names into one massive string
+        const vendorString = item.vendors?.map((v: { name: string }) => v.name.toLowerCase()).join(' ') || '';
+        const searchTarget = `${name} ${vendorString}`;
+
+        if (selectedCategory === 'technology' && !(/laptop|monitor|adapter|switch|drive|ipad|macbook|workstation|mouse|battery|software|aws|cloud|zoom|license|apple|dell|lenovo|adobe/.test(searchTarget))) return false;
+        if (selectedCategory === 'lab-supplies' && !(/centrifuge|glove|pipette|beaker|dna|microscope|slide|goggle|parafilm|tube|chemical|reagent|fisher|vwr|bio/.test(searchTarget))) return false;
+        if (selectedCategory === 'office' && !(/paper|marker|board|chair|stapler|pad|post-it|binder|toner|desk|pen|folder|staples|officemax/.test(searchTarget))) return false;
+        if (selectedCategory === 'facilities' && !(/bulb|filter|trash|ladder|vest|handle|soap|wipe|clean|maintenance|repair|grainger|homedepot|hardware/.test(searchTarget))) return false;
       }
 
       // Minimum Spend (Historical + Staged)
