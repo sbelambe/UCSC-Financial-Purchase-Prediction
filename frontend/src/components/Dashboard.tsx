@@ -384,12 +384,6 @@ export function Dashboard() {
         />
       </div>
 
-      <ProjectionUploader
-        onProjectionSuccess={(dataset, data, time_data) => setProjectedData({ dataset, data, time_data })}
-        onClearProjection={() => setProjectedData(null)}
-        hasActiveProjection={projectedData !== null}
-      />
-
       <div className="w-full min-w-0 rounded-xl border border-gray-200 bg-white p-8 shadow-sm">
         {isLoadingTopItems ? (
           <div className="flex min-h-[240px] items-center justify-center">Loading...</div>
@@ -399,7 +393,7 @@ export function Dashboard() {
               <div>
                 <h2 className="text-xl font-bold text-slate-900">Top Items</h2>
                 <p className="text-sm text-slate-500">
-                  Live BigQuery results from the latest cleaned CSV uploaded for each selected dataset.
+                  Live BigQuery results
                 </p>
               </div>
             </div>
@@ -432,6 +426,12 @@ export function Dashboard() {
           <div className="flex flex-1 items-center justify-center">Loading...</div>
         ) : (
           <div className="space-y-8 flex-1">
+            <ProjectionUploader
+              onProjectionSuccess={(dataset, data, time_data) => setProjectedData({ dataset, data, time_data })}
+              onClearProjection={() => setProjectedData(null)}
+              hasActiveProjection={projectedData !== null}
+            />
+
             <div className="h-[450px] w-full">
                <TopItemsChart
                  data={chartTopItems.slice(0, selectedLimit)}

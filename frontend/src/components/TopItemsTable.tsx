@@ -225,7 +225,7 @@ export function TopItemsTable({
     return (
       <div className="w-full min-w-0 rounded-xl border border-gray-200 bg-white shadow-sm">
         <div className="border-b border-gray-200 bg-slate-50 px-4 py-2 text-xs font-medium text-slate-500">
-          Scroll horizontally to see all columns.
+          Scroll bar TBD
         </div>
         <div className="w-full min-w-0 overflow-x-auto">
           <table className="w-max min-w-full text-left text-sm border-collapse">

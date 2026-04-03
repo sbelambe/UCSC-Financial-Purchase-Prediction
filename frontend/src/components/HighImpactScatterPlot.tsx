@@ -63,7 +63,7 @@ export function HighImpactScatterPlot({
       return 'Frequent, Lower Cost';
     }
     if (frequency < averageFrequency && metric >= averageMetric) {
-      return 'Rare, Higher Cost';
+      return 'Less Frequent, Higher Cost';
     }
     return 'Lower Impact Item';
   };
@@ -138,15 +138,13 @@ export function HighImpactScatterPlot({
           <Legend verticalAlign="bottom" align="center" wrapperStyle={{ paddingTop: '24px' }} />
           <ReferenceLine
             x={averageFrequency}
-            stroke="#94a3b8"
-            strokeDasharray="4 4"
-            label={{ value: 'Avg Frequency', position: 'top', fill: '#64748b', fontSize: 11 }}
+            stroke="#fca5a5"
+            label={{ value: '', position: 'top', fill: '#b91c1c', fontSize: 11 }}
           />
           <ReferenceLine
             y={averageMetric}
-            stroke="#94a3b8"
-            strokeDasharray="4 4"
-            label={{ value: 'Avg Metric', position: 'right', fill: '#64748b', fontSize: 11 }}
+            stroke="#fca5a5"
+            label={{ value: '', position: 'right', fill: '#b91c1c', fontSize: 11 }}
           />
           <Scatter name="Items" data={chartData} fill="#2563eb">
             {chartData.map((_, index) => (
