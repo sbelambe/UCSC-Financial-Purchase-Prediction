@@ -1,7 +1,15 @@
 import React, { useState, useMemo } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell, Legend } from 'recharts';
 
-const TopItemsChart = ({ data }: { data: any[] }) => {
+const TopItemsChart = ({
+  data,
+  metricLabel = 'Total Spend',
+  metricType = 'currency',
+}: {
+  data: any[];
+  metricLabel?: string;
+  metricType?: 'currency' | 'quantity' | 'mixed';
+}) => {
   // state to track which metric is selected from the dropdown
   const [metric, setMetric] = useState<'count' | 'spend'>('count');
 
@@ -46,12 +54,11 @@ const TopItemsChart = ({ data }: { data: any[] }) => {
 
   // smart Y-Axis formatter to prevent large numbers from overlapping
   const yAxisFormatter = (value: number) => {
-    if (metric === 'spend') {
+    if (metric === 'spend' && metricType !== 'quantity') {
       if (value >= 1000000) return `$${(value / 1000000).toFixed(1)}M`;
       if (value >= 1000) return `$${(value / 1000).toFixed(0)}k`;
       return `$${value}`;
     }
-    // format large transaction counts with commas
     return new Intl.NumberFormat('en-US').format(value);
   };
 
@@ -70,7 +77,7 @@ const TopItemsChart = ({ data }: { data: any[] }) => {
           style={{ outlineColor: '#003c6c' }}
         >
           <option value="count">Number of Transactions</option>
-          <option value="spend">Total Spend ($)</option>
+          <option value="spend">{metricLabel}</option>
         </select>
       </div>
       
@@ -111,7 +118,7 @@ const TopItemsChart = ({ data }: { data: any[] }) => {
                         Frequency: <span className="font-mono text-slate-600">{d.count}</span>
                       </p>
                       <p className={`text-xs font-semibold ${metric === 'spend' ? 'text-blue-700' : 'text-slate-500'}`}>
-                        Total Cost: <span className="font-mono text-slate-600">{formatCurrency(d.total_spent)}</span>
+                        {metricLabel}: <span className="font-mono text-slate-600">{metricType === 'quantity' ? new Intl.NumberFormat('en-US').format(d.total_spent) : formatCurrency(d.total_spent)}</span>
                       </p>
                       
                       {/* display sandbox preview stats in the tooltip if they exist */}
@@ -142,7 +149,7 @@ const TopItemsChart = ({ data }: { data: any[] }) => {
           {/* Historical Count Bar */}
           <Bar 
             dataKey={metric === 'count' ? "count" : "total_spent"} 
-            name={metric === 'count' ? "Current Frequency" : "Current Spend"} 
+            name={metric === 'count' ? "Current Frequency" : metricLabel} 
             stackId="a" 
             radius={[0, 0, 4, 4]}
           >

@@ -5,6 +5,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from typing import Optional
 from .analytics import get_item_freq, get_spend_over_time
 from .analytics_bookstore import get_campus_store_item_insights
+from .data_config import dataset_schema
+from .bigquery_service import query_spend_over_time_from_bigquery, query_top_items_from_bigquery
 from firebase.summaries import compute_top_items_detailed
 # # from backend.jobs.run_full_pipeline import run_full_pipeline
 from dotenv import load_dotenv
@@ -97,6 +99,38 @@ def get_top_items(user_id: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.get("/api/analytics/top-items/bigquery")
+def get_top_items_bigquery(
+    dataset: str = "overall",
+    search_query: str = "",
+    selected_year: str = "All Time",
+    min_spend: float = 0,
+    limit: int = 20,
+    sort_mode: str = "frequency",
+):
+    try:
+        data = query_top_items_from_bigquery(
+            dataset=dataset,
+            search_query=search_query,
+            selected_year=selected_year,
+            min_spend=min_spend,
+            limit=limit,
+            sort_mode=sort_mode,
+        )
+        return {"status": "success", "data": data}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/analytics/dataset-config")
+def get_dataset_config(dataset: str = "overall"):
+    try:
+        normalized = dataset.strip().lower()
+        return {"status": "success", "data": dataset_schema(normalized)}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.get("/api/analytics/spend-over-time")
 def spend_over_time(
     time_period: str = "month",
@@ -120,6 +154,21 @@ def spend_over_time(
             time_period=time_period,
             interval=interval,
             include_refunds=include_refunds,
+        )
+        return {"status": "success", "data": data}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/analytics/spend-over-time/bigquery")
+def spend_over_time_bigquery(
+    dataset: str = "overall",
+    time_period: str = "month",
+):
+    try:
+        data = query_spend_over_time_from_bigquery(
+            dataset=dataset,
+            time_period=time_period,
         )
         return {"status": "success", "data": data}
     except Exception as e:

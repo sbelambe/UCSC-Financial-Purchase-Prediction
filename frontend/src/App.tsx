@@ -116,7 +116,7 @@ function DashboardLayout() {
       </header>
 
       {/* Main Dashboard */}
-      <main className="max-w-[1800px] mx-auto px-6 py-6">
+      <main className="max-w-[1800px] mx-auto w-full min-w-0 px-6 py-6">
         <Dashboard />
       </main>
 

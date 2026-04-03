@@ -6,7 +6,6 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  Legend,
 } from 'recharts';
 
 type SpendPoint = {
@@ -19,6 +18,8 @@ type TransactionsOverTimeChartProps = {
   data: SpendPoint[];
   title?: string;
   loading?: boolean;
+  metricLabel?: string;
+  metricType?: 'currency' | 'quantity' | 'mixed';
 };
 
 const formatCurrency = (value: number) =>
@@ -32,6 +33,8 @@ const TransactionsOverTimeChart: React.FC<TransactionsOverTimeChartProps> = ({
   data,
   title = 'Spend Over Time',
   loading = false,
+  metricLabel = 'Spend',
+  metricType = 'currency',
 }) => {
   // map the pending_spend property if it exists
   const chartData = (data || []).map((d) => ({
@@ -77,15 +80,20 @@ const TransactionsOverTimeChart: React.FC<TransactionsOverTimeChartProps> = ({
           />
           <YAxis
             tick={{ fontSize: 11, fill: '#4b5563' }}
-            tickFormatter={(value) => formatCurrency(Number(value))}
+            tickFormatter={(value) =>
+              metricType === 'quantity'
+                ? new Intl.NumberFormat('en-US').format(Number(value))
+                : formatCurrency(Number(value))
+            }
           />
           <Tooltip
-            formatter={(value: number) => formatCurrency(Number(value))}
+            formatter={(value: number) =>
+              metricType === 'quantity'
+                ? new Intl.NumberFormat('en-US').format(Number(value))
+                : formatCurrency(Number(value))
+            }
             labelFormatter={(label) => `Period: ${label}`}
           />
-          <Legend />
-          
-          {/* Base Historical Spend Line */}
           <Line
             type="monotone"
             dataKey="spend"
@@ -93,20 +101,7 @@ const TransactionsOverTimeChart: React.FC<TransactionsOverTimeChartProps> = ({
             strokeWidth={3}
             dot={{ r: 3, fill: '#1e3a8a' }}
             activeDot={{ r: 5 }}
-            name="Database Spend"
-          />
-          
-          {/* Sandbox Preview Line (Renders as a dashed purple line) */}
-          <Line
-            type="monotone"
-            dataKey="pending_spend"
-            stroke="#a855f7"
-            strokeWidth={3}
-            strokeDasharray="5 5" // Makes it dashed to indicate "pending" or "staged"
-            dot={{ r: 4, fill: '#a855f7' }}
-            activeDot={{ r: 6 }}
-            name="Pending Upload"
-            connectNulls // Allows the line to bridge gaps if a CSV skips a month
+            name={metricLabel}
           />
         </LineChart>
       </div>
