@@ -1,3 +1,7 @@
+# Pulls precomputed analytics from Firestore and reshapes them into formats
+# the frontend expects; prevents frontend from having to understand Firestore
+# structure
+
 from .firebase import db
 from google.cloud.firestore import FieldFilter, Query
 from datetime import datetime

@@ -1,3 +1,5 @@
+# A local testing + validation script that runs the pipelines and outputs
+# dashboard-ready data for inspection without Firestore
 import os, sys, uuid, json
 import pandas as pd
 from dotenv import load_dotenv

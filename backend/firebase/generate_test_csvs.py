@@ -1,8 +1,11 @@
+# Generates fake CSV files that mimic the real datasets (Amazon, CruzBuy, 
+# OneCard) with realistic messiness
 import pandas as pd
 import random
 from datetime import datetime, timedelta
 
-# --- Expanded & Categorized Seed Data ---
+# Defines item names, vendors, price ranges, categories, and edge cases
+# (intentional messiness)
 CATEGORIES = {
     "Technology": {
         "items": [
@@ -47,13 +50,15 @@ CATEGORIES = {
     }
 }
 
+# Generates a random date within the last about 120 days
 def random_date(days_back=120):
     start = datetime.now() - timedelta(days=days_back)
     random_days = random.randrange(days_back)
     return (start + timedelta(days=random_days)).strftime("%Y-%m-%d")
 
+
+# Adds realistic CSV messiness: leading/trailing spaces and varying formats
 def generate_messy_price(base_price):
-    """Adds realistic CSV messiness: leading/trailing spaces and varying formats."""
     formats = [
         lambda p: f"${p:,.2f}",       # $1,234.56
         lambda p: float(p),           # 1234.56
@@ -62,6 +67,9 @@ def generate_messy_price(base_price):
     ]
     return random.choice(formats)(base_price)
 
+
+# For each row, pick a category, item, vendor, price, and date. Add
+# messiness
 def generate_rows(num_rows=10000):
     rows = []
     # Convert category names to a list for selection
@@ -91,6 +99,7 @@ def generate_rows(num_rows=10000):
         })
     return rows
 
+# Create test datasets
 def create_amazon_csv():
     data = generate_rows(5000)
     df = pd.DataFrame({
@@ -124,6 +133,8 @@ def create_onecard_csv():
     df.to_csv("test_onecard.csv", index=False)
     print("[OK] Generated test_onecard.csv with 3,000 rows")
 
+# Execute the creation of the test data. Generates 5,000 Amazon rows,
+# 8,000 CruzBuy rows, and 3,000 OneCard rows
 if __name__ == "__main__":
     print("🚀 Generating high-variance campus procurement data...")
     create_amazon_csv()

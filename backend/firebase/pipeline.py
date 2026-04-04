@@ -1,5 +1,7 @@
+# Transforms cleaned data into dashboard-ready data stored inside Firestore.
+# Takes cleaned dataframes, stores metadata, then generates summaries usable
+# By the dashboard
 from typing import Dict, Any, Optional
-
 from firebase.storage import upload_all_to_storage
 from firebase.firestore import df_to_firestore
 from firebase.summaries import save_top_values_summary, save_spend_over_time_summary, save_top_items_detailed_summary
@@ -11,7 +13,9 @@ DEFAULT_UPLOAD_IDS = {
     "bookstore": "bookstore",
 }
 
+# Used for spend over time to show daily, weekly, monthly, and yearly spend
 SPEND_PERIODS = ("day", "week", "month", "year")
+
 
 def upload_cleaned_data(
     *,
@@ -20,10 +24,8 @@ def upload_cleaned_data(
     upload_ids: Optional[Dict[str, str]] = None,
     upload_storage: bool = False,
 ) -> Dict[str, Any]:
-    """
-    Optionally uploads cleaned CSVs to Storage, writes upload metadata to Firestore,
-    and stores summary docs in Firestore (without writing row documents).
-    """
+    # Optionally upload cleaned CSVs to Firebase Storage. Else, set paths 
+    # to None. More useful for backups/downloads, not the dashboard itself
     chosen_upload_ids = {**DEFAULT_UPLOAD_IDS, **(upload_ids or {})}
     if upload_storage:
         storage_paths = upload_all_to_storage(local_paths)
@@ -34,6 +36,8 @@ def upload_cleaned_data(
             "onecard": None,
             "bookstore": None,
         }
+    
+    # Write metadata to Firestore
     upload_ids = {
         "amazon": df_to_firestore(
             dataframes["amazon"],
@@ -65,6 +69,7 @@ def upload_cleaned_data(
         ),
     }
 
+    # Generate summaries
     save_top_values_summary(
         upload_id=upload_ids["cruzbuy"],
         dataset="cruzbuy",
@@ -161,6 +166,7 @@ def upload_cleaned_data(
         n=20
     )
 
+    
     for period in SPEND_PERIODS:
         save_spend_over_time_summary(
             upload_id=upload_ids["amazon"],

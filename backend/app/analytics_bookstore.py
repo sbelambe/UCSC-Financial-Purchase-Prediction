@@ -1,3 +1,6 @@
+# Bookstore analytics module for generating insights on item demand
+#  and stock recommendations
+
 import os
 from datetime import datetime, timedelta
 from typing import Optional

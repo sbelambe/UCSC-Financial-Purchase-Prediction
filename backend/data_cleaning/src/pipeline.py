@@ -1,12 +1,16 @@
+# Runs all cleaning scripts and returns structured clean data and where
+# it should be stored in the codebase
 import os
 from typing import Dict, Any
 
+# Import cleaning script files
 from .clean_amazon import load_amazon
 from .clean_cruzbuy import load_cruzbuy
 from .clean_onecard import load_onecard
 from .clean_bookstore import load_bookstore
 
 
+# Save each cleaned dataset under backend/data_cleaning/data/clean
 def _clean_csv_paths() -> Dict[str, str]:
     base = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "data", "clean"))
     return {
@@ -17,10 +21,8 @@ def _clean_csv_paths() -> Dict[str, str]:
     }
 
 
+# Run cleaning scripts and return cleaned dataframes and local CSVs
 def run_data_cleaning() -> Dict[str, Any]:
-    """
-    Runs cleaning for all datasets and returns cleaned DataFrames + local CSV paths.
-    """
     amazon_df = load_amazon()
     cruzbuy_df = load_cruzbuy()
     onecard_df = load_onecard()
