@@ -1,3 +1,4 @@
+// Component for displaying sales overview with key metrics and charts
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { DollarSign, TrendingUp, Package, Users } from 'lucide-react';
 import { useState } from 'react';
@@ -7,6 +8,8 @@ interface SalesOverviewProps {
   metric: string;
 }
 
+// SalesOverview Component
+// Displays key sales metrics and a line/bar chart based on the selected metric (revenue, units, profit)
 export function SalesOverview({ data, metric }: SalesOverviewProps) {
   const [chartType, setChartType] = useState<'line' | 'bar'>('line');
 
@@ -23,6 +26,7 @@ export function SalesOverview({ data, metric }: SalesOverviewProps) {
     }
   };
 
+  // Format Y-axis values based on the selected metric
   const formatValue = (value: number) => {
     if (metric === 'units') {
       return value.toLocaleString();
@@ -144,6 +148,8 @@ export function SalesOverview({ data, metric }: SalesOverviewProps) {
   );
 }
 
+// MetricCard Component
+// Reusable card for displaying a key metric with an icon, label, value, and trend indicator
 function MetricCard({
   icon,
   label,

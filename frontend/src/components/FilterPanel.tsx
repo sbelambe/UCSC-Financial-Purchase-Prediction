@@ -1,5 +1,7 @@
+// Renders the filter panel on the left side of the dashboard
 import { Calendar, Package, TrendingUp } from 'lucide-react';
 
+// Define the props for the FilterPanel component
 interface FilterPanelProps {
   selectedYear: string;
   selectedProduct: string;
@@ -9,6 +11,8 @@ interface FilterPanelProps {
   onMetricChange: (metric: string) => void;
 }
 
+// The FilterPanel component renders buttons for year selection, and dropdowns
+// for product category and metric selection
 export function FilterPanel({
   selectedYear,
   selectedProduct,

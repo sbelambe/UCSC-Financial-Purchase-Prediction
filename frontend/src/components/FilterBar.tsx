@@ -1,6 +1,9 @@
+// Renders the filter bar at the top of the dashboard
 import { Search } from 'lucide-react';
 import React from 'react';
 
+// Define the props for the FilterBar component, including the
+// current filter values and the callback functions to update them
 interface FilterBarProps {
   selectedYear: string;
   selectedCategory: string;
@@ -12,6 +15,8 @@ interface FilterBarProps {
   onMinSpendChange: (minSpend: number) => void;
 }
 
+// The FilterBar component renders dropdowns for year and category filters,
+// an input for minimum spend, and a search bar
 export function FilterBar({
   selectedYear,
   selectedCategory,

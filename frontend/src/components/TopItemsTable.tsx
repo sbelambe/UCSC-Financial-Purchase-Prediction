@@ -1,13 +1,17 @@
+// Renders a table of top items with sorting, expandable vendor details, and 
+// support for projected data in a staging sandbox environment
 import React, { useState, useMemo } from 'react';
 
 // --- Interfaces ---
-
+// VendorStat represents the aggregated stats for a single vendor associated
+//  with an item
 export interface VendorStat {
   name: string;
   count: number;
   spend: number;
 }
 
+// TopItem represents the aggregated stats for a single item
 export interface TopItem {
   clean_item_name: string;
   count: number;
@@ -17,13 +21,14 @@ export interface TopItem {
   projected_spent?: number; // Sandbox staging data
 }
 
+// SortConfig defines the current sorting state for the main table
 type SortConfig = {
   key: keyof TopItem;
   direction: 'asc' | 'desc';
 } | null;
 
-// --- Helper Functions ---
 
+// --- Helper Functions ---
 /**
  * Formats the vendor tags in the main table row.
  * Handles filtering of empty/unknown vendors and displays a "+X" badge for overflow.
@@ -42,6 +47,7 @@ const formatVendors = (rawVendors: VendorStat[] | undefined) => {
 
   if (vendors.length === 0) return <span className="text-gray-300 italic text-xs">Unknown</span>;
 
+  // Show up to 3 vendors, then a "+X" badge if there are more
   const visibleVendors = vendors.slice(0, 3);
   const hiddenCount = vendors.length - 3;
 
@@ -61,11 +67,13 @@ const formatVendors = (rawVendors: VendorStat[] | undefined) => {
   );
 };
 
+// Truncates text to a specified max length and adds ellipsis if needed
 const truncateText = (text: string, maxLength: number = 55) => {
   if (!text) return "";
   return text.length <= maxLength ? text : text.substring(0, maxLength) + "...";
 };
 
+// Formats a number as USD currency
 const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
@@ -73,6 +81,7 @@ const formatCurrency = (amount: number) => {
   }).format(amount);
 };
 
+// Formats spend amount or returns "N/A" if the amount is zero or invalid
 const formatSpendOrNA = (amount: number) => {
   const numeric = Number(amount || 0);
   return numeric > 0 ? formatCurrency(numeric) : 'N/A';
@@ -132,8 +141,12 @@ export function TopItemsTable({ data, showProjected = false }: { data: TopItem[]
     return sortableItems;
   }, [data, sortConfig]);
 
+  // Show only top 20 items after sorting
   const displayData = sortedData.slice(0, 20);
 
+  // --- Event Handlers for Sorting ---
+
+  // Toggles sorting for the main table columns
   const requestSort = (key: keyof TopItem) => {
     let direction: 'asc' | 'desc' = 'desc';
     if (sortConfig && sortConfig.key === key && sortConfig.direction === 'desc') {
@@ -141,12 +154,14 @@ export function TopItemsTable({ data, showProjected = false }: { data: TopItem[]
     }
     setSortConfig({ key, direction });
   };
-
+  
+  // Returns the appropriate sort icon based on the current sorting state
   const getSortIcon = (key: keyof TopItem) => {
     if (!sortConfig || sortConfig.key !== key) return <span className="text-gray-300 ml-1">↕</span>;
     return sortConfig.direction === 'asc' ? <span className="text-blue-600 ml-1">▲</span> : <span className="text-blue-600 ml-1">▼</span>;
   };
 
+  // Toggles sorting for the nested vendor breakdown columns
   const requestNestedSort = (key: keyof VendorStat) => {
     let direction: 'asc' | 'desc' = 'desc';
     if (nestedSortConfig && nestedSortConfig.key === key && nestedSortConfig.direction === 'desc') {
@@ -155,6 +170,7 @@ export function TopItemsTable({ data, showProjected = false }: { data: TopItem[]
     setNestedSortConfig({ key, direction });
   };
 
+  // Returns the appropriate sort icon for the nested vendor breakdown based on the current sorting state
   const getNestedSortIcon = (key: keyof VendorStat) => {
     if (!nestedSortConfig || nestedSortConfig.key !== key) return <span className="text-gray-300 ml-1">↕</span>;
     return nestedSortConfig.direction === 'asc' ? <span className="text-blue-600 ml-1">▲</span> : <span className="text-blue-600 ml-1">▼</span>;

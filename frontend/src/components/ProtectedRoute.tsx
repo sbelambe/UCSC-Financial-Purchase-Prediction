@@ -1,3 +1,4 @@
+// Component that protects routes by checking for user authentication
 import { Navigate, Outlet } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 

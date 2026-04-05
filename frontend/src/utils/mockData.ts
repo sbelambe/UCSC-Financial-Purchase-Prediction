@@ -1,3 +1,5 @@
+// Utility functions to generate mock data for dashboard visualizations based
+// on selected year and product category
 export function generateMockData(year: string, product: string) {
   const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   

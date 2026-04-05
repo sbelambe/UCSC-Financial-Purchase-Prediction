@@ -1,3 +1,5 @@
+// Renders a vendor analysis section with summary cards and lists of most/least
+// purchased items
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { TrendingUp, TrendingDown, Package } from 'lucide-react';
 import { generateVendorData } from '../utils/mockData';

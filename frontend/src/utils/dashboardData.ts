@@ -1,3 +1,4 @@
+// Utility function to generate mock dashboard data based on selected tab, year, and category
 export function generateDashboardData(
   tab: string,
   year: string,

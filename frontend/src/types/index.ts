@@ -1,3 +1,5 @@
+// TypeScript interfaces for transactions and user profiles used across the 
+// application
 import { Timestamp } from "firebase/firestore";
 
 // general schema for item transaction

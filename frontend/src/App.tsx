@@ -1,3 +1,5 @@
+// Main App Component
+// Sets up routing, authentication context, and the main dashboard layout with header and chatbot
 import { useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Dashboard } from './components/Dashboard';
