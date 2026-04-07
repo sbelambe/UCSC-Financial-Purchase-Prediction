@@ -1,3 +1,4 @@
+// Component for uploading CSV files to generate financial projections
 import React, { useState } from 'react';
 
 interface ProjectionUploaderProps {
@@ -10,24 +11,24 @@ interface ProjectionUploaderProps {
   hasActiveProjection: boolean;
 }
 
-/**
+/*
  * ProjectionUploader Component
- * * Handles the selection of a CSV file and dataset type, sending it to the 
+ * Handles the selection of a CSV file and dataset type, sending it to the 
  * in-memory projection API. On success, it passes the aggregated financial 
  * objects back to the parent dashboard for merging.
- */
+*/
 export function ProjectionUploader({ onProjectionSuccess, onClearProjection, hasActiveProjection }: ProjectionUploaderProps) {
   const [file, setFile] = useState<File | null>(null);
   const [dataset, setDataset] = useState<string>('amazon');
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
-  // state to track if we successfully auto-detected the CSV type
+  // State to track if we successfully auto-detected the CSV type
   const [wasAutoDetected, setWasAutoDetected] = useState(false);
 
   // --- SMART AUTO-DETECTION ---
   const detectDatasetFromHeaders = (file: File) => {
-    // read only the first 1024 bytes to grab the header row instantly
+    // Read only the first 1024 bytes to grab the header row instantly
     const reader = new FileReader();
     reader.onload = (e) => {
       const text = e.target?.result as string;
@@ -35,7 +36,7 @@ export function ProjectionUploader({ onProjectionSuccess, onClearProjection, has
 
       const firstLine = text.split('\n')[0].toLowerCase();
 
-      // look for signature columns based on our Pandas backend logic
+      // Look for signature columns based on our Pandas backend logic
       if (firstLine.includes('order date') || firstLine.includes('seller')) {
         setDataset('amazon');
         setWasAutoDetected(true);
@@ -49,13 +50,15 @@ export function ProjectionUploader({ onProjectionSuccess, onClearProjection, has
         setWasAutoDetected(true);
         console.log("[OK] Auto-detected OneCard CSV");
       } else {
-        // reset if we can't identify it, letting the user pick manually
+        // Reset if we can't identify it, letting the user pick manually
         setWasAutoDetected(false); 
       }
     };
     reader.readAsText(file.slice(0, 1024));
   };
 
+  // --- UPLOAD HANDLER ---
+  // Handles the file upload and sends it to the projection API
   const handleUpload = async (e: { preventDefault: () => void }) => {
     e.preventDefault();
     if (!file) return;

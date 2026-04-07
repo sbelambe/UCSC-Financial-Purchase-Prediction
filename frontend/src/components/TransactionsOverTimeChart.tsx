@@ -1,3 +1,5 @@
+// Renders a line chart showing spend over time, with support for both 
+// historical spend and pending uploads
 import React from 'react';
 import {
   LineChart,
@@ -9,18 +11,21 @@ import {
   Legend,
 } from 'recharts';
 
+// Defines the shape of each data point for the chart
 type SpendPoint = {
   period: string;
   spend: number;
   pending_spend?: number;
 };
 
+// Props for the TransactionsOverTimeChart component
 type TransactionsOverTimeChartProps = {
   data: SpendPoint[];
   title?: string;
   loading?: boolean;
 };
 
+// Utility function to format numbers as USD currency
 const formatCurrency = (value: number) =>
   new Intl.NumberFormat('en-US', {
     style: 'currency',
@@ -28,12 +33,13 @@ const formatCurrency = (value: number) =>
     maximumFractionDigits: 0,
   }).format(value);
 
+// Main component that renders the line chart
 const TransactionsOverTimeChart: React.FC<TransactionsOverTimeChartProps> = ({
   data,
   title = 'Spend Over Time',
   loading = false,
 }) => {
-  // map the pending_spend property if it exists
+  // Map the pending_spend property if it exists
   const chartData = (data || []).map((d) => ({
     period: String(d.period),
     spend: Number(d.spend) || 0,

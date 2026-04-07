@@ -1,3 +1,4 @@
+// Defines Firestore collection references and TypeScript interfaces for user and transaction data
 import { collection, DocumentData, CollectionReference } from 'firebase/firestore';
 import { db } from './firebase';
 

@@ -1,3 +1,9 @@
+// This Dashboard component is the main view for users to analyze their spending 
+// data. It includes tabbed navigation for different datasets, a filter bar for 
+// refining the data,and visualizations like charts and tables. The component 
+// supports both a preview mode with static data and a live mode that fetches 
+// real data from the backend. Users can also upload projection files to see 
+// how future spending might look based on staged projections.
 import { useState, useEffect, useMemo } from 'react';
 import { TabNavigation } from './TabNavigation';
 import { FilterBar } from './FilterBar';
@@ -9,16 +15,22 @@ import { ProjectionUploader } from './ProjectionUploader';
 import previewData from '../data/preview_top_20_data.json';
 import previewSpendOverTimeData from '../data/preview_spend_over_time_data.json';
 
+
 // --- TYPES & CONSTANTS ---
+// A single point on the spend-over-time chart. `pending_spend` is only 
+// populated when a staged projection has been blended into preview mode
 type SpendPoint = { period: string; spend: number; pending_spend?: number };
+
 type SpendTimePeriod = 'day' | 'week' | 'month' | 'year';
 type DatasetKey = 'amazon' | 'cruzbuy' | 'onecard' | 'bookstore';
 type SpendPreviewByTab = Record<DatasetKey, Partial<Record<SpendTimePeriod, SpendPoint[]>>> & { combined?: any };
 type QuarterKey = 'fall24' | 'winter25' | 'spring25' | 'summer25' | 'fall25' | 'winter26';
 type SpendRangeMode = 'term' | 'year';
 
+// These term windows drive the "Term" selector below and determine which 
+// monthly buckets should be shown in the spend chart for each academic quarter
 const QUARTER_RANGES: Record<QuarterKey, { label: string; startMonth: string; endMonth: string }> = {
-   // Update these date windows as needed.
+  // Update these date windows as needed.
   fall24: { label: 'Fall24', startMonth: '2024-10', endMonth: '2024-12' },
   winter25: { label: 'Winter25', startMonth: '2025-01', endMonth: '2025-03' },
   spring25: { label: 'Spring25', startMonth: '2025-04', endMonth: '2025-06' },
@@ -27,7 +39,11 @@ const QUARTER_RANGES: Record<QuarterKey, { label: string; startMonth: string; en
   winter26: { label: 'Winter26', startMonth: '2026-01', endMonth: '2026-03' },
 };
 
+
 // --- HELPER FUNCTIONS ---
+// buildCombinedSpendSeries()
+// Combines all datasets into a single series for the "Overall" tab, summing 
+// spend across sources by period
 const buildCombinedSpendSeries = (preview: SpendPreviewByTab, timePeriod: SpendTimePeriod) => {
   const combinedMap: { [period: string]: number } = {};
   (['amazon', 'cruzbuy', 'onecard', 'bookstore'] as DatasetKey[]).forEach((key) => {
@@ -41,12 +57,15 @@ const buildCombinedSpendSeries = (preview: SpendPreviewByTab, timePeriod: SpendT
     .map(([period, spend]) => ({ period, spend }));
 };
 
+// getPreviewSeries()
+// Handles inconsistencies in the preview data structure, ensuring we can 
+// extract a clean series for any given dataset and time period
 const getPreviewSeries = (
   preview: any,
   key: DatasetKey,
   timePeriod: SpendTimePeriod = 'month'
 ): SpendPoint[] => {
-  // just in case there are instances of pcard
+  // Just in case there are instances of pcard
   const source = key === 'onecard'
     ? (preview?.onecard ?? preview?.pcard)
     : preview?.[key];
@@ -56,6 +75,11 @@ const getPreviewSeries = (
   return [];
 };
 
+// --- Time Filtering Functions ---
+// monthWindow()
+// Expands a YYYY-MM -> YYYY-MM range into every month in that interval so 
+// charts can render zero-value months instead of skipping missing data 
+// entirely. Ex: ['2025-01', '2025-02', ...]
 const monthWindow = (startMonth: string, endMonth: string) => {
   const months: string[] = [];
   const cursor = new Date(`${startMonth}-01T00:00:00Z`);
@@ -69,6 +93,11 @@ const monthWindow = (startMonth: string, endMonth: string) => {
   return months;
 };
 
+// filterSeriesByQuarter()
+// Filters a raw spend series to only include points that fall within the
+// specified quarter, and fills in any missing months with zero values so the
+// chart renders continuous time even if there were no transactions in a given 
+// month
 const filterSeriesByQuarter = (points: SpendPoint[], quarterKey: QuarterKey): SpendPoint[] => {
   const { startMonth, endMonth } = QUARTER_RANGES[quarterKey];
   const spendByMonth: Record<string, {spend: number, pending: number}> = {};
@@ -86,11 +115,17 @@ const filterSeriesByQuarter = (points: SpendPoint[], quarterKey: QuarterKey): Sp
   }));
 };
 
+// availableYearsFromSeries()
+// Extracts all unique years from a raw spend series to populate the "Year" filter 
+// dropdown. Ensures years are valid 4-digit numbers and sorts them in ascending 
+// order
 const availableYearsFromSeries = (points: SpendPoint[]): string[] =>
   Array.from(new Set(points.map((p) => String(p.period).slice(0, 4))))
     .filter((y) => /^\d{4}$/.test(y))
     .sort((a, b) => a.localeCompare(b));
 
+// filterSeriesByYear()
+// filterSeriesByQuarter but for the "Year" selector
 const filterSeriesByYear = (points: SpendPoint[], year: string): SpendPoint[] => {
   const spendByMonth: Record<string, {spend: number, pending: number}> = {};
   
@@ -107,6 +142,13 @@ const filterSeriesByYear = (points: SpendPoint[], year: string): SpendPoint[] =>
   }));
 };
 
+// mergePreviewData()
+// The preview data is structured in a way that can lead to duplicate items across
+// datasets (e.g. the same laptop purchase might appear in both Amazon and OneCard
+// datasets). This function merges those duplicates together, summing their counts
+// and spend, and combining their vendor lists. It also applies the year filter 
+// to ensure that only items from the selected year are included in the merged 
+// results.
 const mergePreviewData = (rawPreview: any, tab: string, filterYear: string) => {
   const merged: { [key: string]: any } = {};
   const tabToKeyMap: { [key: string]: string } = {
@@ -116,6 +158,8 @@ const mergePreviewData = (rawPreview: any, tab: string, filterYear: string) => {
     'Bookstore': 'bookstore'
   };
 
+  // This function processes a single dataset (e.g. Amazon) and merges its items 
+  // into the `merged` map.
   const processDataset = (dataset: any[]) => {
     dataset.forEach((item: any) => {
       if (filterYear !== 'All Time' && item.year && item.year !== filterYear) return; 
@@ -172,30 +216,48 @@ const mergePreviewData = (rawPreview: any, tab: string, filterYear: string) => {
     );
 };
 
+
+// --- MAIN COMPONENT ---
 export function Dashboard() {
   const { user } = useAuth();
+
+  // Controls which dataset the user is currently viewing and whether we're in
+  //  preview mode or live mode
   const [activeTab, setActiveTab] = useState<'Overall' | 'CruzBuy' | 'OneCard' | 'Amazon' | 'Bookstore'>('Overall');
   const [isPreviewMode, setIsPreviewMode] = useState(true);
 
   // Passive cache states
+  // Raw data pulled from the backend that doesn't get directly rendered, but 
+  // is used as the source of truth that we blend staged projections into and then 
+  // extract display data from. This way we can keep the original backend data 
+  // separate and unmodified while still allowing users to see how their projections
+  // impact the charts and tables in preview mode
   const [liveRawTopItems, setLiveRawTopItems] = useState<any>(null);
   const [liveRawSpend, setLiveRawSpend] = useState<any>(null);
-    const [projectedData, setProjectedData] = useState<{
+
+  // Staged projection data that the user uploads in preview mode, which gets
+  // blended into the charts and tables alongside the raw data
+  const [projectedData, setProjectedData] = useState<{
       dataset: string, 
       data: any[], 
       time_data: {period: string, pending_spend: number}[] 
   } | null>(null);
 
   // Active display states
+  // Top items states
   const [topItems, setTopItems] = useState<any[]>([]);
   const [isLoadingTopItems, setIsLoadingTopItems] = useState(true);
   
   // Spend states
+  // `rawSpendSeries` is the unfiltered, unmodified series pulled from the 
+  // backend (with projections blended in for preview mode)
+  // `spendSeries` is the filtered series that actually gets passed to the 
+  // chart based
   const [rawSpendSeries, setRawSpendSeries] = useState<SpendPoint[]>([]);
   const [spendSeries, setSpendSeries] = useState<SpendPoint[]>([]);
   const [isLoadingSpend, setIsLoadingSpend] = useState(true);
   
-  // Filter & UI States
+  // Filter & UI States for dashboard controls
   const [showDetails, setShowDetails] = useState(false);
   const [selectedYear, setSelectedYear] = useState('All Time');
   const [selectedQuarter, setSelectedQuarter] = useState<QuarterKey>('winter25');
@@ -205,6 +267,9 @@ export function Dashboard() {
   const [searchQuery, setSearchQuery] = useState('');
   const [minSpend, setMinSpend] = useState<number>(0);
 
+  // This map helps us determine which series to pull from the raw spend data
+  // based on the active tab, since the API returns all datasets together and we
+  // need to extract the relevant one for the current view
   const tabToSeriesKeyMap: { [key: string]: string } = {
     Overall: 'combined',
     Amazon: 'amazon',
@@ -215,7 +280,11 @@ export function Dashboard() {
 
   const previewSpendByTab = previewSpendOverTimeData as unknown as SpendPreviewByTab;
 
+
   // 1. RAW DATA FETCH (Runs once per session)
+  // On initial load, we fetch the raw data for both the top items and spend-over-time
+  // charts and store it in separate states. This raw data is what we use as the source 
+  // of truth
   useEffect(() => {
     if (isPreviewMode) return;
 
@@ -236,14 +305,23 @@ export function Dashboard() {
 
 
   // 2. TAB SWITCHING: TOP ITEMS & PROJECTIONS
+  // Whenever the user switches tabs, we need to update the top items table and chart
+  // to reflect the relevant dataset. Additionally, if we're in preview mode and the 
+  // user has uploaded a projection, we need to blend that projection data into the 
+  // raw data for the active tab before extracting the top items to display, so that 
+  // users can see how their projections impact the top items in real time as they 
+  // switch between tabs and filters
   useEffect(() => {
     setIsLoadingTopItems(true);
     let baseTopItems = isPreviewMode ? previewData : liveRawTopItems;
     
     if (baseTopItems) {
+      // Deep copy the base data to avoid mutating the original raw data when we 
+      // blend in projections
       const combinedData = JSON.parse(JSON.stringify(baseTopItems));
       
-      // Merge staged projections
+      // Merge staged projections into the relevant dataset in the raw data, tagging 
+      // them with `projected_count`
       if (projectedData && isPreviewMode) {
         const targetKey = projectedData.dataset; 
         if (!combinedData[targetKey]) combinedData[targetKey] = [];
@@ -266,7 +344,15 @@ export function Dashboard() {
     }
   }, [user, isPreviewMode, activeTab, liveRawTopItems, projectedData, selectedYear]);
 
+
   // 3. TAB SWITCHING: SPEND SERIES (Historical + Projections)
+  // Similar to the top items, when the user switches tabs we also need to update the
+  // spend-over-time chart to show the relevant dataset. This is a bit more complex than
+  // the top items because we also need to blend in any pending spend from the projection
+  // uploader, which involves matching the time buckets from the projection with the raw
+  // series and summing the pending spend with the historical spend for any overlapping
+  // periods, as well as ensuring that any new periods introduced by the projection are added
+  // to the series so they show up on the chart 
   useEffect(() => {
     setIsLoadingSpend(true);
     const seriesKey = tabToSeriesKeyMap[activeTab] || 'combined';
@@ -309,13 +395,26 @@ export function Dashboard() {
     setIsLoadingSpend(false);
   }, [isPreviewMode, activeTab, liveRawSpend, projectedData]);
 
+
   // 4. UPDATE AVAILABLE YEARS FOR CHART
+  // Whenever the raw spend series updates (either from live fetch or from blending 
+  // in projections), we need to recalculate the available years for the "Year" filter 
+  // dropdown, since the projection data might introduce new years that weren't in the 
+  // original raw data. This ensures that users can filter by any year that has data, 
+  // including projected data in preview mode
   useEffect(() => {
     const years = availableYearsFromSeries(rawSpendSeries);
     setAvailableYears(years);
   }, [rawSpendSeries]);
 
+
   // 5. APPLY TIME FILTERS TO SPEND CHART
+  // Whenever the raw spend series, selected quarter, selected year, or spend range 
+  // mode changes, we need to re-filter the raw series to extract the relevant points 
+  // for the chart based on the current filters. This ensures that the spend-over-time 
+  // chart always reflects the user's selected time range, whether they're looking at a 
+  // specific term or a specific year, and that it updates in real time as they change 
+  // those filters
   useEffect(() => {
     if (spendRangeMode === 'term') {
       setSpendSeries(filterSeriesByQuarter(rawSpendSeries, selectedQuarter));
@@ -329,7 +428,17 @@ export function Dashboard() {
     }
   }, [rawSpendSeries, selectedQuarter, spendRangeMode, selectedYear, availableYears]);
 
+
   // 6. APPLY ITEM FILTERS TO TABLE/CHART (Search, Categories, Min Spend)
+  // This useMemo block applies the search query, category filter, and minimum spend 
+  // filter to the top items before they get passed to the chart and table for rendering. 
+  // This way we can keep the original top items data intact and just derive a filtered 
+  // version for display based on the user's current filter settings. The filtering logic 
+  // checks each item against the search query (matching against item name and vendor names), 
+  // the selected category (using keyword matching on the item name), and the minimum spend 
+  // (summing historical and projected spend), and only includes items that pass all active 
+  // filters in the final `filteredTopItems` array that gets rendered in the chart and table 
+  // views. 
   const filteredTopItems = useMemo(() => {
     if (!topItems) return [];
     
@@ -361,6 +470,8 @@ export function Dashboard() {
     });
   }, [topItems, searchQuery, selectedCategory, minSpend]);
 
+
+  // The return statement below renders the entire dashboard
   return (
     <div className="space-y-6">
       <div className="sticky top-0 z-40 bg-gray-50/95 backdrop-blur py-2">

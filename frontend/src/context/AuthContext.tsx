@@ -1,3 +1,4 @@
+// Provides global authentication state management using Firebase Authentication
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { onAuthStateChanged, signOut as firebaseSignOut, User } from 'firebase/auth';
 import { auth } from '../lib/firebase';

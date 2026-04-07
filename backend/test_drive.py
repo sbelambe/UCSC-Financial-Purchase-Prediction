@@ -1,3 +1,5 @@
+# This is a simple test script to verify that we can connect to Google Drive 
+# and list files in the specified folder
 from backend.app.drive import get_drive_service
 import os
 from dotenv import load_dotenv
