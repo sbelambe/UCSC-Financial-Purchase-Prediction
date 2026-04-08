@@ -1,23 +1,29 @@
+# Initializes Firebase connection to prevent redundant initialization across 
+# multiple files
 import os
 import firebase_admin
 from firebase_admin import credentials, firestore, storage
 from dotenv import load_dotenv
 
+# Load environment variables from .env file
 load_dotenv()
 
+# Get the path to the Firebase credentials and the storage bucket name from
+# environment variables
 cred_filename = os.getenv("FIREBASE_CREDENTIALS_PATH")
 bucket_name = os.getenv("FIREBASE_STORAGE_BUCKET")
 
+# Validate that the required environment variables are set
 if not cred_filename:
     raise ValueError("Error: FIREBASE_CREDENTIALS_PATH is missing in .env")
 
-# construct absolute path
+# Construct absolute path to the credentials file
 current_dir = os.path.dirname(os.path.abspath(__file__))
 root_dir = os.path.dirname(os.path.dirname(current_dir))
 cred_path = os.path.join(root_dir, cred_filename)
 bucket_name = os.getenv("FIREBASE_STORAGE_BUCKET")
 
-# initialize firebase
+# Initialize firebase_admin
 if not firebase_admin._apps:
     if os.path.exists(cred_path):
         cred = credentials.Certificate(cred_path)
@@ -33,7 +39,7 @@ if not firebase_admin._apps:
     else:
         raise FileNotFoundError(f"Could not find the key file at: {cred_path}")
 
-# initialize firestore client so we can write data to FireStore
+# Initialize reusable Firestore clients so we can write data to FireStore
 db = firestore.client()
 bucket = storage.bucket(bucket_name)
 

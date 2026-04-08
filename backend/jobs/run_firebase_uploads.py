@@ -1,3 +1,8 @@
+# Takes clean data and uploads it. Also runs cleaning if needed
+# Imports upload_cleaned_data from Firebase pipeline code and
+# run_cleaning. Then uploads the cleaned data and summaries to
+# Firebase. Returns row counts, which dataset bundles were uploaded,
+# upload success info, and Firestore upload IDs
 import os
 import sys
 from typing import Dict, Any, Optional

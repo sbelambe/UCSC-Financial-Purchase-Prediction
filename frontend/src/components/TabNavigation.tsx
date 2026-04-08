@@ -1,3 +1,5 @@
+// Component for tabbed navigation between different data views (Overall, 
+// CruzBuy, OneCard, Amazon, Bookstore)
 interface TabNavigationProps {
   activeTab: string;
   onTabChange: (tab: 'Overall' | 'CruzBuy' | 'OneCard' | 'Amazon' | 'Bookstore') => void;

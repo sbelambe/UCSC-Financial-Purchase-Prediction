@@ -1,3 +1,7 @@
+# Backend entry point and API router; connects frontend actions to backend
+# behavior (ex: user clicks "Refresh Data"). Includes creating the FastAPI
+# app, frontend/backend port communication through CORS Middleware, health
+# and status checks, refresh data, and returning dashboard data
 import sys, os, io
 import pandas as pd
 from fastapi import FastAPI, HTTPException, File, UploadFile, Form
@@ -22,6 +26,7 @@ from jobs.run_full_pipeline import run_full_pipeline
 
 load_dotenv()
 
+# Create the FastAPI App.
 app = FastAPI(title="UCSC Financial Dashboard API")
 
 # --- CORS Middleware ---
@@ -40,17 +45,13 @@ app.add_middleware(
 )
 
 @app.get("/health")
+# Simple health check endpoint to verify the backend is running.
 def health():
-    """
-    Simple health check endpoint to verify the server is running.
-    """
     return {"ok": True}
 
 @app.get("/status")
+# Simple backend status check.
 def status():
-    """
-    Returns the current status of the data pipeline job.
-    """
     return {
         "job_running": False,
         "last_updated": None,
@@ -59,14 +60,9 @@ def status():
     }
 
 @app.post("/refresh")
+# Runs the data cleaning pipeline to sync new files from Google
+# Drive.
 def refresh_data():
-    """
-    Triggers the data cleaning pipeline.
-    
-    1. Runs cleaning and Firebase uploads via jobs.
-    2. Returns the summary of processed rows.
-    3. Handles any errors that occur during the pipeline execution.
-    """
     try:
         folder_id = os.getenv("GOOGLE_DRIVE_FOLDER_ID")
 
@@ -89,7 +85,7 @@ def refresh_data():
         # If the pipeline crashes, tell the frontend why
         raise HTTPException(status_code=500, detail=str(e))
     
-
+# Returns the item frequency/top item data
 @app.get("/api/analytics/top-items")
 def get_top_items(user_id: str):
     try:
@@ -131,6 +127,7 @@ def get_dataset_config(dataset: str = "overall"):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+# Returns the time-series spend data
 @app.get("/api/analytics/spend-over-time")
 def spend_over_time(
     time_period: str = "month",
@@ -181,7 +178,7 @@ def _bookstore_items_response(top_n: int, lookback_days: int, account: str):
         account_filter=account,
     )
 
-
+# Bookstore-related analytics endpoints
 @app.get("/analytics/campus-store-items")
 def campus_store_items(top_n: int = 5, lookback_days: int = 90, account: str = "Campus Store"):
     """
@@ -214,7 +211,7 @@ def api_campus_store_items(top_n: int = 5, lookback_days: int = 90, account: str
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     
-
+# Accepts and uploads CSVs for data projection
 @app.post("/api/analytics/project")
 async def project_csv_data(
     file: UploadFile = File(...),

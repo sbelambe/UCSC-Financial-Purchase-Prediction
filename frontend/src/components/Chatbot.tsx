@@ -1,3 +1,7 @@
+// This component implements a simple chatbot interface that allows users to 
+// ask questions about their sales data and receive simulated AI responses. 
+// The chatbot is designed to be user-friendly and visually appealing, 
+// with a clean layout and smooth interactionS
 import { useState, useRef, useEffect } from 'react';
 import { MessageCircle, X, Send, Bot } from 'lucide-react';
 

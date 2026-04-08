@@ -1,3 +1,5 @@
+// This component renders a grid of charts using Recharts to visualize
+//  financial data
 import {
   LineChart,
   Line,

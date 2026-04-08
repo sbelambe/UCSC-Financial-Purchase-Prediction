@@ -1,3 +1,4 @@
+// Displays a pie chart of sales by product category using Recharts
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
 
 interface ProductAnalysisProps {

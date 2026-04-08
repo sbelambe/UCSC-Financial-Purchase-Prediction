@@ -1,6 +1,13 @@
+// Component for displaying a bar chart of the top 5 most frequently purchased
+// items, with a dropdown to switch between frequency and total spend metrics. 
+// It also includes projected staging data in the tooltip and as a stacked bar 
+// for pending uploads.
 import React, { useState, useMemo } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell, Legend } from 'recharts';
 
+// TopItems Chart Component
+// This component takes in an array of purchase data and visualizes the top 5 most
+// frequently purchased items using a bar chart
 const TopItemsChart = ({
   data,
   metricLabel = 'Total Spend',
@@ -13,9 +20,10 @@ const TopItemsChart = ({
   // state to track which metric is selected from the dropdown
   const [metric, setMetric] = useState<'count' | 'spend'>('count');
 
-  // transform data, sort dynamically based on metric, and log it one last time
+  // Transform data, sort dynamically based on metric, and log it one last time
   const chartData = useMemo(() => {
-    // sort the data dynamically based on the selected metric (including projected staging)
+    // Sort the data dynamically based on the selected metric (including projected 
+    // staging)
     const sortedData = [...(data || [])].sort((a, b) => {
       if (metric === 'spend') {
         const valA = (a.total_spent || 0) + (a.projected_spent || 0);
@@ -28,9 +36,9 @@ const TopItemsChart = ({
       }
     });
 
-    // map and truncate only the top 5
+    // Map and truncate only the top 5
     return sortedData.slice(0, 5).map(item => ({
-      // truncate to 15-20 characters for the X-axis label
+      // Truncate to 15-20 characters for the X-axis label
       name: item.clean_item_name.length > 20 
         ? item.clean_item_name.substring(0, 20) + '...' 
         : item.clean_item_name,
@@ -44,7 +52,7 @@ const TopItemsChart = ({
 
   const COLORS = ['#1e3a8a', '#2563eb', '#3b82f6', '#60a5fa', '#93c5fd'];
 
-  // currency Formatter for the tooltip and y-axis
+  //Currency Formatter for the tooltip and y-axis
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
@@ -52,13 +60,14 @@ const TopItemsChart = ({
     }).format(value);
   };
 
-  // smart Y-Axis formatter to prevent large numbers from overlapping
+  // Smart Y-Axis formatter to prevent large numbers from overlapping
   const yAxisFormatter = (value: number) => {
     if (metric === 'spend' && metricType !== 'quantity') {
       if (value >= 1000000) return `$${(value / 1000000).toFixed(1)}M`;
       if (value >= 1000) return `$${(value / 1000).toFixed(0)}k`;
       return `$${value}`;
     }
+    // Format large transaction counts with commas
     return new Intl.NumberFormat('en-US').format(value);
   };
 

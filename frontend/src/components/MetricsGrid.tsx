@@ -1,9 +1,13 @@
+// Renders the grid of key metrics at the top of the dashboard
 import { DollarSign, ShoppingCart, TrendingUp, Package, Tag, BarChart3 } from 'lucide-react';
 
+// Define props for the MetricsGrid component
 interface MetricsGridProps {
   data: any;
 }
 
+// The MetricsGrid component takes in a `data` prop containing all the key 
+// metrics to display
 export function MetricsGrid({ data }: MetricsGridProps) {
   const metrics = [
     {

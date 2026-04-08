@@ -1,3 +1,8 @@
+# Processes raw data to clean data, does not upload anything
+# Imports the real cleaning pipeline from data_cleaning/src/pipeline.py,
+# runs run_data_clean(), then returns a structured result containing
+# cleaned dataframes, local file paths to cleaned outputs, and row counts.
+# If this file is ran directly, it just prints row counts
 import os
 import sys
 from typing import Dict, Any

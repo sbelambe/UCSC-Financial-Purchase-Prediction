@@ -1,3 +1,9 @@
+// This Dashboard component is the main view for users to analyze their spending 
+// data. It includes tabbed navigation for different datasets, a filter bar for 
+// refining the data,and visualizations like charts and tables. The component 
+// supports both a preview mode with static data and a live mode that fetches 
+// real data from the backend. Users can also upload projection files to see 
+// how future spending might look based on staged projections.
 import { useState, useEffect, useMemo, useDeferredValue, useRef } from 'react';
 import { TabNavigation } from './TabNavigation';
 import { FilterBar } from './FilterBar';
@@ -8,13 +14,18 @@ import { TopItemsTable } from './TopItemsTable';
 import { ProjectionUploader } from './ProjectionUploader';
 import { FALLBACK_DATASET_SCHEMAS, type DatasetSchema } from '../lib/datasetConfig';
 
+
 // --- TYPES & CONSTANTS ---
+// A single point on the spend-over-time chart. `pending_spend` is only 
+// populated when a staged projection has been blended into preview mode
 type SpendPoint = { period: string; spend: number; pending_spend?: number };
 type QuarterKey = 'fall24' | 'winter25' | 'spring25' | 'summer25' | 'fall25' | 'winter26';
 type SpendRangeMode = 'term' | 'year';
 
+// These term windows drive the "Term" selector below and determine which 
+// monthly buckets should be shown in the spend chart for each academic quarter
 const QUARTER_RANGES: Record<QuarterKey, { label: string; startMonth: string; endMonth: string }> = {
-   // Update these date windows as needed.
+  // Update these date windows as needed.
   fall24: { label: 'Fall24', startMonth: '2024-10', endMonth: '2024-12' },
   winter25: { label: 'Winter25', startMonth: '2025-01', endMonth: '2025-03' },
   spring25: { label: 'Spring25', startMonth: '2025-04', endMonth: '2025-06' },
@@ -22,6 +33,7 @@ const QUARTER_RANGES: Record<QuarterKey, { label: string; startMonth: string; en
   fall25: { label: 'Fall25', startMonth: '2025-10', endMonth: '2025-12' },
   winter26: { label: 'Winter26', startMonth: '2026-01', endMonth: '2026-03' },
 };
+
 
 // --- HELPER FUNCTIONS ---
 const monthWindow = (startMonth: string, endMonth: string) => {
@@ -37,6 +49,11 @@ const monthWindow = (startMonth: string, endMonth: string) => {
   return months;
 };
 
+// filterSeriesByQuarter()
+// Filters a raw spend series to only include points that fall within the
+// specified quarter, and fills in any missing months with zero values so the
+// chart renders continuous time even if there were no transactions in a given 
+// month
 const filterSeriesByQuarter = (points: SpendPoint[], quarterKey: QuarterKey): SpendPoint[] => {
   const { startMonth, endMonth } = QUARTER_RANGES[quarterKey];
   const spendByMonth: Record<string, {spend: number, pending: number}> = {};
@@ -54,11 +71,17 @@ const filterSeriesByQuarter = (points: SpendPoint[], quarterKey: QuarterKey): Sp
   }));
 };
 
+// availableYearsFromSeries()
+// Extracts all unique years from a raw spend series to populate the "Year" filter 
+// dropdown. Ensures years are valid 4-digit numbers and sorts them in ascending 
+// order
 const availableYearsFromSeries = (points: SpendPoint[]): string[] =>
   Array.from(new Set(points.map((p) => String(p.period).slice(0, 4))))
     .filter((y) => /^\d{4}$/.test(y))
     .sort((a, b) => a.localeCompare(b));
 
+// filterSeriesByYear()
+// filterSeriesByQuarter but for the "Year" selector
 const filterSeriesByYear = (points: SpendPoint[], year: string): SpendPoint[] => {
   const spendByMonth: Record<string, {spend: number, pending: number}> = {};
   
@@ -126,16 +149,23 @@ const shouldExcludeAmazonGiftCardsFromCharts = (item: any, activeDatasetKey: str
   return cleanName === 'gift cards' || categoryValue === 'gift cards';
 };
 
+
+// --- MAIN COMPONENT ---
 export function Dashboard() {
   const [activeTab, setActiveTab] = useState<'Overall' | 'CruzBuy' | 'OneCard' | 'Amazon' | 'Bookstore'>('Amazon');
 
   // Active display states
+  // Top items states
   const [topItems, setTopItems] = useState<any[]>([]);
   const [isLoadingTopItems, setIsLoadingTopItems] = useState(true);
   const [topItemsError, setTopItemsError] = useState<string | null>(null);
   const [activeSchema, setActiveSchema] = useState<DatasetSchema | null>(FALLBACK_DATASET_SCHEMAS.overall);
   
   // Spend states
+  // `rawSpendSeries` is the unfiltered, unmodified series pulled from the 
+  // backend (with projections blended in for preview mode)
+  // `spendSeries` is the filtered series that actually gets passed to the 
+  // chart based
   const [rawSpendSeries, setRawSpendSeries] = useState<SpendPoint[]>([]);
   const [spendSeries, setSpendSeries] = useState<SpendPoint[]>([]);
   const [isLoadingSpend, setIsLoadingSpend] = useState(true);
@@ -159,6 +189,9 @@ export function Dashboard() {
   const topItemsCacheRef = useRef<Record<string, { items: any[]; schema?: DatasetSchema | null; warnings?: string[] }>>({});
   const spendSeriesCacheRef = useRef<Record<string, { combined: SpendPoint[]; datasets: Record<string, SpendPoint[]> }>>({});
 
+  // This map helps us determine which series to pull from the raw spend data
+  // based on the active tab, since the API returns all datasets together and we
+  // need to extract the relevant one for the current view
   const tabToSeriesKeyMap: { [key: string]: string } = {
     Overall: 'combined',
     Amazon: 'amazon',
@@ -315,13 +348,26 @@ export function Dashboard() {
       });
   }, [activeTab, activeDatasetKey, projectedData]);
 
+
   // 4. UPDATE AVAILABLE YEARS FOR CHART
+  // Whenever the raw spend series updates (either from live fetch or from blending 
+  // in projections), we need to recalculate the available years for the "Year" filter 
+  // dropdown, since the projection data might introduce new years that weren't in the 
+  // original raw data. This ensures that users can filter by any year that has data, 
+  // including projected data in preview mode
   useEffect(() => {
     const years = availableYearsFromSeries(rawSpendSeries);
     setAvailableYears(years);
   }, [rawSpendSeries]);
 
+
   // 5. APPLY TIME FILTERS TO SPEND CHART
+  // Whenever the raw spend series, selected quarter, selected year, or spend range 
+  // mode changes, we need to re-filter the raw series to extract the relevant points 
+  // for the chart based on the current filters. This ensures that the spend-over-time 
+  // chart always reflects the user's selected time range, whether they're looking at a 
+  // specific term or a specific year, and that it updates in real time as they change 
+  // those filters
   useEffect(() => {
     if (spendRangeMode === 'term') {
       setSpendSeries(filterSeriesByQuarter(rawSpendSeries, selectedQuarter));
@@ -335,7 +381,16 @@ export function Dashboard() {
     }
   }, [rawSpendSeries, selectedQuarter, spendRangeMode, selectedYear, availableYears]);
 
-  // 4. APPLY ITEM FILTERS TO TABLE/CHART (Categories only; search/min spend already handled by BigQuery)
+  // 6. APPLY ITEM FILTERS TO TABLE/CHART (Search, Categories, Min Spend)
+  // This useMemo block applies the search query, category filter, and minimum spend 
+  // filter to the top items before they get passed to the chart and table for rendering. 
+  // This way we can keep the original top items data intact and just derive a filtered 
+  // version for display based on the user's current filter settings. The filtering logic 
+  // checks each item against the search query (matching against item name and vendor names), 
+  // the selected category (using keyword matching on the item name), and the minimum spend 
+  // (summing historical and projected spend), and only includes items that pass all active 
+  // filters in the final `filteredTopItems` array that gets rendered in the chart and table 
+  // views. 
   const filteredTopItems = useMemo(() => {
     if (!topItems) return [];
     
@@ -359,6 +414,8 @@ export function Dashboard() {
     [filteredTopItems, activeDatasetKey]
   );
 
+
+  // The return statement below renders the entire dashboard
   return (
     <div className="w-full min-w-0 space-y-6">
       <div className="sticky top-0 z-40 bg-gray-50/95 backdrop-blur py-2">

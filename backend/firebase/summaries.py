@@ -1,3 +1,6 @@
+# Converts cleaned data into structured, pre-aggregated “payloads” (top values,
+# top items, time series) stored in Firestore, which the dashboard will 
+# directly consume
 from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
@@ -8,7 +11,7 @@ import pandas as pd
 def utc_now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
-
+# Stores data as summary documents in Firestore
 def save_summary(
     *,
     upload_id: str,
@@ -33,7 +36,6 @@ def save_summary(
     }
 
     doc_ref.set(doc, merge=True)
-
 
 def top_counts_payload(
     *,
@@ -66,7 +68,7 @@ def spend_over_time_payload(
     }
 
 
-# could potentially remove this function once cleaning is complete
+# Could potentially remove this function once cleaning is complete
 def compute_top_values(
     df: pd.DataFrame,
     column: str,
@@ -190,6 +192,8 @@ def save_top_values_summary(
         )
 
 
+# Group items by [item, year, vendor], then calculate count, total spent,
+# and vendor breakdowns
 def compute_top_items_detailed(df, item_col, price_col, vendor_col, date_col=None, n=20):
     df_clean = df.copy()
     
