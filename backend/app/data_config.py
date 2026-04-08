@@ -1,6 +1,10 @@
 from typing import Any, Dict, List
 
 
+# Canonical columns are the normalized fields the backend exposes to the
+# frontend table, regardless of the original dataset-specific CSV headers.
+# Keep this list in display order because dataset_schema() and BigQuery row
+# serialization both use it to build stable table columns.
 CANONICAL_COLUMN_ORDER = [
     "Transaction Date",
     "Item Name",
@@ -19,6 +23,13 @@ CANONICAL_COLUMN_ORDER = [
 ]
 
 
+# Per-dataset schema metadata. Each dataset has:
+# - label: user-facing dataset name
+# - metric_type: controls whether the UI formats values as currency or quantity
+# - metric_label: user-facing label for the metric column and chart axes
+# - group_label: user-facing label for vendor/category groupings
+# - bigquery: source columns used to build item names, vendors, amounts, and dates
+# - columns: mapping from canonical fields to raw source names and cleaned CSV names
 DATASET_COLUMN_CONFIG: Dict[str, Dict[str, Any]] = {
     "amazon": {
         "label": "Amazon",
@@ -136,6 +147,7 @@ DATASET_COLUMN_CONFIG: Dict[str, Dict[str, Any]] = {
 
 
 def dataset_schema(dataset: str) -> Dict[str, Any]:
+    """Return frontend-ready column metadata for one dataset or the overall view."""
     if dataset == "overall":
         return overall_schema()
 
@@ -160,6 +172,7 @@ def dataset_schema(dataset: str) -> Dict[str, Any]:
 
 
 def overall_schema() -> Dict[str, Any]:
+    """Return consolidated column metadata across all configured datasets."""
     consolidated_columns: List[Dict[str, Any]] = []
     for column in CANONICAL_COLUMN_ORDER:
         availability = []

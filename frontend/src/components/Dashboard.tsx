@@ -384,11 +384,11 @@ export function Dashboard() {
         />
       </div>
 
-      <div className="w-full min-w-0 rounded-xl border border-gray-200 bg-white p-8 shadow-sm">
+      <div className="w-full max-w-full min-w-0 overflow-hidden rounded-xl border border-gray-200 bg-white p-8 shadow-sm">
         {isLoadingTopItems ? (
           <div className="flex min-h-[240px] items-center justify-center">Loading...</div>
         ) : (
-          <div className="w-full min-w-0 space-y-4">
+          <div className="w-full max-w-full min-w-0 space-y-4 overflow-hidden">
             <div className="flex items-center justify-between gap-4">
               <div>
                 <h2 className="text-xl font-bold text-slate-900">Top Items</h2>

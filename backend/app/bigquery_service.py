@@ -14,7 +14,7 @@ BACKEND_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ROOT_DIR = os.path.dirname(BACKEND_DIR)
 load_dotenv(os.path.join(ROOT_DIR, ".env"))
 
-
+# Just in case there are issues with pcard/onecard naming
 DATASET_ALIASES = {
     "amazon": "amazon",
     "cruzbuy": "cruzbuy",
@@ -24,6 +24,7 @@ DATASET_ALIASES = {
     "overall": "overall",
 }
 
+# To be changed later when there are less storage paths in Storage
 HARDCODED_STORAGE_PATHS = {
     "amazon": "clean/amazon/amazon_clean_20260305_050239.csv",
     "bookstore": "clean/bookstore/bookstore_clean_20260305_050239.csv",
@@ -49,6 +50,8 @@ CANONICAL_SQL_ALIASES = {
     "Transaction Type": "transaction_type",
 }
 
+# For Amazon, we want to group all gift cards together since they can be purchased from various vendors but are essentially the same item for analysis purposes.
+# User Story 5.4 should build off of this logic and condense data within various groups
 AMAZON_GIFT_CARD_CATEGORIES = (
     "Electronic Gift Card",
     "Gift Card",
@@ -58,6 +61,7 @@ AMAZON_GIFT_CARD_CATEGORIES = (
 
 
 def _bq_column_name(column_name: str) -> str:
+    """Convert a display column name into the sanitized BigQuery CSV field name."""
     normalized = re.sub(r"[^A-Za-z0-9_]", "_", column_name.strip())
     normalized = re.sub(r"_+", "_", normalized).strip("_")
     if not normalized:
@@ -66,6 +70,7 @@ def _bq_column_name(column_name: str) -> str:
 
 
 def _normalize_dataset(dataset: str) -> str:
+    """Resolve a requested dataset name or alias into the canonical dataset key."""
     normalized = DATASET_ALIASES.get((dataset or "overall").strip().lower())
     if not normalized:
         raise ValueError(f"Unsupported dataset '{dataset}'")
@@ -73,12 +78,14 @@ def _normalize_dataset(dataset: str) -> str:
 
 
 def _amazon_gift_card_condition() -> str:
+    """Build the SQL condition used to collapse Amazon gift-card categories."""
     category_name = _bq_column_name("Category")
     quoted = ", ".join([f"'{value.upper()}'" for value in AMAZON_GIFT_CARD_CATEGORIES])
     return f"UPPER(TRIM(CAST(`{category_name}` AS STRING))) IN ({quoted})"
 
 
 def _latest_upload_metadata(dataset: str) -> Optional[Dict[str, Any]]:
+    """Return the storage metadata for the dataset CSV BigQuery should read."""
     if dataset in HARDCODED_STORAGE_PATHS:
         return {
             "upload_id": f"hardcoded-{dataset}",
@@ -103,6 +110,7 @@ def _latest_upload_metadata(dataset: str) -> Optional[Dict[str, Any]]:
 
 
 def _build_external_config(storage_uri: str) -> bigquery.ExternalConfig:
+    """Create a BigQuery external table config for a CSV in Cloud Storage."""
     config = bigquery.ExternalConfig("CSV")
     config.source_uris = [storage_uri]
     config.autodetect = True
@@ -112,11 +120,13 @@ def _build_external_config(storage_uri: str) -> bigquery.ExternalConfig:
 
 
 def _storage_uri(storage_path: str) -> str:
+    """Convert a Firebase Storage object path into a gs:// URI."""
     bucket_name = bucket.name
     return f"gs://{bucket_name}/{storage_path.lstrip('/')}"
 
 
 def _parse_search_query(search_query: str) -> Dict[str, Any]:
+    """Split search text into free-text filters and field-specific query tokens."""
     raw = (search_query or "").strip()
     if not raw:
         return {"free_text": "", "item_terms": [], "vendor_terms": [], "year": None}
@@ -151,6 +161,7 @@ def _parse_search_query(search_query: str) -> Dict[str, Any]:
 
 
 def _amount_expression(column_name: str) -> str:
+    """Build SQL that safely parses a currency or numeric-looking column as FLOAT64."""
     resolved_name = _bq_column_name(column_name)
     return (
         "SAFE_CAST("
@@ -160,11 +171,13 @@ def _amount_expression(column_name: str) -> str:
 
 
 def _string_expression(column_name: str) -> str:
+    """Build SQL that trims a column and treats blank strings as NULL."""
     resolved_name = _bq_column_name(column_name)
     return f"NULLIF(TRIM(CAST(`{resolved_name}` AS STRING)), '')"
 
 
 def _year_expression(column_name: str) -> str:
+    """Build SQL that extracts a four-digit year from a date-like column."""
     resolved_name = _bq_column_name(column_name)
     return (
         f"REGEXP_EXTRACT(CAST(`{resolved_name}` AS STRING), r'(?:19|20)\\d{{2}}')"
@@ -172,10 +185,12 @@ def _year_expression(column_name: str) -> str:
 
 
 def _numeric_expression(column_name: str) -> str:
+    """Alias numeric field handling to the shared amount parsing SQL."""
     return _amount_expression(column_name)
 
 
 def _source_field_expression(dataset: str, canonical_name: str) -> str:
+    """Build the SELECT expression for one canonical output field."""
     column_config = DATASET_COLUMN_CONFIG[dataset]["columns"][canonical_name]
     cleaned_name = column_config["cleaned_name"]
     alias = CANONICAL_SQL_ALIASES[canonical_name]
@@ -191,6 +206,7 @@ def _source_field_expression(dataset: str, canonical_name: str) -> str:
 
 
 def _source_select_sql(table_name: str, dataset: str) -> str:
+    """Build the normalized source SELECT for one dataset external table."""
     config = DATASET_COLUMN_CONFIG[dataset]["bigquery"]
     metric_col = config["metric_column"]
     date_col = config["date_column"]
@@ -243,6 +259,7 @@ def _source_select_sql(table_name: str, dataset: str) -> str:
 
 
 def _build_search_where(parsed_query: Dict[str, Any]) -> str:
+    """Build the WHERE clause used for year, text, item, and vendor filters."""
     clauses = [
         "clean_item_name IS NOT NULL",
         "clean_item_name != ''",
@@ -277,6 +294,7 @@ def _query_parameters(
     limit: int,
     parsed_query: Dict[str, Any],
 ) -> List[bigquery.ScalarQueryParameter]:
+    """Create parameter bindings for the top-items BigQuery request."""
     params: List[bigquery.ScalarQueryParameter] = [
         bigquery.ScalarQueryParameter("selected_year", "STRING", selected_year),
         bigquery.ScalarQueryParameter("min_spend", "FLOAT64", float(min_spend or 0)),
@@ -294,6 +312,7 @@ def _query_parameters(
 
 
 def _bigquery_client() -> bigquery.Client:
+    """Create an authenticated BigQuery client from project env vars and service credentials."""
     project_id = (
         os.getenv("BIGQUERY_PROJECT_ID")
         or os.getenv("GOOGLE_CLOUD_PROJECT")
@@ -313,6 +332,7 @@ def _bigquery_client() -> bigquery.Client:
 
 
 def _serialize_vendors(vendors: Any) -> List[Dict[str, Any]]:
+    """Convert BigQuery vendor structs into JSON-safe vendor dictionaries."""
     serialized: List[Dict[str, Any]] = []
     for vendor in vendors or []:
         if vendor is None:
@@ -328,12 +348,14 @@ def _serialize_vendors(vendors: Any) -> List[Dict[str, Any]]:
 
 
 def _representative_text_field(alias: str) -> str:
+    """Build SQL that picks one representative non-null text value per grouped item."""
     return (
         f"ARRAY_AGG({alias} IGNORE NULLS ORDER BY {alias} LIMIT 1)[SAFE_OFFSET(0)] AS {alias}"
     )
 
 
 def _serialize_row_values(row: Any) -> Dict[str, Any]:
+    """Serialize canonical row fields from a BigQuery result row for the frontend table."""
     row_values: Dict[str, Any] = {}
     for canonical_name in CANONICAL_COLUMN_ORDER:
         alias = CANONICAL_SQL_ALIASES[canonical_name]
@@ -354,6 +376,7 @@ def query_top_items_from_bigquery(
     limit: int = 20,
     sort_mode: str = "frequency",
 ) -> Dict[str, Any]:
+    """Query BigQuery external CSV tables for filtered and ranked top items."""
     normalized_dataset = _normalize_dataset(dataset)
     parsed_query = _parse_search_query(search_query)
     chosen_sort_mode = (sort_mode or "frequency").strip().lower()
@@ -529,6 +552,7 @@ def query_spend_over_time_from_bigquery(
     dataset: str = "overall",
     time_period: str = "month",
 ) -> Dict[str, Any]:
+    """Query BigQuery external CSV tables for spend or quantity grouped over time."""
     normalized_dataset = _normalize_dataset(dataset)
     chosen_time_period = (time_period or "month").strip().lower()
     if chosen_time_period not in {"day", "week", "month", "year"}:

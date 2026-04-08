@@ -190,7 +190,7 @@ export function TopItemsTable({
     return sortableItems;
   }, [data, sortConfig]);
 
-  const displayData = sortedData.slice(0, 20);
+  const displayData = sortedData;
 
   const requestSort = (key: keyof TopItem) => {
     let direction: 'asc' | 'desc' = 'desc';
@@ -223,28 +223,28 @@ export function TopItemsTable({
 
   if (hasDynamicRows) {
     return (
-      <div className="w-full min-w-0 rounded-xl border border-gray-200 bg-white shadow-sm">
+      <div className="top-items-table-shell w-full max-w-full min-w-0 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
         <div className="border-b border-gray-200 bg-slate-50 px-4 py-2 text-xs font-medium text-slate-500">
-          Scroll bar TBD
+          Scroll within this table to view more rows and columns.
         </div>
-        <div className="w-full min-w-0 overflow-x-auto">
-          <table className="w-max min-w-full text-left text-sm border-collapse">
-            <thead>
+        <div className="top-items-table-scroll block max-h-[520px] w-full max-w-full min-w-0 overflow-auto overscroll-contain">
+          <table className="top-items-table top-items-table--dynamic min-w-max text-left text-sm border-collapse">
+            <thead className="sticky top-0 z-30">
               <tr className="bg-slate-50 border-b border-gray-200">
                 <th className="p-4 font-semibold text-slate-700 sticky left-0 z-20 bg-slate-50 whitespace-nowrap">#</th>
                 {schema?.dataset === 'overall' && (
-                  <th className="p-4 font-semibold text-slate-700 whitespace-nowrap min-w-[120px]">Dataset</th>
+                  <th className="p-4 font-semibold text-slate-700 whitespace-nowrap w-[120px]">Dataset</th>
                 )}
                 {activeColumns.map((column) => (
                   <th
                     key={column.canonical_name}
-                    className="p-4 font-semibold text-slate-700 whitespace-nowrap min-w-[180px]"
+                    className="p-4 font-semibold text-slate-700 whitespace-nowrap w-[200px]"
                   >
                     {column.canonical_name}
                   </th>
                 ))}
-                <th className="p-4 font-semibold text-slate-700 text-center whitespace-nowrap min-w-[100px]">Freq.</th>
-                <th className="p-4 font-semibold text-slate-700 text-right whitespace-nowrap min-w-[140px]">
+                <th className="p-4 font-semibold text-slate-700 text-center whitespace-nowrap w-[100px]">Freq.</th>
+                <th className="p-4 font-semibold text-slate-700 text-right whitespace-nowrap w-[150px]">
                   {schema?.metric_label || 'Total Metric'}
                 </th>
               </tr>
@@ -259,8 +259,8 @@ export function TopItemsTable({
                     </td>
                   )}
                   {activeColumns.map((column) => (
-                    <td key={column.canonical_name} className="p-4 text-slate-700 align-top min-w-[180px] max-w-[260px]">
-                      <div className="max-w-[260px] overflow-hidden break-words" title={String(item.row_values?.[column.canonical_name] ?? '')}>
+                    <td key={column.canonical_name} className="p-4 text-slate-700 align-top w-[200px] max-w-[200px]">
+                      <div className="max-w-[200px] overflow-hidden break-words" title={String(item.row_values?.[column.canonical_name] ?? '')}>
                         {formatDynamicValue(
                           column.canonical_name,
                           item.row_values?.[column.canonical_name],
@@ -289,9 +289,12 @@ export function TopItemsTable({
   }
 
   return (
-    <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
-      <div className="overflow-x-auto">
-        <table className="w-full text-left text-sm table-fixed border-collapse">
+    <div className="top-items-table-shell overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+      <div className="border-b border-gray-200 bg-slate-50 px-4 py-2 text-xs font-medium text-slate-500">
+        Scroll within this table to view more rows and columns.
+      </div>
+      <div className="top-items-table-scroll overflow-x-auto">
+        <table className="top-items-table top-items-table--summary w-full text-left text-sm table-fixed border-collapse">
           <thead>
             <tr className="bg-slate-50 border-b border-gray-200 select-none">
               <th className="p-4 font-semibold text-slate-700 w-[60px]">#</th>
