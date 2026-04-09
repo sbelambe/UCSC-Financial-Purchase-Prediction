@@ -9,10 +9,15 @@ interface FilterBarProps {
   selectedCategory: string;
   searchQuery: string;
   minSpend: number;
+  selectedLimit: number;
+  selectedSortMode: 'frequency' | 'cost';
+  isLiveMode?: boolean;
   onYearChange: (year: string) => void;
   onCategoryChange: (category: string) => void;
   onSearchChange: (query: string) => void;
   onMinSpendChange: (minSpend: number) => void;
+  onLimitChange: (limit: number) => void;
+  onSortModeChange: (sortMode: 'frequency' | 'cost') => void;
 }
 
 // The FilterBar component renders dropdowns for year and category filters,
@@ -22,10 +27,15 @@ export function FilterBar({
   selectedCategory,
   searchQuery,
   minSpend,
+  selectedLimit,
+  selectedSortMode,
+  isLiveMode = false,
   onYearChange,
   onCategoryChange,
   onSearchChange,
   onMinSpendChange,
+  onLimitChange,
+  onSortModeChange,
 }: FilterBarProps) {
   // Added 'All Time' so the dashboard doesn't default to an empty view
   const years = ['All Time', '2026', '2025', '2024']; 
@@ -89,6 +99,35 @@ export function FilterBar({
           />
         </div>
 
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-gray-500 font-medium">Limit</span>
+          <select
+            value={selectedLimit}
+            onChange={(e) => onLimitChange(Number(e.target.value))}
+            className="px-3 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-opacity-50 text-sm"
+            style={{ outlineColor: '#003c6c' }}
+          >
+            {[10, 20, 50].map((limit) => (
+              <option key={limit} value={limit}>
+                {limit}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-gray-500 font-medium">Sort</span>
+          <select
+            value={selectedSortMode}
+            onChange={(e) => onSortModeChange(e.target.value as 'frequency' | 'cost')}
+            className="px-3 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-opacity-50 text-sm"
+            style={{ outlineColor: '#003c6c' }}
+          >
+            <option value="frequency">Frequency</option>
+            <option value="cost">Cost</option>
+          </select>
+        </div>
+
         {/* Search Bar */}
         <div className="flex-1 relative">
           <Search
@@ -99,7 +138,7 @@ export function FilterBar({
             type="text"
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
-            placeholder="Search item name, vendor, etc."
+            placeholder={isLiveMode ? 'BigQuery search: paper, vendor:amazon, year:2025' : 'Search item name, vendor, etc.'}
             className="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-opacity-50 text-sm"
             style={{ outlineColor: '#003c6c' }}
           />
