@@ -12,6 +12,7 @@ import HighImpactScatterPlot from './HighImpactScatterPlot';
 import TransactionsOverTimeChart from './TransactionsOverTimeChart';
 import { TopItemsTable } from './TopItemsTable';
 import { ProjectionUploader } from './ProjectionUploader';
+import { InventoryInsights } from './InventoryInsights';
 import { FALLBACK_DATASET_SCHEMAS, type DatasetSchema } from '../lib/datasetConfig';
 
 
@@ -180,6 +181,7 @@ export function Dashboard() {
   const [minSpend, setMinSpend] = useState<number>(0);
   const [selectedLimit, setSelectedLimit] = useState<number>(20);
   const [selectedSortMode, setSelectedSortMode] = useState<'frequency' | 'cost'>('frequency');
+  const [insightsData, setInsightsData] = useState<{amazon: any[], bookstore: any[]}>({ amazon: [], bookstore: [] });
   const [projectedData, setProjectedData] = useState<{
     dataset: string;
     data: any[];
@@ -392,7 +394,7 @@ export function Dashboard() {
   // filters in the final `filteredTopItems` array that gets rendered in the chart and table 
   // views. 
   const filteredTopItems = useMemo(() => {
-    if (!topItems) return [];
+    if (!topItems || !Array.isArray(topItems)) return [];
     
     return topItems.filter(item => {
       const name = item.clean_item_name.toLowerCase();
@@ -413,6 +415,23 @@ export function Dashboard() {
     () => filteredTopItems.filter((item) => !shouldExcludeAmazonGiftCardsFromCharts(item, activeDatasetKey)),
     [filteredTopItems, activeDatasetKey]
   );
+
+  // Fetch baseline data specifically for the Inventory Insights cross-reference
+  useEffect(() => {
+    if (activeTab === 'Amazon' || activeTab === 'Bookstore') {
+      Promise.all([
+        fetch('http://127.0.0.1:8000/api/analytics/top-items/bigquery?dataset=amazon&limit=100').then(r => r.json()),
+        fetch('http://127.0.0.1:8000/api/analytics/top-items/bigquery?dataset=bookstore&limit=100').then(r => r.json())
+      ])
+      .then(([amazonRes, bookstoreRes]) => {
+        setInsightsData({
+          amazon: amazonRes.data?.items || [],
+          bookstore: bookstoreRes.data?.items || []
+        });
+      })
+      .catch(console.error);
+    }
+  }, [activeTab]);
 
 
   // The return statement below renders the entire dashboard
@@ -448,9 +467,13 @@ export function Dashboard() {
           <div className="w-full max-w-full min-w-0 space-y-4 overflow-hidden">
             <div className="flex items-center justify-between gap-4">
               <div>
-                <h2 className="text-xl font-bold text-slate-900">Top Items</h2>
+                <h2 className="text-xl font-bold text-slate-900">
+                  {activeTab === 'Bookstore' ? 'Current Campus Bookstore Inventory' : 'Top Items'}
+                </h2>
                 <p className="text-sm text-slate-500">
-                  Live BigQuery results
+                  {activeTab === 'Bookstore' 
+                    ? '*Inventory levels approximated based on recent point-of-sale BigQuery data.'
+                    : 'Live BigQuery results'}
                 </p>
               </div>
             </div>
@@ -545,6 +568,14 @@ export function Dashboard() {
             </div>
             {/* Keep term boundaries editable in QUARTER_RANGES above. */}
             {/* Month values come from monthly summaries, grouped before this view. */}
+
+            {/* shows inventory insights if amazon or bookstore tabs are selected */}
+            {(activeTab === 'Amazon' || activeTab === 'Bookstore') && (
+              <InventoryInsights 
+                amazonData={insightsData.amazon} 
+                bookstoreData={insightsData.bookstore} 
+              />
+            )}
           </div>
         )}
       </div>
