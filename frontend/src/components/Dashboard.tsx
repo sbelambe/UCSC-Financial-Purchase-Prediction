@@ -12,6 +12,7 @@ import TopItemsChart from './TopItemsChart';
 import TransactionsOverTimeChart from './TransactionsOverTimeChart';
 import { TopItemsTable } from './TopItemsTable';
 import { ProjectionUploader } from './ProjectionUploader';
+import { InventoryInsights } from './InventoryInsights';
 import previewData from '../data/preview_top_20_data.json';
 import previewSpendOverTimeData from '../data/preview_spend_over_time_data.json';
 
@@ -336,10 +337,24 @@ export function Dashboard() {
       
       setTopItems(mergePreviewData(combinedData, activeTab, selectedYear));
       setIsLoadingTopItems(false);
-    } else if (user && !isPreviewMode) {
+    } 
+    
+    else if (user && !isPreviewMode) {
       fetch(`http://127.0.0.1:8000/api/analytics/top-items?user_id=${user.uid}&vendor=${activeTab.toLowerCase()}`)
         .then(res => res.json())
-        .then(res => { setTopItems(res.data || []); setIsLoadingTopItems(false); })
+        .then(res => { 
+          const fetchedData = res.data || {};
+          
+          if (!Array.isArray(fetchedData)) {
+            // If it's an object (Overall view), flatten it into an array
+            setTopItems(mergePreviewData(fetchedData, activeTab, selectedYear));
+          } else {
+            // If it's already a flat array (Specific vendor view), just set it
+            setTopItems(fetchedData);
+          }
+          
+          setIsLoadingTopItems(false); 
+        })
         .catch(() => setIsLoadingTopItems(false));
     }
   }, [user, isPreviewMode, activeTab, liveRawTopItems, projectedData, selectedYear]);
@@ -440,7 +455,7 @@ export function Dashboard() {
   // filters in the final `filteredTopItems` array that gets rendered in the chart and table 
   // views. 
   const filteredTopItems = useMemo(() => {
-    if (!topItems) return [];
+    if (!topItems || !Array.isArray(topItems)) return [];
     
     return topItems.filter(item => {
       const name = item.clean_item_name.toLowerCase();
@@ -571,7 +586,30 @@ export function Dashboard() {
               </button>
             </div>
 
-            {showDetails && <TopItemsTable data={filteredTopItems} showProjected={isPreviewMode && projectedData !== null} />}
+            {/* show inventory levels for data */}
+            {showDetails && activeTab === 'Bookstore' && (
+              <div className="mb-6">
+                <h3 className="text-lg font-bold text-gray-800 mb-2">Current Campus Bookstore Inventory</h3>
+                <p className="text-sm text-gray-500 mb-4">
+                  *Inventory levels approximated based on recent point-of-sale data.
+                </p>
+                <TopItemsTable data={filteredTopItems} showProjected={isPreviewMode && projectedData !== null} />
+              </div>
+            )}
+
+            {showDetails && activeTab !== 'Bookstore' && (
+              <div className="mb-6">
+                <TopItemsTable data={filteredTopItems} showProjected={isPreviewMode && projectedData !== null} />
+              </div>
+            )}
+
+            {/* shows inventory insights if amazon or bookstore tabs are selected */}
+            {(activeTab === 'Amazon' || activeTab === 'Bookstore') && (
+              <InventoryInsights 
+                amazonData={(isPreviewMode ? previewData?.amazon : liveRawTopItems?.amazon) || []} 
+                bookstoreData={(isPreviewMode ? previewData?.bookstore : liveRawTopItems?.bookstore) || []} 
+              />
+            )}
           </div>
         )}
       </div>
