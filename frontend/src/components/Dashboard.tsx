@@ -181,6 +181,7 @@ export function Dashboard() {
   const [minSpend, setMinSpend] = useState<number>(0);
   const [selectedLimit, setSelectedLimit] = useState<number>(20);
   const [selectedSortMode, setSelectedSortMode] = useState<'frequency' | 'cost'>('frequency');
+  const [insightsData, setInsightsData] = useState<{amazon: any[], bookstore: any[]}>({ amazon: [], bookstore: [] });
   const [projectedData, setProjectedData] = useState<{
     dataset: string;
     data: any[];
@@ -415,6 +416,23 @@ export function Dashboard() {
     [filteredTopItems, activeDatasetKey]
   );
 
+  // Fetch baseline data specifically for the Inventory Insights cross-reference
+  useEffect(() => {
+    if (activeTab === 'Amazon' || activeTab === 'Bookstore') {
+      Promise.all([
+        fetch('http://127.0.0.1:8000/api/analytics/top-items/bigquery?dataset=amazon&limit=100').then(r => r.json()),
+        fetch('http://127.0.0.1:8000/api/analytics/top-items/bigquery?dataset=bookstore&limit=100').then(r => r.json())
+      ])
+      .then(([amazonRes, bookstoreRes]) => {
+        setInsightsData({
+          amazon: amazonRes.data?.items || [],
+          bookstore: bookstoreRes.data?.items || []
+        });
+      })
+      .catch(console.error);
+    }
+  }, [activeTab]);
+
 
   // The return statement below renders the entire dashboard
   return (
@@ -449,9 +467,13 @@ export function Dashboard() {
           <div className="w-full max-w-full min-w-0 space-y-4 overflow-hidden">
             <div className="flex items-center justify-between gap-4">
               <div>
-                <h2 className="text-xl font-bold text-slate-900">Top Items</h2>
+                <h2 className="text-xl font-bold text-slate-900">
+                  {activeTab === 'Bookstore' ? 'Current Campus Bookstore Inventory' : 'Top Items'}
+                </h2>
                 <p className="text-sm text-slate-500">
-                  Live BigQuery results
+                  {activeTab === 'Bookstore' 
+                    ? '*Inventory levels approximated based on recent point-of-sale BigQuery data.'
+                    : 'Live BigQuery results'}
                 </p>
               </div>
             </div>
@@ -547,34 +569,11 @@ export function Dashboard() {
             {/* Keep term boundaries editable in QUARTER_RANGES above. */}
             {/* Month values come from monthly summaries, grouped before this view. */}
 
-            <div className="flex justify-center">
-              <button onClick={() => setShowDetails(!showDetails)} className="px-6 py-2 text-sm font-semibold text-blue-700 bg-blue-50 rounded-full hover:bg-blue-100 transition-colors">
-                {showDetails ? "Hide Table" : "Show Detailed Breakdown"}
-              </button>
-            </div>
-
-            {/* show inventory levels for data */}
-            {showDetails && activeTab === 'Bookstore' && (
-              <div className="mb-6">
-                <h3 className="text-lg font-bold text-gray-800 mb-2">Current Campus Bookstore Inventory</h3>
-                <p className="text-sm text-gray-500 mb-4">
-                  *Inventory levels approximated based on recent point-of-sale data.
-                </p>
-                <TopItemsTable data={filteredTopItems} showProjected={isPreviewMode && projectedData !== null} />
-              </div>
-            )}
-
-            {showDetails && activeTab !== 'Bookstore' && (
-              <div className="mb-6">
-                <TopItemsTable data={filteredTopItems} showProjected={isPreviewMode && projectedData !== null} />
-              </div>
-            )}
-
             {/* shows inventory insights if amazon or bookstore tabs are selected */}
             {(activeTab === 'Amazon' || activeTab === 'Bookstore') && (
               <InventoryInsights 
-                amazonData={(isPreviewMode ? previewData?.amazon : liveRawTopItems?.amazon) || []} 
-                bookstoreData={(isPreviewMode ? previewData?.bookstore : liveRawTopItems?.bookstore) || []} 
+                amazonData={insightsData.amazon} 
+                bookstoreData={insightsData.bookstore} 
               />
             )}
           </div>
