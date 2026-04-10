@@ -1,6 +1,7 @@
 // Renders a table of top items with sorting, expandable vendor details, and 
 // support for projected data in a staging sandbox environment
-import React, { useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
+import type { DatasetSchema } from '../lib/datasetConfig';
 
 // --- Interfaces ---
 // VendorStat represents the aggregated stats for a single vendor associated
@@ -13,10 +14,12 @@ export interface VendorStat {
 
 // TopItem represents the aggregated stats for a single item
 export interface TopItem {
+  dataset?: string;
   clean_item_name: string;
   count: number;
   total_spent: number;
   vendors: VendorStat[];
+  row_values?: Record<string, string | number | null>;
   projected_count?: number; // Sandbox staging data
   projected_spent?: number; // Sandbox staging data
 }
@@ -87,6 +90,30 @@ const formatSpendOrNA = (amount: number) => {
   return numeric > 0 ? formatCurrency(numeric) : 'N/A';
 };
 
+const formatDynamicValue = (
+  columnName: string,
+  value: string | number | null | undefined,
+  metricType?: DatasetSchema['metric_type']
+) => {
+  if (value === null || value === undefined || value === '') {
+    return <span className="text-xs italic text-slate-400">N/A</span>;
+  }
+
+  if (typeof value === 'number') {
+    if (['Subtotal', 'Sales Tax', 'Total Price'].includes(columnName) && metricType !== 'quantity') {
+      return formatCurrency(value);
+    }
+
+    if (columnName === 'Quantity') {
+      return Number.isInteger(value) ? value.toLocaleString() : value.toFixed(2);
+    }
+
+    return Number.isInteger(value) ? value.toLocaleString() : value.toFixed(2);
+  }
+
+  return value;
+};
+
 // --- Main Component ---
 
 /**
@@ -96,9 +123,22 @@ const formatSpendOrNA = (amount: number) => {
  * 2. Combined Sorting: Ranks items based on the sum of current + projected data.
  * 3. Expandable Rows: Shows a detailed, sortable vendor breakdown.
  */
-export function TopItemsTable({ data, showProjected = false }: { data: TopItem[]; showProjected?: boolean }) {
+export function TopItemsTable({
+  data,
+  showProjected = false,
+  schema,
+  sortMode = 'frequency',
+}: {
+  data: TopItem[];
+  showProjected?: boolean;
+  schema?: DatasetSchema | null;
+  sortMode?: 'frequency' | 'cost';
+}) {
   // Main Table State
-  const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'count', direction: 'desc' });
+  const [sortConfig, setSortConfig] = useState<SortConfig>({
+    key: sortMode === 'cost' ? 'total_spent' : 'count',
+    direction: 'desc',
+  });
   const [expandedRow, setExpandedRow] = useState<number | null>(null);
 
   // Nested Vendor Table State
@@ -106,6 +146,13 @@ export function TopItemsTable({ data, showProjected = false }: { data: TopItem[]
     key: keyof VendorStat;
     direction: 'asc' | 'desc';
   } | null>({ key: 'spend', direction: 'desc' });
+
+  useEffect(() => {
+    setSortConfig({
+      key: sortMode === 'cost' ? 'total_spent' : 'count',
+      direction: 'desc',
+    });
+  }, [sortMode]);
 
   // --- Sorting Logic ---
 
@@ -129,8 +176,19 @@ export function TopItemsTable({ data, showProjected = false }: { data: TopItem[]
           valA = a.vendors?.length || 0;
           valB = b.vendors?.length || 0;
         } else {
-          valA = a[key] ?? (typeof a[key] === 'string' ? "" : 0);
-          valB = b[key] ?? (typeof b[key] === 'string' ? "" : 0);
+          const valueA = a[key];
+          const valueB = b[key];
+
+          if (typeof valueA === 'number' && typeof valueB === 'number') {
+            valA = valueA;
+            valB = valueB;
+          } else if (typeof valueA === 'string' && typeof valueB === 'string') {
+            valA = valueA.toLowerCase();
+            valB = valueB.toLowerCase();
+          } else {
+            valA = 0;
+            valB = 0;
+          }
         }
 
         if (valA < valB) return direction === 'asc' ? -1 : 1;
@@ -141,8 +199,7 @@ export function TopItemsTable({ data, showProjected = false }: { data: TopItem[]
     return sortableItems;
   }, [data, sortConfig]);
 
-  // Show only top 20 items after sorting
-  const displayData = sortedData.slice(0, 20);
+  const displayData = sortedData;
 
   // --- Event Handlers for Sorting ---
 
@@ -176,10 +233,83 @@ export function TopItemsTable({ data, showProjected = false }: { data: TopItem[]
     return nestedSortConfig.direction === 'asc' ? <span className="text-blue-600 ml-1">▲</span> : <span className="text-blue-600 ml-1">▼</span>;
   };
 
+  const hasDynamicRows = Boolean(schema && data.some((item) => item.row_values));
+  const activeColumns = schema?.columns?.filter((column) => column.available && column.display_in_table !== false) || [];
+
+  if (hasDynamicRows) {
+    return (
+      <div className="top-items-table-shell w-full max-w-full min-w-0 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+        <div className="border-b border-gray-200 bg-slate-50 px-4 py-2 text-xs font-medium text-slate-500">
+          Scroll within this table to view more rows and columns.
+        </div>
+        <div className="top-items-table-scroll block max-h-[520px] w-full max-w-full min-w-0 overflow-auto overscroll-contain">
+          <table className="top-items-table top-items-table--dynamic min-w-max text-left text-sm border-collapse">
+            <thead className="sticky top-0 z-30">
+              <tr className="bg-slate-50 border-b border-gray-200">
+                <th className="p-4 font-semibold text-slate-700 sticky left-0 z-20 bg-slate-50 whitespace-nowrap">#</th>
+                {schema?.dataset === 'overall' && (
+                  <th className="p-4 font-semibold text-slate-700 whitespace-nowrap w-[120px]">Dataset</th>
+                )}
+                {activeColumns.map((column) => (
+                  <th
+                    key={column.canonical_name}
+                    className="p-4 font-semibold text-slate-700 whitespace-nowrap w-[200px]"
+                  >
+                    {column.canonical_name}
+                  </th>
+                ))}
+                <th className="p-4 font-semibold text-slate-700 text-center whitespace-nowrap w-[100px]">Freq.</th>
+                <th className="p-4 font-semibold text-slate-700 text-right whitespace-nowrap w-[150px]">
+                  {schema?.metric_label || 'Total Metric'}
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {sortedData.map((item, index) => (
+                <tr key={`${item.dataset || 'dataset'}-${item.clean_item_name}-${index}`} className="odd:bg-white even:bg-slate-50/20">
+                  <td className="p-4 text-xs font-mono text-slate-500 sticky left-0 z-10 bg-inherit whitespace-nowrap">{index + 1}</td>
+                  {schema?.dataset === 'overall' && (
+                    <td className="p-4 font-semibold text-slate-800 whitespace-nowrap">
+                      {item.dataset || 'Unknown'}
+                    </td>
+                  )}
+                  {activeColumns.map((column) => (
+                    <td key={column.canonical_name} className="p-4 text-slate-700 align-top w-[200px] max-w-[200px]">
+                      <div className="max-w-[200px] overflow-hidden break-words" title={String(item.row_values?.[column.canonical_name] ?? '')}>
+                        {formatDynamicValue(
+                          column.canonical_name,
+                          item.row_values?.[column.canonical_name],
+                          schema?.metric_type
+                        )}
+                      </div>
+                    </td>
+                  ))}
+                  <td className="p-4 text-center">
+                    <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-bold bg-blue-50 text-blue-700 ring-1 ring-inset ring-blue-700/10">
+                      {item.count.toLocaleString()}
+                    </span>
+                  </td>
+                  <td className="p-4 text-right font-mono font-medium text-slate-900 whitespace-nowrap">
+                    {schema?.metric_type === 'quantity'
+                      ? Number(item.total_spent || 0).toLocaleString()
+                      : formatSpendOrNA(item.total_spent)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
-      <div className="overflow-x-auto">
-        <table className="w-full text-left text-sm table-fixed border-collapse">
+    <div className="top-items-table-shell overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+      <div className="border-b border-gray-200 bg-slate-50 px-4 py-2 text-xs font-medium text-slate-500">
+        Scroll within this table to view more rows and columns.
+      </div>
+      <div className="top-items-table-scroll overflow-x-auto">
+        <table className="top-items-table top-items-table--summary w-full text-left text-sm table-fixed border-collapse">
           <thead>
             <tr className="bg-slate-50 border-b border-gray-200 select-none">
               <th className="p-4 font-semibold text-slate-700 w-[60px]">#</th>
@@ -190,10 +320,10 @@ export function TopItemsTable({ data, showProjected = false }: { data: TopItem[]
                 Freq. {getSortIcon('count')}
               </th>
               <th className="p-4 font-semibold text-slate-700 text-right w-[160px] cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => requestSort('total_spent')}>
-                Total Spent {getSortIcon('total_spent')}
+                {schema?.metric_label || 'Total Spent'} {getSortIcon('total_spent')}
               </th>
               <th className="p-4 font-semibold text-slate-700 w-[25%] text-center cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => requestSort('vendors')}>
-                Vendors {getSortIcon('vendors')}
+                {schema?.group_label || 'Vendors'} {getSortIcon('vendors')}
               </th>
             </tr>
           </thead>

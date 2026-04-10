@@ -49,6 +49,10 @@ export function ProjectionUploader({ onProjectionSuccess, onClearProjection, has
         setDataset('onecard');
         setWasAutoDetected(true);
         console.log("[OK] Auto-detected OneCard CSV");
+      } else if (firstLine.includes('product category') || firstLine.includes('item,date,quantity')) {
+        setDataset('bookstore');
+        setWasAutoDetected(true);
+        console.log("[OK] Auto-detected Bookstore CSV");
       } else {
         // Reset if we can't identify it, letting the user pick manually
         setWasAutoDetected(false); 
@@ -131,7 +135,7 @@ export function ProjectionUploader({ onProjectionSuccess, onClearProjection, has
         <option value="amazon">Amazon</option>
         <option value="cruzbuy">CruzBuy</option>
         <option value="onecard">OneCard</option>
-        <option value="baytree">BayTree</option>
+        <option value="bookstore">Bookstore</option>
       </select>
 
       <input 

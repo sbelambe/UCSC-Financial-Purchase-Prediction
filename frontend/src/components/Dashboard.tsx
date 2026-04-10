@@ -4,27 +4,22 @@
 // supports both a preview mode with static data and a live mode that fetches 
 // real data from the backend. Users can also upload projection files to see 
 // how future spending might look based on staged projections.
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useDeferredValue, useRef } from 'react';
 import { TabNavigation } from './TabNavigation';
 import { FilterBar } from './FilterBar';
-import { useAuth } from '../context/AuthContext';
 import TopItemsChart from './TopItemsChart';
+import HighImpactScatterPlot from './HighImpactScatterPlot';
 import TransactionsOverTimeChart from './TransactionsOverTimeChart';
 import { TopItemsTable } from './TopItemsTable';
 import { ProjectionUploader } from './ProjectionUploader';
 import { InventoryInsights } from './InventoryInsights';
-import previewData from '../data/preview_top_20_data.json';
-import previewSpendOverTimeData from '../data/preview_spend_over_time_data.json';
+import { FALLBACK_DATASET_SCHEMAS, type DatasetSchema } from '../lib/datasetConfig';
 
 
 // --- TYPES & CONSTANTS ---
 // A single point on the spend-over-time chart. `pending_spend` is only 
 // populated when a staged projection has been blended into preview mode
 type SpendPoint = { period: string; spend: number; pending_spend?: number };
-
-type SpendTimePeriod = 'day' | 'week' | 'month' | 'year';
-type DatasetKey = 'amazon' | 'cruzbuy' | 'onecard' | 'bookstore';
-type SpendPreviewByTab = Record<DatasetKey, Partial<Record<SpendTimePeriod, SpendPoint[]>>> & { combined?: any };
 type QuarterKey = 'fall24' | 'winter25' | 'spring25' | 'summer25' | 'fall25' | 'winter26';
 type SpendRangeMode = 'term' | 'year';
 
@@ -42,45 +37,6 @@ const QUARTER_RANGES: Record<QuarterKey, { label: string; startMonth: string; en
 
 
 // --- HELPER FUNCTIONS ---
-// buildCombinedSpendSeries()
-// Combines all datasets into a single series for the "Overall" tab, summing 
-// spend across sources by period
-const buildCombinedSpendSeries = (preview: SpendPreviewByTab, timePeriod: SpendTimePeriod) => {
-  const combinedMap: { [period: string]: number } = {};
-  (['amazon', 'cruzbuy', 'onecard', 'bookstore'] as DatasetKey[]).forEach((key) => {
-    (getPreviewSeries(preview, key, timePeriod) || []).forEach((point) => {
-      combinedMap[point.period] = (combinedMap[point.period] || 0) + Number(point.spend || 0);
-    });
-  });
-
-  return Object.entries(combinedMap)
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([period, spend]) => ({ period, spend }));
-};
-
-// getPreviewSeries()
-// Handles inconsistencies in the preview data structure, ensuring we can 
-// extract a clean series for any given dataset and time period
-const getPreviewSeries = (
-  preview: any,
-  key: DatasetKey,
-  timePeriod: SpendTimePeriod = 'month'
-): SpendPoint[] => {
-  // Just in case there are instances of pcard
-  const source = key === 'onecard'
-    ? (preview?.onecard ?? preview?.pcard)
-    : preview?.[key];
-
-  if (Array.isArray(source)) return source as SpendPoint[];
-  if (source && Array.isArray(source[timePeriod])) return source[timePeriod] as SpendPoint[];
-  return [];
-};
-
-// --- Time Filtering Functions ---
-// monthWindow()
-// Expands a YYYY-MM -> YYYY-MM range into every month in that interval so 
-// charts can render zero-value months instead of skipping missing data 
-// entirely. Ex: ['2025-01', '2025-02', ...]
 const monthWindow = (startMonth: string, endMonth: string) => {
   const months: string[] = [];
   const cursor = new Date(`${startMonth}-01T00:00:00Z`);
@@ -143,111 +99,68 @@ const filterSeriesByYear = (points: SpendPoint[], year: string): SpendPoint[] =>
   }));
 };
 
-// mergePreviewData()
-// The preview data is structured in a way that can lead to duplicate items across
-// datasets (e.g. the same laptop purchase might appear in both Amazon and OneCard
-// datasets). This function merges those duplicates together, summing their counts
-// and spend, and combining their vendor lists. It also applies the year filter 
-// to ensure that only items from the selected year are included in the merged 
-// results.
-const mergePreviewData = (rawPreview: any, tab: string, filterYear: string) => {
-  const merged: { [key: string]: any } = {};
-  const tabToKeyMap: { [key: string]: string } = {
-    'Amazon': 'amazon',
-    'OneCard': 'onecard',
-    'CruzBuy': 'cruzbuy',
-    'Bookstore': 'bookstore'
-  };
-
-  // This function processes a single dataset (e.g. Amazon) and merges its items 
-  // into the `merged` map.
-  const processDataset = (dataset: any[]) => {
-    dataset.forEach((item: any) => {
-      if (filterYear !== 'All Time' && item.year && item.year !== filterYear) return; 
-
-      const name = item.clean_item_name || "Miscellaneous";
-
-      if (!merged[name]) {
-        merged[name] = { 
-          clean_item_name: name, count: 0, total_spent: 0, vendors: [], projected_count: 0, projected_spent: 0 
-        };
-      }
-
-      if (item.projected_count || item.projected_spent) {
-        merged[name].projected_count += item.projected_count || 0;
-        merged[name].projected_spent += item.projected_spent || 0;
-      } else {
-        merged[name].count += item.count || 0;
-        merged[name].total_spent += item.total_spent || 0;
-      }
-
-      if (Array.isArray(item.vendors)) {
-        item.vendors.forEach((vendorData: any) => {
-          const vName = typeof vendorData === 'string' ? vendorData : vendorData.name;
-          const vCount = vendorData.count || 0;
-          const vSpend = vendorData.spend || 0;
-
-          const existingVendor = merged[name].vendors.find((v: any) => v.name === vName);
-          if (existingVendor) {
-            existingVendor.count += vCount;
-            existingVendor.spend += vSpend;
-          } else {
-            merged[name].vendors.push({ name: vName, count: vCount, spend: vSpend });
-          }
-        });
-      }
-    });
-  };
-
-  if (tab === 'Overall') {
-    Object.entries(rawPreview).forEach(([key, val]) => processDataset(val as any[]));
-  } else {
-    const key = tabToKeyMap[tab];
-    if (key && rawPreview[key]) processDataset(rawPreview[key] as any[]);
+const mergeProjectedTopItems = (
+  baseItems: any[],
+  projection: { dataset: string; data: any[] } | null,
+  activeDatasetKey: string
+) => {
+  if (!projection) return baseItems;
+  if (!(activeDatasetKey === 'overall' || activeDatasetKey === projection.dataset)) {
+    return baseItems;
   }
 
-  return Object.values(merged)
-    .filter((item: any) => {
-      const totalCount = Number(item.count || 0) + Number(item.projected_count || 0);
-      const totalSpend = Number(item.total_spent || 0) + Number(item.projected_spent || 0);
-      return totalCount > 0 || totalSpend > 0;
-    })
-    .sort((a: any, b: any) =>
-      (b.count + b.projected_count) - (a.count + a.projected_count)
-    );
+  return [
+    ...baseItems,
+    ...projection.data.map((item: any) => ({
+      ...item,
+      projected_count: item.count,
+      projected_spent: item.total_spent,
+    })),
+  ];
+};
+
+const mergeProjectedSpendSeries = (
+  baseSeries: SpendPoint[],
+  projection: { dataset: string; time_data: { period: string; pending_spend: number }[] } | null,
+  activeDatasetKey: string
+) => {
+  if (!projection) return baseSeries;
+  if (!(activeDatasetKey === 'overall' || activeDatasetKey === projection.dataset)) {
+    return baseSeries;
+  }
+
+  const merged = [...baseSeries];
+  projection.time_data.forEach((pendingMonth) => {
+    const existingMonthIndex = merged.findIndex((s) => s.period === pendingMonth.period);
+    if (existingMonthIndex >= 0) {
+      merged[existingMonthIndex].pending_spend = pendingMonth.pending_spend;
+    } else {
+      merged.push({ period: pendingMonth.period, spend: 0, pending_spend: pendingMonth.pending_spend });
+    }
+  });
+
+  return merged.sort((a, b) => a.period.localeCompare(b.period));
+};
+
+const shouldExcludeAmazonGiftCardsFromCharts = (item: any, activeDatasetKey: string) => {
+  if (activeDatasetKey !== 'amazon') return false;
+
+  const cleanName = String(item.clean_item_name || '').trim().toLowerCase();
+  const categoryValue = String(item.row_values?.Category || item.row_values?.category || '').trim().toLowerCase();
+  return cleanName === 'gift cards' || categoryValue === 'gift cards';
 };
 
 
 // --- MAIN COMPONENT ---
 export function Dashboard() {
-  const { user } = useAuth();
-
-  // Controls which dataset the user is currently viewing and whether we're in
-  //  preview mode or live mode
-  const [activeTab, setActiveTab] = useState<'Overall' | 'CruzBuy' | 'OneCard' | 'Amazon' | 'Bookstore'>('Overall');
-  const [isPreviewMode, setIsPreviewMode] = useState(true);
-
-  // Passive cache states
-  // Raw data pulled from the backend that doesn't get directly rendered, but 
-  // is used as the source of truth that we blend staged projections into and then 
-  // extract display data from. This way we can keep the original backend data 
-  // separate and unmodified while still allowing users to see how their projections
-  // impact the charts and tables in preview mode
-  const [liveRawTopItems, setLiveRawTopItems] = useState<any>(null);
-  const [liveRawSpend, setLiveRawSpend] = useState<any>(null);
-
-  // Staged projection data that the user uploads in preview mode, which gets
-  // blended into the charts and tables alongside the raw data
-  const [projectedData, setProjectedData] = useState<{
-      dataset: string, 
-      data: any[], 
-      time_data: {period: string, pending_spend: number}[] 
-  } | null>(null);
+  const [activeTab, setActiveTab] = useState<'Overall' | 'CruzBuy' | 'OneCard' | 'Amazon' | 'Bookstore'>('Amazon');
 
   // Active display states
   // Top items states
   const [topItems, setTopItems] = useState<any[]>([]);
   const [isLoadingTopItems, setIsLoadingTopItems] = useState(true);
+  const [topItemsError, setTopItemsError] = useState<string | null>(null);
+  const [activeSchema, setActiveSchema] = useState<DatasetSchema | null>(FALLBACK_DATASET_SCHEMAS.overall);
   
   // Spend states
   // `rawSpendSeries` is the unfiltered, unmodified series pulled from the 
@@ -258,15 +171,24 @@ export function Dashboard() {
   const [spendSeries, setSpendSeries] = useState<SpendPoint[]>([]);
   const [isLoadingSpend, setIsLoadingSpend] = useState(true);
   
-  // Filter & UI States for dashboard controls
-  const [showDetails, setShowDetails] = useState(false);
+  // Filter & UI States
   const [selectedYear, setSelectedYear] = useState('All Time');
   const [selectedQuarter, setSelectedQuarter] = useState<QuarterKey>('winter25');
-  const [spendRangeMode, setSpendRangeMode] = useState<SpendRangeMode>('term');
+  const [spendRangeMode, setSpendRangeMode] = useState<SpendRangeMode>('year');
   const [availableYears, setAvailableYears] = useState<string[]>([]);
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [minSpend, setMinSpend] = useState<number>(0);
+  const [selectedLimit, setSelectedLimit] = useState<number>(20);
+  const [selectedSortMode, setSelectedSortMode] = useState<'frequency' | 'cost'>('frequency');
+  const [projectedData, setProjectedData] = useState<{
+    dataset: string;
+    data: any[];
+    time_data: { period: string; pending_spend: number }[];
+  } | null>(null);
+  const deferredSearchQuery = useDeferredValue(searchQuery);
+  const topItemsCacheRef = useRef<Record<string, { items: any[]; schema?: DatasetSchema | null; warnings?: string[] }>>({});
+  const spendSeriesCacheRef = useRef<Record<string, { combined: SpendPoint[]; datasets: Record<string, SpendPoint[]> }>>({});
 
   // This map helps us determine which series to pull from the raw spend data
   // based on the active tab, since the API returns all datasets together and we
@@ -279,136 +201,153 @@ export function Dashboard() {
     OneCard: 'onecard',
   };
 
-  const previewSpendByTab = previewSpendOverTimeData as unknown as SpendPreviewByTab;
+  const tabToBigQueryDatasetMap: { [key: string]: string } = {
+    Overall: 'overall',
+    Amazon: 'amazon',
+    Bookstore: 'bookstore',
+    CruzBuy: 'cruzbuy',
+    OneCard: 'onecard',
+  };
 
+  const activeDatasetKey = tabToBigQueryDatasetMap[activeTab] || 'overall';
 
-  // 1. RAW DATA FETCH (Runs once per session)
-  // On initial load, we fetch the raw data for both the top items and spend-over-time
-  // charts and store it in separate states. This raw data is what we use as the source 
-  // of truth
   useEffect(() => {
-    if (isPreviewMode) return;
+    fetch(`http://127.0.0.1:8000/api/analytics/dataset-config?dataset=${activeDatasetKey}`)
+      .then(async (res) => {
+        const payload = await res.json();
+        if (!res.ok) {
+          throw new Error(payload?.detail || 'Failed to load dataset schema.');
+        }
+        return payload;
+      })
+      .then((res) => setActiveSchema(res.data || FALLBACK_DATASET_SCHEMAS[activeDatasetKey]))
+      .catch(() => setActiveSchema(FALLBACK_DATASET_SCHEMAS[activeDatasetKey] || FALLBACK_DATASET_SCHEMAS.overall));
+  }, [activeDatasetKey]);
 
-    if (user && !liveRawTopItems) {
-      fetch(`http://127.0.0.1:8000/api/analytics/top-items?user_id=${user.uid}`)
-        .then(res => res.json())
-        .then(res => setLiveRawTopItems(res.data || {}))
-        .catch(console.error);
-    }
-
-    if (!liveRawSpend) {
-      fetch('http://127.0.0.1:8000/api/analytics/spend-over-time?time_period=month&include_refunds=true')
-        .then((res) => res.json())
-        .then((res) => setLiveRawSpend(res.data || {}))
-        .catch(console.error);
-    }
-  }, [user, isPreviewMode, liveRawTopItems, liveRawSpend]);
-
-
-  // 2. TAB SWITCHING: TOP ITEMS & PROJECTIONS
-  // Whenever the user switches tabs, we need to update the top items table and chart
-  // to reflect the relevant dataset. Additionally, if we're in preview mode and the 
-  // user has uploaded a projection, we need to blend that projection data into the 
-  // raw data for the active tab before extracting the top items to display, so that 
-  // users can see how their projections impact the top items in real time as they 
-  // switch between tabs and filters
+  // 1. BIGQUERY TOP ITEMS
   useEffect(() => {
     setIsLoadingTopItems(true);
-    let baseTopItems = isPreviewMode ? previewData : liveRawTopItems;
-    
-    if (baseTopItems) {
-      // Deep copy the base data to avoid mutating the original raw data when we 
-      // blend in projections
-      const combinedData = JSON.parse(JSON.stringify(baseTopItems));
-      
-      // Merge staged projections into the relevant dataset in the raw data, tagging 
-      // them with `projected_count`
-      if (projectedData && isPreviewMode) {
-        const targetKey = projectedData.dataset; 
-        if (!combinedData[targetKey]) combinedData[targetKey] = [];
+    setTopItemsError(null);
 
-        const taggedProjectedData = projectedData.data.map((item: any) => ({
-            ...item,
-            projected_count: item.count,
-            projected_spent: item.total_spent
-        }));
-        combinedData[targetKey] = [...combinedData[targetKey], ...taggedProjectedData];
+    const params = new URLSearchParams({
+      dataset: activeDatasetKey,
+      search_query: deferredSearchQuery,
+      selected_year: selectedYear,
+      min_spend: String(minSpend || 0),
+      limit: String(selectedLimit),
+      sort_mode: selectedSortMode,
+    });
+    const cacheKey = params.toString();
+    const cachedTopItems = topItemsCacheRef.current[cacheKey];
+    if (cachedTopItems) {
+      setTopItems(mergeProjectedTopItems(cachedTopItems.items || [], projectedData, activeDatasetKey));
+      if (cachedTopItems.schema) {
+        setActiveSchema(cachedTopItems.schema);
       }
-      
-      setTopItems(mergePreviewData(combinedData, activeTab, selectedYear));
+      if (Array.isArray(cachedTopItems.warnings) && cachedTopItems.warnings.length > 0) {
+        setTopItemsError(cachedTopItems.warnings.join(' '));
+      }
       setIsLoadingTopItems(false);
-    } 
-    
-    else if (user && !isPreviewMode) {
-      fetch(`http://127.0.0.1:8000/api/analytics/top-items?user_id=${user.uid}&vendor=${activeTab.toLowerCase()}`)
-        .then(res => res.json())
-        .then(res => { 
-          const fetchedData = res.data || {};
-          
-          if (!Array.isArray(fetchedData)) {
-            // If it's an object (Overall view), flatten it into an array
-            setTopItems(mergePreviewData(fetchedData, activeTab, selectedYear));
-          } else {
-            // If it's already a flat array (Specific vendor view), just set it
-            setTopItems(fetchedData);
-          }
-          
-          setIsLoadingTopItems(false); 
-        })
-        .catch(() => setIsLoadingTopItems(false));
+      return;
     }
-  }, [user, isPreviewMode, activeTab, liveRawTopItems, projectedData, selectedYear]);
 
+    fetch(`http://127.0.0.1:8000/api/analytics/top-items/bigquery?${params.toString()}`)
+      .then(async (res) => {
+        const payload = await res.json();
+        if (!res.ok) {
+          throw new Error(payload?.detail || 'Failed to load BigQuery top items.');
+        }
+        return payload;
+      })
+      .then((res) => {
+        topItemsCacheRef.current[cacheKey] = {
+          items: res.data?.items || [],
+          schema: res.data?.schema || null,
+          warnings: res.data?.warnings || [],
+        };
+        setTopItems(mergeProjectedTopItems(res.data?.items || [], projectedData, activeDatasetKey));
+        if (res.data?.schema) {
+          setActiveSchema(res.data.schema);
+        }
+        if (Array.isArray(res.data?.warnings) && res.data.warnings.length > 0) {
+          setTopItemsError(res.data.warnings.join(' '));
+        }
+        setIsLoadingTopItems(false);
+      })
+      .catch((error) => {
+        console.error('BigQuery top items fetch failed:', error);
+        setTopItems([]);
+        setTopItemsError(error instanceof Error ? error.message : 'Failed to load BigQuery top items.');
+        setIsLoadingTopItems(false);
+      });
+  }, [activeDatasetKey, selectedYear, deferredSearchQuery, minSpend, selectedLimit, selectedSortMode, projectedData]);
 
-  // 3. TAB SWITCHING: SPEND SERIES (Historical + Projections)
-  // Similar to the top items, when the user switches tabs we also need to update the
-  // spend-over-time chart to show the relevant dataset. This is a bit more complex than
-  // the top items because we also need to blend in any pending spend from the projection
-  // uploader, which involves matching the time buckets from the projection with the raw
-  // series and summing the pending spend with the historical spend for any overlapping
-  // periods, as well as ensuring that any new periods introduced by the projection are added
-  // to the series so they show up on the chart 
+  // 2. BIGQUERY SPEND SERIES
   useEffect(() => {
     setIsLoadingSpend(true);
-    const seriesKey = tabToSeriesKeyMap[activeTab] || 'combined';
-    let currentRawSeries: SpendPoint[] = [];
 
-    if (isPreviewMode) {
-      const periodSeriesByKey: Record<string, SpendPoint[]> = {
-        amazon: getPreviewSeries(previewSpendByTab, 'amazon', 'month'),
-        cruzbuy: getPreviewSeries(previewSpendByTab, 'cruzbuy', 'month'),
-        onecard: getPreviewSeries(previewSpendByTab, 'onecard', 'month'),
-        bookstore: getPreviewSeries(previewSpendByTab, 'bookstore', 'month'),
-        combined: buildCombinedSpendSeries(previewSpendByTab, 'month'),
+    const params = new URLSearchParams({
+      dataset: activeDatasetKey,
+      time_period: 'month',
+    });
+    const cacheKey = params.toString();
+    const cachedSpendSeries = spendSeriesCacheRef.current[cacheKey];
+    if (cachedSpendSeries) {
+      const seriesKey = tabToSeriesKeyMap[activeTab] || 'combined';
+      const cachedSeriesByKey: { [key: string]: SpendPoint[] } = {
+        combined: cachedSpendSeries.combined || [],
+        amazon: cachedSpendSeries.datasets?.amazon || [],
+        cruzbuy: cachedSpendSeries.datasets?.cruzbuy || [],
+        onecard: cachedSpendSeries.datasets?.onecard || [],
+        bookstore: cachedSpendSeries.datasets?.bookstore || [],
       };
-      currentRawSeries = [...(periodSeriesByKey[seriesKey] || periodSeriesByKey.combined || [])];
-    } else if (liveRawSpend) {
-      const liveSeriesByKey: { [key: string]: SpendPoint[] } = {
-        combined: liveRawSpend?.combined || [],
-        amazon: liveRawSpend?.datasets?.amazon || [],
-        cruzbuy: liveRawSpend?.datasets?.cruzbuy || [],
-        onecard: liveRawSpend?.datasets?.onecard || [],
-        bookstore: liveRawSpend?.datasets?.bookstore || [],
-      };
-      currentRawSeries = [...(liveSeriesByKey[seriesKey] || liveSeriesByKey.combined || [])];
+      setRawSpendSeries(
+        mergeProjectedSpendSeries(
+          [...(cachedSeriesByKey[seriesKey] || cachedSeriesByKey.combined || [])],
+          projectedData,
+          activeDatasetKey
+        )
+      );
+      setIsLoadingSpend(false);
+      return;
     }
 
-    // Merge projected pending spend into the raw series
-    if (projectedData && isPreviewMode && (activeTab === 'Overall' || tabToSeriesKeyMap[activeTab] === projectedData.dataset)) {
-      projectedData.time_data.forEach(pendingMonth => {
-        const existingMonthIndex = currentRawSeries.findIndex(s => s.period === pendingMonth.period);
-        if (existingMonthIndex >= 0) {
-            currentRawSeries[existingMonthIndex].pending_spend = pendingMonth.pending_spend;
-        } else {
-            currentRawSeries.push({ period: pendingMonth.period, spend: 0, pending_spend: pendingMonth.pending_spend });
+    fetch(`http://127.0.0.1:8000/api/analytics/spend-over-time/bigquery?${params.toString()}`)
+      .then(async (res) => {
+        const payload = await res.json();
+        if (!res.ok) {
+          throw new Error(payload?.detail || 'Failed to load BigQuery spend-over-time data.');
         }
+        return payload;
+      })
+      .then((res) => {
+        spendSeriesCacheRef.current[cacheKey] = {
+          combined: res.data?.combined || [],
+          datasets: res.data?.datasets || {},
+        };
+        const seriesKey = tabToSeriesKeyMap[activeTab] || 'combined';
+        const liveSeriesByKey: { [key: string]: SpendPoint[] } = {
+          combined: res.data?.combined || [],
+          amazon: res.data?.datasets?.amazon || [],
+          cruzbuy: res.data?.datasets?.cruzbuy || [],
+          onecard: res.data?.datasets?.onecard || [],
+          bookstore: res.data?.datasets?.bookstore || [],
+        };
+        setRawSpendSeries(
+          mergeProjectedSpendSeries(
+            [...(liveSeriesByKey[seriesKey] || liveSeriesByKey.combined || [])],
+            projectedData,
+            activeDatasetKey
+          )
+        );
+        setIsLoadingSpend(false);
+      })
+      .catch((error) => {
+        console.error('BigQuery spend-over-time fetch failed:', error);
+        setRawSpendSeries([]);
+        setIsLoadingSpend(false);
       });
-      currentRawSeries.sort((a, b) => a.period.localeCompare(b.period));
-    }
-
-    setRawSpendSeries(currentRawSeries);
-    setIsLoadingSpend(false);
-  }, [isPreviewMode, activeTab, liveRawSpend, projectedData]);
+  }, [activeTab, activeDatasetKey, projectedData]);
 
 
   // 4. UPDATE AVAILABLE YEARS FOR CHART
@@ -443,7 +382,6 @@ export function Dashboard() {
     }
   }, [rawSpendSeries, selectedQuarter, spendRangeMode, selectedYear, availableYears]);
 
-
   // 6. APPLY ITEM FILTERS TO TABLE/CHART (Search, Categories, Min Spend)
   // This useMemo block applies the search query, category filter, and minimum spend 
   // filter to the top items before they get passed to the chart and table for rendering. 
@@ -460,13 +398,6 @@ export function Dashboard() {
     return topItems.filter(item => {
       const name = item.clean_item_name.toLowerCase();
 
-      // Search
-      if (searchQuery) {
-        const query = searchQuery.toLowerCase();
-        const hasVendorMatch = item.vendors?.some((v: { name: string }) => v.name.toLowerCase().includes(query));
-        if (!name.includes(query) && !hasVendorMatch) return false;
-      }
-
       // Categories
       if (selectedCategory !== 'all') {
         if (selectedCategory === 'technology' && !(/laptop|monitor|adapter|switch|drive|ipad|macbook|workstation|mouse|battery/.test(name))) return false;
@@ -475,74 +406,110 @@ export function Dashboard() {
         if (selectedCategory === 'facilities' && !(/bulb|filter|trash|ladder|vest|handle|soap|wipe/.test(name))) return false;
       }
 
-      // Minimum Spend (Historical + Staged)
-      if (minSpend > 0) {
-        const combinedSpend = (item.total_spent || 0) + (item.projected_spent || 0);
-        if (combinedSpend < minSpend) return false;
-      }
-
       return true;
     });
-  }, [topItems, searchQuery, selectedCategory, minSpend]);
+  }, [topItems, selectedCategory]);
+
+  const chartTopItems = useMemo(
+    () => filteredTopItems.filter((item) => !shouldExcludeAmazonGiftCardsFromCharts(item, activeDatasetKey)),
+    [filteredTopItems, activeDatasetKey]
+  );
 
 
   // The return statement below renders the entire dashboard
   return (
-    <div className="space-y-6">
+    <div className="w-full min-w-0 space-y-6">
       <div className="sticky top-0 z-40 bg-gray-50/95 backdrop-blur py-2">
         <TabNavigation activeTab={activeTab} onTabChange={setActiveTab} />
       </div>
       
-      {/* --- STAGING BANNER --- */}
-      <div className={`p-4 rounded-xl border flex justify-between items-center transition-all ${
-        isPreviewMode ? 'bg-amber-50 border-amber-200' : 'bg-blue-50 border-blue-200'
-      }`}>
-        <div className="flex items-center space-x-3">
-          <div className={`w-3 h-3 rounded-full ${isPreviewMode ? 'bg-amber-500 animate-pulse' : 'bg-blue-600'}`} />
-          <span className="font-bold text-gray-800">{isPreviewMode ? "Preview Mode" : "Live Mode"}</span>
-        </div>
-        <button onClick={() => setIsPreviewMode(!isPreviewMode)} className="px-4 py-2 bg-white border rounded-lg text-sm font-bold shadow-sm">
-          {isPreviewMode ? "Switch to Live" : "View Preview"}
-        </button>
-      </div>
-
-      {/* --- PROJECTION UPLOADER --- */}
-      {isPreviewMode && (
-        <ProjectionUploader 
-          onProjectionSuccess={(dataset, data, time_data) => setProjectedData({ dataset, data, time_data })}
-          onClearProjection={() => setProjectedData(null)}
-          hasActiveProjection={projectedData !== null}
-        />
-      )}
-
       {/* --- FILTER BAR --- */}
-      <div className="my-6">
+      <div className="my-6 w-full min-w-0">
         <FilterBar 
           selectedYear={selectedYear}
           selectedCategory={selectedCategory}
           searchQuery={searchQuery}
           minSpend={minSpend}
+          selectedLimit={selectedLimit}
+          selectedSortMode={selectedSortMode}
+          isLiveMode
           onYearChange={setSelectedYear}
           onCategoryChange={setSelectedCategory}
           onSearchChange={setSearchQuery}
           onMinSpendChange={setMinSpend}
+          onLimitChange={setSelectedLimit}
+          onSortModeChange={setSelectedSortMode}
         />
       </div>
 
+      <div className="w-full max-w-full min-w-0 overflow-hidden rounded-xl border border-gray-200 bg-white p-8 shadow-sm">
+        {isLoadingTopItems ? (
+          <div className="flex min-h-[240px] items-center justify-center">Loading...</div>
+        ) : (
+          <div className="w-full max-w-full min-w-0 space-y-4 overflow-hidden">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <h2 className="text-xl font-bold text-slate-900">Top Items</h2>
+                <p className="text-sm text-slate-500">
+                  Live BigQuery results
+                </p>
+              </div>
+            </div>
+
+            {topItemsError && (
+              <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                {topItemsError}
+              </div>
+            )}
+
+            {projectedData && (
+              <div className="rounded-lg border border-purple-200 bg-purple-50 px-4 py-3 text-sm text-purple-800">
+                Projection overlay active for {projectedData.dataset}. BigQuery data is still the base layer.
+              </div>
+            )}
+
+            <TopItemsTable
+              data={filteredTopItems.slice(0, selectedLimit)}
+              showProjected={projectedData !== null}
+              schema={activeSchema}
+              sortMode={selectedSortMode}
+            />
+          </div>
+        )}
+      </div>
+
       {/* --- CHART SECTION --- */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 min-h-[650px] flex flex-col">
+      <div className="w-full min-w-0 rounded-xl border border-gray-200 bg-white p-8 shadow-sm min-h-[650px] flex flex-col">
         {isLoadingTopItems ? (
           <div className="flex flex-1 items-center justify-center">Loading...</div>
         ) : (
           <div className="space-y-8 flex-1">
+            <ProjectionUploader
+              onProjectionSuccess={(dataset, data, time_data) => setProjectedData({ dataset, data, time_data })}
+              onClearProjection={() => setProjectedData(null)}
+              hasActiveProjection={projectedData !== null}
+            />
+
             <div className="h-[450px] w-full">
-               <TopItemsChart data={filteredTopItems} />
+               <TopItemsChart
+                 data={chartTopItems.slice(0, selectedLimit)}
+                 metricLabel={activeSchema?.metric_label}
+                 metricType={activeSchema?.metric_type}
+               />
             </div>
+
+            <HighImpactScatterPlot
+              data={chartTopItems.slice(0, selectedLimit)}
+              metricLabel={activeSchema?.metric_label}
+              metricType={activeSchema?.metric_type}
+            />
 
             <TransactionsOverTimeChart
               data={spendSeries}
               loading={isLoadingSpend}
-              title={`Spend Over Time (${activeTab}, ${spendRangeMode === 'term' ? QUARTER_RANGES[selectedQuarter].label : selectedYear})`}
+              metricLabel={activeSchema?.metric_label}
+              metricType={activeSchema?.metric_type}
+              title={`${activeSchema?.metric_label || 'Spend Over Time'} (${activeTab}, ${spendRangeMode === 'term' ? QUARTER_RANGES[selectedQuarter].label : selectedYear})`}
             />
             
             <div className="flex justify-center gap-3">

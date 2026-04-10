@@ -8,4 +8,5 @@ matplotlib
 firebase_admin
 openpyxl
 google-api-python-client
+google-cloud-bigquery
 python-multipart

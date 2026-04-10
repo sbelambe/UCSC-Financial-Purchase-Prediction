@@ -1177,3 +1177,58 @@ html {
   inherits: false;
   initial-value: 1;
 }
+
+/* Top Items table scroll behavior.
+   This repo uses a checked-in Tailwind output file, so some newer/arbitrary
+   utility classes in TSX may not exist until CSS is regenerated. These
+   explicit classes keep table scrolling independent from Tailwind generation. */
+.top-items-table-shell {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.top-items-table-scroll {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  max-height: 24rem;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+.top-items-table {
+  border-collapse: collapse;
+}
+
+.top-items-table--dynamic {
+  width: max-content;
+  min-width: 100%;
+}
+
+.top-items-table--summary {
+  min-width: 68rem;
+}
+
+.top-items-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--color-gray-50);
+}
+
+.top-items-table--dynamic th:first-child,
+.top-items-table--dynamic td:first-child {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+}
+
+.top-items-table--dynamic th:first-child {
+  z-index: 3;
+}
+
+.top-items-table--dynamic td:first-child {
+  background: inherit;
+}

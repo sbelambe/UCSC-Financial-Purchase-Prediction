@@ -33,6 +33,7 @@ def run_firebase_uploads(
         dataframes=dataframes,
         local_paths=local_paths,
         upload_ids=upload_ids,
+        upload_storage=True,
     )
 
     return {
