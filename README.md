@@ -32,26 +32,87 @@ Data Cleaning:
 
 ```
 .
-├── frontend/              # React + Vite frontend app
-│   ├── src/
-│   ├── package.json
-│   └── tsconfig.json
-├── backend/
-│   ├── app/               # FastAPI APIs
-│   ├── data_cleaning/     # Python cleaning pipeline
-|       ├── clean/         # Stores clean csv files
-|        ├── raw/          # Stores raw csv files (pre cleaning)
-|   ├── firebase/          # Contains files to run uploading to Storage and Firestore
-|   ├── jobs/              # Contains cleaning job and firebase upload job
-│   ├── requirements.txt   # Python dependencies (TODO)
-│   └── .venv/             # Python virtual environment (not committed)
-├── .vscode/               # VS Code settings
+├── backend
+│   ├── app                    # FastAPI backend (serves data to frontend)
+│   │   ├── main.py            # API endpoints
+│   │   ├── analytics.py       # Dashboard summaries from Firestore
+│   │   ├── analytics_bookstore.py
+│   │   ├── drive.py           # Pulls Google Drive source files
+│   │   └── firebase.py        # Firebase setup
+│   │
+│   ├── data_cleaning          # Raw → cleaned data pipeline
+│   │   ├── config             # Cleaning configs (column maps, etc.)
+│   │   │   ├── amazon_config.py
+│   │   │   ├── cruzbuy_config.py
+│   │   │   └── onecard_config.py
+│   │   │
+│   │   ├── data
+│   │   │   ├── raw            # Original datasets (CSV)
+│   │   │   ├── clean          # Cleaned datasets (CSV)
+│   │   │   └── drive_metadata.json
+│   │   │
+│   │   └── src                # Cleaning logic
+│   │       ├── pipeline.py
+│   │       ├── clean_amazon.py
+│   │       ├── clean_cruzbuy.py
+│   │       ├── clean_onecard.py
+│   │       └── clean_bookstore.py
+│   │
+│   ├── firebase               # Clean data → Firebase
+│   │   ├── pipeline.py        # Orchestrates upload + summaries
+│   │   ├── storage.py         # Uploads CSVs to Firebase Storage
+│   │   ├── firestore.py       # Writes structured records into Firestore
+│   │   ├── summaries.py       # Computes aggregations (top items, trends)
+│   │   ├── generate_test_csvs.py
+│   │   └── test_firestore.py  # Local Firestore tester
+│   │
+│   ├── jobs                   # Pipeline runners
+│   │   ├── run_cleaning.py             # Raw data → Clean data
+│   │   ├── run_firebase_uploads.py     # Clean data → Firestore
+│   │   └── run_full_pipeline.py        # Both cleaning + Firestore uploads
+│   │
+│   └── requirements.txt       # Python dependencies
+│
+├── frontend
+│   ├── src
+│   │   ├── components         # UI + dashboard components
+│   │   │   ├── ui             # Generic reusable UI elements
+│   │   │   ├── figma          # Design assets
+│   │   │   ├── Dashboard.tsx
+│   │   │   ├── ChartGrid.tsx
+│   │   │   ├── MetricsGrid.tsx
+│   │   │   ├── FilterBar.tsx
+│   │   │   ├── FilterPanel.tsx
+│   │   │   ├── TabNavigation.tsx
+│   │   │   ├── TopItemsChart.tsx
+│   │   │   ├── TopItemsTable.tsx
+│   │   │   ├── TransactionsOverTimeChart.tsx
+│   │   │   ├── VendorAnalysis.tsx
+│   │   │   ├── ProductAnalysis.tsx
+│   │   │   ├── ProjectionUploader.tsx
+│   │   │   ├── SalesOverview.tsx
+│   │   │   ├── ProtectedRoute.tsx
+│   │   │   └── Chatbot.tsx
+│   │   │
+│   │   ├── context            # Global state (e.g., auth)
+│   │   │   └── AuthContext.tsx
+│   │   │
+│   │   ├── App.tsx            # App layout + routing
+│   │   └── main.tsx           # Entry point
+│   │
+│   └── package.json
+│
+├── .env                      # Root environment variables (shared)
+├── .gitignore
+└── README.md
 └── README.md
 ```
+Almost every file has documentation comments as well. Please refer to those if you are having trouble understanding a file.
 
 ---
 
-## Prerequisites
+## Setup 
+### 1. Install Prerequisites
 
 Install these before proceeding:
 
@@ -71,9 +132,9 @@ git --version
 
 ---
 
-## One-Page Setup Guide
 
-### 1. Clone the Repository
+
+### 2. Clone the Repository
 
 ```bash
 git clone <repo-url>
@@ -82,31 +143,48 @@ cd UCSC-Financial-Purchase-Prediction
 
 ---
 
-### 2. Add Required Credential Files
+### 3. Add Required Credential Files and Other Uncommitted Files
 
 Place the following files in the **repository root directory**:
 
 ```
-firebase-key.json
-google-key.json
+serviceAccountKey.json
+google-drive-service.json
+.env
 ```
 
-These files are required for backend authentication and are **not committed to GitHub**.
+Ensure your .env file has the following format:
+```
+FIREBASE_CREDENTIALS_PATH=serviceAccountKey.json
+FIREBASE_STORAGE_BUCKET=your-project-id.appspot.com
+VITE_FIREBASE_API_KEY=your-api-key
+VITE_FIREBASE_AUTH_DOMAIN=your-project-id.firebaseapp.com
+VITE_FIREBASE_PROJECT_ID=your-project-id
+BIGQUERY_PROJECT_ID=your-project-id
+MOCK_FIRESTORE=True
+GOOGLE_DRIVE_CREDENTIALS=google-drive-service.json
+GOOGLE_DRIVE_FOLDER_ID=your-google-drive-folder-id
+```
 
-Your root directory should look like:
+These files are required for backend authentication and are **not committed to GitHub**. They should not be shared publically.
+
+
+If ```dashboard.tsx``` is highlighted red, you will also need:
 
 ```
-UCSC-Financial-Purchase-Prediction/
-├── backend/
-├── frontend/
-├── firebase-key.json
-├── google-key.json
-└── README.md
+frontend/src/data/preview_spend_over_time_all_periods.json
+frontend/src/data/preview_spend_over_time_data.json
+frontend/src/data/preview_top_20_data.json
+
 ```
+
+These can be generated by running ```python test_firestore.py``` in ```backend/firestore```. If that does not work, you may need to add the files manually. Consult your teammates for the files.
 
 ---
 
-### 3) Frontend Setup (Terminal A)
+### 4. Frontend Setup (Terminal A)
+
+If you are on a Mac (not required for Windows), run:
 
 ```bash
 cat > .env <<'EOF'
@@ -158,7 +236,7 @@ pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
-Create backend environment file:
+If you are on a Mac (not required for Windows), run this to create backend environment file:
 
 ```bash
 cat > .env <<'EOF'
@@ -171,17 +249,66 @@ EOF
 
 ### 5. Deploying onto local host
 
-Start the backend API:
+In one terminal, start the backend API:
 
 ```bash
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-Start the frontend development server:
+In another terminal, start the frontend development server:
 
 ```bash
-npm run dev -- --host 0.0.0.0 --port 5173
+npm run dev
 ```
+
+### Common Frontend Issues & Fixes
+
+### 1. Firebase `auth/invalid-api-key` Error
+
+**Symptoms:**
+
+* White screen, OR
+* Login screen shows but stuck on **“Connecting…”**, OR
+* Error:
+
+  ```
+  Uncaught FirebaseError: Firebase: Error (auth/invalid-api-key)
+  ```
+
+**Cause:**
+Vite is not properly reading the Firebase API key.
+
+**Fix:**
+
+* Make sure your `.env` file is in the **root directory** (not inside `frontend/` or `backend/`)
+* Restart the frontend dev server after updating `.env`
+
+---
+
+### 2. Firebase `auth/unauthorized-domain` Error
+
+**Symptoms:**
+
+* White screen
+* Error:
+
+  ```
+  FirebaseError: auth/unauthorized-domain
+  ```
+
+**Cause:**
+Your app is running on a domain that Firebase does not recognize (e.g., GitHub Codespaces, custom dev URLs).
+
+**Fix:**
+
+1. Go to **Firebase Console**
+2. Navigate to:
+
+   ```
+   Authentication → Settings → Authorized domains
+   ```
+3. Click **“Add domain”**
+4. Paste your app’s URL (e.g., Codespaces or local dev URL)
 
 ---
 
@@ -198,13 +325,37 @@ curl -X POST http://127.0.0.1:8000/refresh
 ## Data Flow Overview
 
 ```
-Raw spreadsheets (Drive)
-        ↓
-Admin hits POST /refresh
-        ↓
-Backend runs Python cleaning pipeline
-        ↓
-Cleaned data processed/stored
-        ↓
-Frontend fetches cleaned results
+[ Google Drive (Raw Excel Files) ]
+                │
+                ▼
+      backend/app/drive.py
+  (Detect changes, download, convert → CSV)
+                │
+                ▼
+   backend/data_cleaning/src/
+   (Clean + normalize datasets)
+                │
+                ▼
+   Cleaned DataFrames + CSVs
+                │
+                ▼
+   backend/firebase/pipeline.py
+   (Orchestrates upload + processing)
+                │
+        ┌───────┴────────┐
+        ▼                ▼
+ Firebase Storage    Firestore
+ (optional CSVs)     (structured data + summaries)
+                          │
+                          ▼
+            backend/app/analytics.py
+        (Fetch dashboard-ready summaries)
+                          │
+                          ▼
+        FastAPI Endpoints (main.py)
+                          │
+                          ▼
+        frontend/src/components/
+            Dashboard.tsx
+      (Fetch + render visualizations)
 ```
