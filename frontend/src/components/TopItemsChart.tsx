@@ -2,8 +2,10 @@
 // items, with a dropdown to switch between frequency and total spend metrics. 
 // It also includes projected staging data in the tooltip and as a stacked bar 
 // for pending uploads.
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell, Legend } from 'recharts';
+import type { TopItem } from './TopItemsTable';
+import TopItemDrilldownPanel from './TopItemDrilldownPanel';
 
 // TopItems Chart Component
 // This component takes in an array of purchase data and visualizes the top 5 most
@@ -13,12 +15,18 @@ const TopItemsChart = ({
   metricLabel = 'Total Spend',
   metricType = 'currency',
 }: {
-  data: any[];
+  data: TopItem[];
   metricLabel?: string;
   metricType?: 'currency' | 'quantity' | 'mixed';
 }) => {
   // state to track which metric is selected from the dropdown
   const [metric, setMetric] = useState<'count' | 'spend'>('count');
+  const [selectedItem, setSelectedItem] = useState<TopItem | null>(null);
+
+  type ChartDataPoint = TopItem & {
+    name: string;
+    fullName: string;
+  };
 
   // Transform data, sort dynamically based on metric, and log it one last time
   const chartData = useMemo(() => {
@@ -37,7 +45,7 @@ const TopItemsChart = ({
     });
 
     // Map and truncate only the top 5
-    return sortedData.slice(0, 5).map(item => ({
+    return sortedData.slice(0, 5).map((item): ChartDataPoint => ({
       // Truncate to 15-20 characters for the X-axis label
       name: item.clean_item_name.length > 20 
         ? item.clean_item_name.substring(0, 20) + '...' 
@@ -47,8 +55,20 @@ const TopItemsChart = ({
       fullName: item.clean_item_name,
       projected_count: item.projected_count ? Number(item.projected_count) : undefined,
       projected_spent: item.projected_spent ? Number(item.projected_spent) : undefined,
+      vendors: item.vendors || [],
+      row_values: item.row_values,
+      dataset: item.dataset,
+      clean_item_name: item.clean_item_name,
     }));
   }, [data, metric]);
+
+  useEffect(() => {
+    if (!selectedItem) return;
+    const stillVisible = chartData.some((item) => item.fullName === selectedItem.clean_item_name);
+    if (!stillVisible) {
+      setSelectedItem(null);
+    }
+  }, [chartData, selectedItem]);
 
   const COLORS = ['#1e3a8a', '#2563eb', '#3b82f6', '#60a5fa', '#93c5fd'];
 
@@ -90,93 +110,125 @@ const TopItemsChart = ({
         </select>
       </div>
       
-      <div className="flex justify-center">
-        <BarChart
-          width={700}
-          height={500}
-          data={chartData} 
-          margin={{ top: 20, right: 30, left: 20, bottom: 100 }} 
-        >
-          <CartesianGrid strokeDasharray="3 3" vertical={false} />
-          <XAxis 
-            dataKey="name"
-            interval={0}
-            angle={-45} 
-            textAnchor="end" 
-            height={100} 
-            tick={{ fontSize: 11, fill: '#4b5563' }}
-            tickFormatter={(value) => 
-              value.length > 15 ? `${value.substring(0, 15)}...` : value 
-            } 
-          />
-          
-          <YAxis tickFormatter={yAxisFormatter} width={80} />
+      <div className="mb-3 px-4 text-xs text-slate-500">
+        Click a bar to view project-level and vendor-level details.
+      </div>
 
-          <Tooltip 
-            cursor={{ fill: '#f8fafc' }}
-            content={({ active, payload }) => {
-              if (active && payload && payload.length) {
-                const d = payload[0].payload; 
-                return (
-                  <div className="bg-white p-4 shadow-xl border border-slate-100 rounded-lg z-50">
-                    <p className="font-bold text-slate-900 text-sm mb-2 border-b pb-1">
-                      {d.fullName}
-                    </p>
-                    <div className="space-y-1">
-                      <p className={`text-xs font-semibold ${metric === 'count' ? 'text-blue-700' : 'text-slate-500'}`}>
-                        Frequency: <span className="font-mono text-slate-600">{d.count}</span>
-                      </p>
-                      <p className={`text-xs font-semibold ${metric === 'spend' ? 'text-blue-700' : 'text-slate-500'}`}>
-                        {metricLabel}: <span className="font-mono text-slate-600">{metricType === 'quantity' ? new Intl.NumberFormat('en-US').format(d.total_spent) : formatCurrency(d.total_spent)}</span>
-                      </p>
-                      
-                      {/* display sandbox preview stats in the tooltip if they exist */}
-                      {(d.projected_count > 0 || d.projected_spent > 0) && (
-                        <div className="mt-2 pt-2 border-t border-gray-100">
-                          {d.projected_count > 0 && (
-                            <p className="text-purple-700 text-xs font-semibold">
-                              Pending Frequency: <span className="font-mono text-purple-600">+{d.projected_count}</span>
-                            </p>
-                          )}
-                          {d.projected_spent > 0 && (
-                            <p className="text-purple-700 text-xs font-semibold">
-                              Pending Cost: <span className="font-mono text-purple-600">+{formatCurrency(d.projected_spent)}</span>
-                            </p>
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(300px,1fr)]">
+        <div className="w-full overflow-x-auto">
+          <div className="mx-auto min-w-[680px]">
+            <BarChart
+              width={760}
+              height={500}
+              data={chartData}
+              margin={{ top: 20, right: 20, left: 10, bottom: 100 }}
+            >
+              <CartesianGrid strokeDasharray="3 3" vertical={false} />
+              <XAxis 
+                dataKey="name"
+                interval={0}
+                angle={-45} 
+                textAnchor="end" 
+                height={100} 
+                tick={{ fontSize: 11, fill: '#4b5563' }}
+                tickFormatter={(value) => 
+                  value.length > 15 ? `${value.substring(0, 15)}...` : value 
+                } 
+              />
+              
+              <YAxis tickFormatter={yAxisFormatter} width={80} />
+
+              <Tooltip 
+                cursor={{ fill: '#f8fafc' }}
+                content={({ active, payload }) => {
+                  if (active && payload && payload.length) {
+                    const d = payload[0].payload as ChartDataPoint;
+                    return (
+                      <div className="bg-white p-4 shadow-xl border border-slate-100 rounded-lg z-50">
+                        <p className="font-bold text-slate-900 text-sm mb-2 border-b pb-1">
+                          {d.fullName}
+                        </p>
+                        <div className="space-y-1">
+                          <p className={`text-xs font-semibold ${metric === 'count' ? 'text-blue-700' : 'text-slate-500'}`}>
+                            Frequency: <span className="font-mono text-slate-600">{d.count}</span>
+                          </p>
+                          <p className={`text-xs font-semibold ${metric === 'spend' ? 'text-blue-700' : 'text-slate-500'}`}>
+                            {metricLabel}: <span className="font-mono text-slate-600">{metricType === 'quantity' ? new Intl.NumberFormat('en-US').format(d.total_spent) : formatCurrency(d.total_spent)}</span>
+                          </p>
+
+                          {/* display sandbox preview stats in the tooltip if they exist */}
+                          {(d.projected_count > 0 || d.projected_spent > 0) && (
+                            <div className="mt-2 pt-2 border-t border-gray-100">
+                              {d.projected_count > 0 && (
+                                <p className="text-purple-700 text-xs font-semibold">
+                                  Pending Frequency: <span className="font-mono text-purple-600">+{d.projected_count}</span>
+                                </p>
+                              )}
+                              {d.projected_spent > 0 && (
+                                <p className="text-purple-700 text-xs font-semibold">
+                                  Pending Cost: <span className="font-mono text-purple-600">+{formatCurrency(d.projected_spent)}</span>
+                                </p>
+                              )}
+                            </div>
                           )}
                         </div>
-                      )}
-                    </div>
-                  </div>
-                );
-              }
-              return null;
-            }}
-          />
+                      </div>
+                    );
+                  }
+                  return null;
+                }}
+              />
 
-          <Legend wrapperStyle={{ paddingTop: '10px' }} />
+              <Legend wrapperStyle={{ paddingTop: '10px' }} />
 
-          {/* Historical Count Bar */}
-          <Bar 
-            dataKey={metric === 'count' ? "count" : "total_spent"} 
-            name={metric === 'count' ? "Current Frequency" : metricLabel} 
-            stackId="a" 
-            radius={[0, 0, 4, 4]}
-          >
-            {chartData.map((entry, index) => (
-              <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-            ))}
-          </Bar>
+              {/* Historical Count Bar */}
+              <Bar 
+                dataKey={metric === 'count' ? "count" : "total_spent"} 
+                name={metric === 'count' ? "Current Frequency" : metricLabel} 
+                stackId="a" 
+                radius={[0, 0, 4, 4]}
+              >
+                {chartData.map((entry, index) => {
+                  const isSelected = selectedItem?.clean_item_name === entry.clean_item_name;
+                  return (
+                    <Cell
+                      key={`cell-${index}`}
+                      fill={COLORS[index % COLORS.length]}
+                      cursor="pointer"
+                      stroke={isSelected ? '#0f172a' : undefined}
+                      strokeWidth={isSelected ? 2 : 0}
+                      onClick={() => setSelectedItem(entry)}
+                    />
+                  );
+                })}
+              </Bar>
 
-          {/* Preview Stacked Bar */}
-          <Bar 
-            dataKey={metric === 'count' ? "projected_count" : "projected_spent"} 
-            name="Pending Upload" 
-            stackId="a" 
-            fill="#a855f7" 
-            radius={[4, 4, 0, 0]} 
-          />
+              {/* Preview Stacked Bar */}
+              <Bar 
+                dataKey={metric === 'count' ? "projected_count" : "projected_spent"} 
+                name="Pending Upload" 
+                stackId="a" 
+                fill="#a855f7" 
+                radius={[4, 4, 0, 0]} 
+              >
+                {chartData.map((entry, index) => (
+                  <Cell
+                    key={`pending-cell-${index}`}
+                    cursor="pointer"
+                    onClick={() => setSelectedItem(entry)}
+                  />
+                ))}
+              </Bar>
 
-        </BarChart>
+            </BarChart>
+          </div>
+        </div>
+
+        <TopItemDrilldownPanel
+          selectedItem={selectedItem}
+          metricLabel={metricLabel}
+          metricType={metricType}
+        />
       </div>
     </div>
   );
