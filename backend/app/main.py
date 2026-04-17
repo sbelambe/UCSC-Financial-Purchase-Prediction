@@ -10,6 +10,7 @@ from typing import Optional
 from .analytics import get_item_freq, get_spend_over_time
 from .analytics_bookstore import get_campus_store_item_insights
 from .data_config import dataset_schema
+from .dataset_explorer import get_dataset_explorer_rows
 from .bigquery_service import query_spend_over_time_from_bigquery, query_top_items_from_bigquery
 from firebase.summaries import compute_top_items_detailed
 # # from backend.jobs.run_full_pipeline import run_full_pipeline
@@ -123,6 +124,41 @@ def get_dataset_config(dataset: str = "overall"):
     try:
         normalized = dataset.strip().lower()
         return {"status": "success", "data": dataset_schema(normalized)}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    
+
+@app.get("/api/dataset-explorer")
+def dataset_explorer(
+    dataset: str = "amazon",
+    page: int = 1,
+    page_size: int = 25,
+    search: str = "",
+    search_field: str = "all",
+    merchant: str = "",
+    category: str = "",
+    start_date: str = "",
+    end_date: str = "",
+    sort_by: str = "Transaction Date",
+    sort_dir: str = "desc",
+):
+    try:
+        data = get_dataset_explorer_rows(
+            dataset=dataset,
+            page=page,
+            page_size=page_size,
+            search=search,
+            search_field=search_field,
+            merchant=merchant,
+            category=category,
+            start_date=start_date,
+            end_date=end_date,
+            sort_by=sort_by,
+            sort_dir=sort_dir,
+        )
+        return {"status": "success", "data": data}
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
