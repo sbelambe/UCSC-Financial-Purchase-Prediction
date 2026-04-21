@@ -59,6 +59,14 @@ AMAZON_GIFT_CARD_CATEGORIES = (
     "ACD Gift Card",
 )
 
+CONDENSED_PURCHASE_GROUP_RULES = (
+    ("Gift Cards", r"(?i)\\bgift\\s*cards?\\b|giftcard"),
+    ("AT&T Bills", r"(?i)\\bat\\s*&\\s*t\\b|\\batt\\b|\\bat and t\\b|wireless bill|mobility bill"),
+    ("Food Bulk Purchases", r"(?i)(bulk|case|pack).*(food|grocery|snack|beverage)|\\b(food|grocery|snack|beverage)\\b.*(bulk|case|pack)|costco wholesale"),
+    ("Order Summaries", r"(?i)order summary|order total|summary line|invoice summary"),
+    ("Business Services", r"(?i)business service|professional service|consulting|subscription service|software service|service fee"),
+)
+
 
 def _bq_column_name(column_name: str) -> str:
     """Convert a display column name into the sanitized BigQuery CSV field name."""
@@ -287,6 +295,26 @@ def _build_search_where(parsed_query: Dict[str, Any]) -> str:
     return " AND ".join(clauses)
 
 
+def _condensed_group_case_expression(source_alias: str = "") -> str:
+    """Build SQL CASE that maps noisy/repetitive purchases into high-level groups."""
+    prefix = f"{source_alias}." if source_alias else ""
+    searchable_text = (
+        f"LOWER(CONCAT(' ', "
+        f"COALESCE({prefix}clean_item_name, ''), ' ', "
+        f"COALESCE({prefix}category, ''), ' ', "
+        f"COALESCE({prefix}subcategory, ''), ' ', "
+        f"COALESCE({prefix}item_description, ''), ' ', "
+        f"COALESCE({prefix}merchant_name, ''), ' ', "
+        f"COALESCE({prefix}vendor_name, ''), ' '))"
+    )
+
+    cases = "\n".join(
+        f"WHEN REGEXP_CONTAINS({searchable_text}, r\"{pattern}\") THEN '{label}'"
+        for label, pattern in CONDENSED_PURCHASE_GROUP_RULES
+    )
+    return f"CASE\n{cases}\nELSE NULL END"
+
+
 def _query_parameters(
     *,
     selected_year: str,
@@ -367,6 +395,35 @@ def _serialize_row_values(row: Any) -> Dict[str, Any]:
     return row_values
 
 
+def _serialize_drilldown_items(items: Any) -> List[Dict[str, Any]]:
+    """Convert nested BigQuery drilldown structs into JSON-safe dictionaries."""
+    serialized: List[Dict[str, Any]] = []
+    for item in items or []:
+        if item is None:
+            continue
+
+        row_values = {
+            "Item Name": item.get("item_name"),
+            "Item Description": item.get("item_description"),
+            "Category": item.get("category"),
+            "Subcategory": item.get("subcategory"),
+            "Merchant Name": item.get("merchant_name"),
+            "Merchant Type": item.get("merchant_type"),
+        }
+
+        serialized.append(
+            {
+                "clean_item_name": item.get("clean_item_name", ""),
+                "count": int(item.get("count") or 0),
+                "total_spent": round(float(item.get("total_spent") or 0), 2),
+                "vendors": _serialize_vendors(item.get("vendors")),
+                "row_values": row_values,
+            }
+        )
+
+    return serialized
+
+
 def query_top_items_from_bigquery(
     *,
     dataset: str = "overall",
@@ -419,10 +476,12 @@ def query_top_items_from_bigquery(
         }
 
     order_by_clause = (
-        "ir.count DESC, ir.total_spent DESC, ir.dataset, ir.clean_item_name"
+        "ir.count DESC, ir.total_spent DESC, ir.dataset, ir.display_item_name"
         if chosen_sort_mode == "frequency"
-        else "ir.total_spent DESC, ir.count DESC, ir.dataset, ir.clean_item_name"
+        else "ir.total_spent DESC, ir.count DESC, ir.dataset, ir.display_item_name"
     )
+
+    condensed_group_case = _condensed_group_case_expression("fs")
 
     sql = f"""
         WITH source_data AS (
@@ -433,20 +492,97 @@ def query_top_items_from_bigquery(
           FROM source_data
           WHERE {_build_search_where(parsed_query)}
         ),
+                classified_source AS (
+                    SELECT
+                        fs.*,
+                        {condensed_group_case} AS condensed_group,
+                        COALESCE({condensed_group_case}, fs.clean_item_name) AS display_item_name
+                    FROM filtered_source fs
+                ),
+                subitem_vendor_rollup AS (
+                    SELECT
+                        dataset,
+                        display_item_name,
+                        clean_item_name,
+                        IFNULL(NULLIF(vendor_name, ''), 'Unknown') AS vendor_name,
+                        COUNT(*) AS vendor_count,
+                        ROUND(SUM(IFNULL(amount, 0)), 2) AS vendor_spend
+                    FROM classified_source
+                    GROUP BY dataset, display_item_name, clean_item_name, vendor_name
+                ),
+                subitem_vendor_arrays AS (
+                    SELECT
+                        dataset,
+                        display_item_name,
+                        clean_item_name,
+                        ARRAY_AGG(
+                            STRUCT(
+                                vendor_name AS name,
+                                vendor_count AS count,
+                                vendor_spend AS spend
+                            )
+                            ORDER BY vendor_spend DESC, vendor_count DESC, vendor_name
+                        ) AS vendors
+                    FROM subitem_vendor_rollup
+                    GROUP BY dataset, display_item_name, clean_item_name
+                ),
+                subitem_rollup AS (
+                    SELECT
+                        dataset,
+                        display_item_name,
+                        clean_item_name,
+                        COUNT(*) AS count,
+                        MAX(transaction_date) AS transaction_date,
+                        {_representative_text_field('item_name')},
+                        {_representative_text_field('item_description')},
+                        {_representative_text_field('category')},
+                        {_representative_text_field('subcategory')},
+                        {_representative_text_field('merchant_name')},
+                        {_representative_text_field('merchant_type')},
+                        ROUND(SUM(IFNULL(amount, 0)), 2) AS total_spent
+                    FROM classified_source
+                    GROUP BY dataset, display_item_name, clean_item_name
+                ),
+                drilldown_arrays AS (
+                    SELECT
+                        sr.dataset,
+                        sr.display_item_name,
+                        ARRAY_AGG(
+                            STRUCT(
+                                sr.clean_item_name AS clean_item_name,
+                                sr.count AS count,
+                                sr.total_spent AS total_spent,
+                                sr.item_name AS item_name,
+                                sr.item_description AS item_description,
+                                sr.category AS category,
+                                sr.subcategory AS subcategory,
+                                sr.merchant_name AS merchant_name,
+                                sr.merchant_type AS merchant_type,
+                                sva.vendors AS vendors
+                            )
+                            ORDER BY sr.total_spent DESC, sr.count DESC, sr.clean_item_name
+                        ) AS drilldown_items
+                    FROM subitem_rollup sr
+                    LEFT JOIN subitem_vendor_arrays sva
+                        ON sr.dataset = sva.dataset
+                        AND sr.display_item_name = sva.display_item_name
+                        AND sr.clean_item_name = sva.clean_item_name
+                    GROUP BY sr.dataset, sr.display_item_name
+                ),
         vendor_rollup AS (
           SELECT
             dataset,
-            clean_item_name,
+                        display_item_name,
             IFNULL(NULLIF(vendor_name, ''), 'Unknown') AS vendor_name,
             COUNT(*) AS vendor_count,
             ROUND(SUM(IFNULL(amount, 0)), 2) AS vendor_spend
-          FROM filtered_source
-          GROUP BY dataset, clean_item_name, vendor_name
+                    FROM classified_source
+                    GROUP BY dataset, display_item_name, vendor_name
         ),
         vendor_arrays AS (
           SELECT
             dataset,
-            clean_item_name,
+                        display_item_name,
             ARRAY_AGG(
               STRUCT(
                 vendor_name AS name,
@@ -456,12 +592,13 @@ def query_top_items_from_bigquery(
               ORDER BY vendor_spend DESC, vendor_count DESC, vendor_name
             ) AS vendors
           FROM vendor_rollup
-          GROUP BY dataset, clean_item_name
+                    GROUP BY dataset, display_item_name
         ),
         item_rollup AS (
           SELECT
             dataset,
-            clean_item_name,
+                        display_item_name,
+                        ARRAY_AGG(condensed_group IGNORE NULLS LIMIT 1)[SAFE_OFFSET(0)] AS condensed_group,
             COUNT(*) AS count,
             MAX(transaction_date) AS transaction_date,
             {_representative_text_field('item_name')},
@@ -478,12 +615,14 @@ def query_top_items_from_bigquery(
             {_representative_text_field('merchant_type')},
             {_representative_text_field('transaction_type')},
             ROUND(SUM(IFNULL(amount, 0)), 2) AS total_spent
-          FROM filtered_source
-          GROUP BY dataset, clean_item_name
+                    FROM classified_source
+                    GROUP BY dataset, display_item_name
         )
         SELECT
           ir.dataset,
-          ir.clean_item_name,
+                    ir.display_item_name AS clean_item_name,
+                    ir.condensed_group,
+                    ir.condensed_group IS NOT NULL AS is_condensed,
           ir.count,
           ir.transaction_date,
           ir.item_name,
@@ -500,11 +639,15 @@ def query_top_items_from_bigquery(
           ir.merchant_type,
           ir.transaction_type,
           ir.total_spent,
-          va.vendors
+                    va.vendors,
+                    da.drilldown_items
         FROM item_rollup ir
         LEFT JOIN vendor_arrays va
           ON ir.dataset = va.dataset
-          AND ir.clean_item_name = va.clean_item_name
+                    AND ir.display_item_name = va.display_item_name
+                LEFT JOIN drilldown_arrays da
+                    ON ir.dataset = da.dataset
+                    AND ir.display_item_name = da.display_item_name
         WHERE ir.total_spent >= @min_spend
         ORDER BY {order_by_clause}
         LIMIT @limit
@@ -528,10 +671,13 @@ def query_top_items_from_bigquery(
             {
                 "dataset": row.get("dataset", normalized_dataset),
                 "clean_item_name": row.get("clean_item_name", ""),
+                "is_condensed": bool(row.get("is_condensed")),
+                "condensed_group": row.get("condensed_group"),
                 "count": int(row.get("count") or 0),
                 "total_spent": round(float(row.get("total_spent") or 0), 2),
                 "vendors": _serialize_vendors(row.get("vendors")),
                 "row_values": _serialize_row_values(row),
+                "drilldown_items": _serialize_drilldown_items(row.get("drilldown_items")),
             }
         )
 
