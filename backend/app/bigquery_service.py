@@ -135,6 +135,7 @@ def _parse_search_query(search_query: str) -> Dict[str, Any]:
     item_terms: List[str] = []
     vendor_terms: List[str] = []
     year: Optional[str] = None
+    quarter: Optional[str] = None
 
     for match in SEARCH_TOKEN_PATTERN.finditer(raw):
         key = (match.group(1) or match.group(3) or "").strip().lower()
@@ -148,6 +149,8 @@ def _parse_search_query(search_query: str) -> Dict[str, Any]:
             vendor_terms.append(value)
         elif key == "year":
             year = value
+        elif key == "quarter":
+            quarter = value
 
         tokenized = tokenized.replace(match.group(0), " ")
 
@@ -157,6 +160,7 @@ def _parse_search_query(search_query: str) -> Dict[str, Any]:
         "item_terms": item_terms,
         "vendor_terms": vendor_terms,
         "year": year,
+        "quarter": quarter,
     }
 
 
@@ -183,6 +187,48 @@ def _year_expression(column_name: str) -> str:
         f"REGEXP_EXTRACT(CAST(`{resolved_name}` AS STRING), r'(?:19|20)\\d{{2}}')"
     )
 
+def _normalized_quarter(selected_quarter: Optional[str]) -> str:
+    """Normalize quarter labels from the UI/search into supported values."""
+    raw = (selected_quarter or "All Quarters").strip().lower()
+
+    mapping = {
+        "all quarters": "All Quarters",
+        "all": "All Quarters",
+        "fall": "Fall",
+        "winter": "Winter",
+        "spring": "Spring",
+        "summer": "Summer",
+    }
+
+    return mapping.get(raw, "All Quarters")
+
+
+def _quarter_case_expression(date_expr: str) -> str:
+    """Return BigQuery SQL that maps a parsed DATE to the custom academic quarter."""
+    return f"""
+        CASE
+          WHEN (
+            (EXTRACT(MONTH FROM {date_expr}) = 9 AND EXTRACT(DAY FROM {date_expr}) >= 15)
+            OR EXTRACT(MONTH FROM {date_expr}) IN (10, 11, 12)
+          ) THEN 'Fall'
+          WHEN (
+            EXTRACT(MONTH FROM {date_expr}) IN (1, 2)
+            OR (EXTRACT(MONTH FROM {date_expr}) = 3 AND EXTRACT(DAY FROM {date_expr}) <= 20)
+          ) THEN 'Winter'
+          WHEN (
+            (EXTRACT(MONTH FROM {date_expr}) = 3 AND EXTRACT(DAY FROM {date_expr}) >= 21)
+            OR EXTRACT(MONTH FROM {date_expr}) IN (4, 5)
+            OR (EXTRACT(MONTH FROM {date_expr}) = 6 AND EXTRACT(DAY FROM {date_expr}) <= 20)
+          ) THEN 'Spring'
+          ELSE 'Summer'
+        END
+    """.strip()
+
+
+def _parsed_date_expression(column_name: str) -> str:
+    """Build SQL that parses a cleaned YYYY-MM-DD date column into DATE."""
+    resolved_name = _bq_column_name(column_name)
+    return f"SAFE.PARSE_DATE('%Y-%m-%d', CAST(`{resolved_name}` AS STRING))"
 
 def _numeric_expression(column_name: str) -> str:
     """Alias numeric field handling to the shared amount parsing SQL."""
@@ -246,6 +292,8 @@ def _source_select_sql(table_name: str, dataset: str) -> str:
             + " END AS category",
         )
 
+    parsed_date_expression = _parsed_date_expression(date_col)
+
     return f"""
         SELECT
           '{dataset}' AS dataset,
@@ -253,6 +301,8 @@ def _source_select_sql(table_name: str, dataset: str) -> str:
           COALESCE({vendor_candidates}, 'Unknown') AS vendor_name,
           {_amount_expression(metric_col)} AS amount,
           {_year_expression(date_col)} AS transaction_year,
+          {parsed_date_expression} AS parsed_transaction_date,
+          {_quarter_case_expression(parsed_date_expression)} AS transaction_quarter,
           {canonical_fields}
         FROM `{table_name}`
     """.strip()
@@ -263,7 +313,9 @@ def _build_search_where(parsed_query: Dict[str, Any]) -> str:
     clauses = [
         "clean_item_name IS NOT NULL",
         "clean_item_name != ''",
+        "parsed_transaction_date IS NOT NULL",
         "(@selected_year = 'All Time' OR transaction_year = @selected_year)",
+        "(@selected_quarter = 'All Quarters' OR transaction_quarter = @selected_quarter)",
     ]
 
     if parsed_query["free_text"]:
@@ -290,6 +342,7 @@ def _build_search_where(parsed_query: Dict[str, Any]) -> str:
 def _query_parameters(
     *,
     selected_year: str,
+    selected_quarter: str,
     min_spend: float,
     limit: int,
     parsed_query: Dict[str, Any],
@@ -297,6 +350,7 @@ def _query_parameters(
     """Create parameter bindings for the top-items BigQuery request."""
     params: List[bigquery.ScalarQueryParameter] = [
         bigquery.ScalarQueryParameter("selected_year", "STRING", selected_year),
+        bigquery.ScalarQueryParameter("selected_quarter", "STRING", selected_quarter),
         bigquery.ScalarQueryParameter("min_spend", "FLOAT64", float(min_spend or 0)),
         bigquery.ScalarQueryParameter("limit", "INT64", int(limit)),
         bigquery.ScalarQueryParameter("free_text", "STRING", parsed_query["free_text"]),
@@ -372,6 +426,7 @@ def query_top_items_from_bigquery(
     dataset: str = "overall",
     search_query: str = "",
     selected_year: str = "All Time",
+    selected_quarter: str = "All Quarters",
     min_spend: float = 0,
     limit: int = 20,
     sort_mode: str = "frequency",
@@ -384,6 +439,10 @@ def query_top_items_from_bigquery(
         raise ValueError("sort_mode must be one of: frequency, cost")
     if parsed_query["year"] and selected_year == "All Time":
         selected_year = parsed_query["year"]
+    if parsed_query.get("quarter") and selected_quarter == "All Quarters":
+        selected_quarter = parsed_query["quarter"]
+
+    selected_quarter = _normalized_quarter(selected_quarter)
 
     datasets = (
         ["amazon", "cruzbuy", "onecard", "bookstore"]
@@ -515,6 +574,7 @@ def query_top_items_from_bigquery(
         table_definitions=table_definitions,
         query_parameters=_query_parameters(
             selected_year=selected_year,
+            selected_quarter=selected_quarter,
             min_spend=min_spend,
             limit=limit,
             parsed_query=parsed_query,
@@ -539,6 +599,7 @@ def query_top_items_from_bigquery(
         "items": items,
         "dataset": normalized_dataset,
         "selected_year": selected_year,
+        "selected_quarter": selected_quarter,
         "search_query": search_query,
         "sort_mode": chosen_sort_mode,
         "schema": dataset_schema(normalized_dataset),
@@ -551,12 +612,15 @@ def query_spend_over_time_from_bigquery(
     *,
     dataset: str = "overall",
     time_period: str = "month",
+    selected_year: str = "All Time",
+    selected_quarter: str = "All Quarters",
 ) -> Dict[str, Any]:
     """Query BigQuery external CSV tables for spend or quantity grouped over time."""
     normalized_dataset = _normalize_dataset(dataset)
     chosen_time_period = (time_period or "month").strip().lower()
     if chosen_time_period not in {"day", "week", "month", "year"}:
         raise ValueError("time_period must be one of: day, week, month, year")
+    selected_quarter = _normalized_quarter(selected_quarter)
 
     datasets = (
         ["amazon", "cruzbuy", "onecard", "bookstore"]
@@ -579,12 +643,14 @@ def query_spend_over_time_from_bigquery(
         table_definitions[table_name] = _build_external_config(
             _storage_uri(latest_upload["storagePath"])
         )
+        parsed_date_expression = _parsed_date_expression(config["date_column"])
+
         source_queries.append(
             f"""
             SELECT
               '{current_dataset}' AS dataset,
               {_amount_expression(config["metric_column"])} AS amount,
-              {_string_expression(config["date_column"])} AS raw_date
+              {parsed_date_expression} AS parsed_date
             FROM `{table_name}`
             """.strip()
         )
@@ -615,7 +681,8 @@ def query_spend_over_time_from_bigquery(
           SELECT
             dataset,
             amount,
-            SAFE.PARSE_DATE('%Y-%m-%d', raw_date) AS parsed_date
+            parsed_date,
+            {_quarter_case_expression('parsed_date')} AS transaction_quarter
           FROM source_data
         ),
         filtered AS (
@@ -626,6 +693,8 @@ def query_spend_over_time_from_bigquery(
           FROM normalized
           WHERE parsed_date IS NOT NULL
             AND amount IS NOT NULL
+            AND (@selected_year = 'All Time' OR FORMAT_DATE('%Y', parsed_date) = @selected_year)
+            AND (@selected_quarter = 'All Quarters' OR transaction_quarter = @selected_quarter)
         ),
         dataset_rollup AS (
           SELECT
@@ -659,7 +728,13 @@ def query_spend_over_time_from_bigquery(
     """
 
     client = _bigquery_client()
-    job_config = bigquery.QueryJobConfig(table_definitions=table_definitions)
+    job_config = bigquery.QueryJobConfig(
+        table_definitions=table_definitions,
+        query_parameters=[
+            bigquery.ScalarQueryParameter("selected_year", "STRING", selected_year),
+            bigquery.ScalarQueryParameter("selected_quarter", "STRING", selected_quarter),
+        ],
+    )
     results = client.query(sql, job_config=job_config).result()
 
     dataset_series: Dict[str, List[Dict[str, Any]]] = {key: [] for key in datasets}
@@ -678,6 +753,8 @@ def query_spend_over_time_from_bigquery(
     return {
         "dataset": normalized_dataset,
         "time_period": chosen_time_period,
+        "selected_year": selected_year,
+        "selected_quarter": selected_quarter,
         "schema": dataset_schema(normalized_dataset),
         "storage_paths": storage_paths,
         "datasets": dataset_series,

@@ -2,10 +2,13 @@
 import { Search } from 'lucide-react';
 import React from 'react';
 
+type QuarterName = 'All Quarters' | 'Fall' | 'Winter' | 'Spring' | 'Summer';
+
 // Define the props for the FilterBar component, including the
 // current filter values and the callback functions to update them
 interface FilterBarProps {
   selectedYear: string;
+  selectedQuarter: QuarterName;
   selectedCategory: string;
   searchQuery: string;
   minSpend: number;
@@ -13,6 +16,7 @@ interface FilterBarProps {
   selectedSortMode: 'frequency' | 'cost';
   isLiveMode?: boolean;
   onYearChange: (year: string) => void;
+  onQuarterChange: (quarter: QuarterName) => void;
   onCategoryChange: (category: string) => void;
   onSearchChange: (query: string) => void;
   onMinSpendChange: (minSpend: number) => void;
@@ -24,6 +28,7 @@ interface FilterBarProps {
 // an input for minimum spend, and a search bar
 export function FilterBar({
   selectedYear,
+  selectedQuarter,
   selectedCategory,
   searchQuery,
   minSpend,
@@ -31,6 +36,7 @@ export function FilterBar({
   selectedSortMode,
   isLiveMode = false,
   onYearChange,
+  onQuarterChange,
   onCategoryChange,
   onSearchChange,
   onMinSpendChange,
@@ -40,6 +46,15 @@ export function FilterBar({
   // Added 'All Time' so the dashboard doesn't default to an empty view
   const years = ['All Time', '2026', '2025', '2024']; 
   
+  
+  const quarters = [
+    'All Quarters',
+    'Fall',
+    'Winter',
+    'Spring',
+    'Summer',
+  ]; 
+
   // Custom categories matching your campus procurement data
   const categories = [
     { value: 'all', label: 'All Categories' },
@@ -64,6 +79,21 @@ export function FilterBar({
           {years.map((year) => (
             <option key={year} value={year}>
               {year === 'All Time' ? year : `Year: ${year}`}
+            </option>
+          ))}
+        </select>
+
+        
+        {/* Quarter Filter */}
+        <select
+          value={selectedQuarter}
+          onChange={(e) => onQuarterChange(e.target.value as QuarterName)}
+          className="px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-opacity-50 text-sm"
+          style={{ outlineColor: '#003c6c' }}
+        >
+          {quarters.map((quarter) => (
+            <option key={quarter} value={quarter}>
+              {quarter}
             </option>
           ))}
         </select>
