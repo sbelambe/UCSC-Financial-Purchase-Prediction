@@ -12,14 +12,25 @@ export interface VendorStat {
   spend: number;
 }
 
-// TopItem represents the aggregated stats for a single item
-export interface TopItem {
-  dataset?: string;
+export interface CondensedDrilldownItem {
   clean_item_name: string;
   count: number;
   total_spent: number;
   vendors: VendorStat[];
   row_values?: Record<string, string | number | null>;
+}
+
+// TopItem represents the aggregated stats for a single item
+export interface TopItem {
+  dataset?: string;
+  clean_item_name: string;
+  is_condensed?: boolean;
+  condensed_group?: string | null;
+  count: number;
+  total_spent: number;
+  vendors: VendorStat[];
+  row_values?: Record<string, string | number | null>;
+  drilldown_items?: CondensedDrilldownItem[];
   projected_count?: number; // Sandbox staging data
   projected_spent?: number; // Sandbox staging data
 }

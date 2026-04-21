@@ -57,6 +57,9 @@ const TopItemsChart = ({
       projected_spent: item.projected_spent ? Number(item.projected_spent) : undefined,
       vendors: item.vendors || [],
       row_values: item.row_values,
+      is_condensed: item.is_condensed,
+      condensed_group: item.condensed_group,
+      drilldown_items: item.drilldown_items,
       dataset: item.dataset,
       clean_item_name: item.clean_item_name,
     }));
@@ -111,7 +114,7 @@ const TopItemsChart = ({
       </div>
       
       <div className="mb-3 px-4 text-xs text-slate-500">
-        Click a bar to view project-level and vendor-level details.
+        Click a bar to view vendor details and grouped purchase breakdowns.
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(300px,1fr)]">
@@ -157,16 +160,16 @@ const TopItemsChart = ({
                           </p>
 
                           {/* display sandbox preview stats in the tooltip if they exist */}
-                          {(d.projected_count > 0 || d.projected_spent > 0) && (
+                          {((d.projected_count || 0) > 0 || (d.projected_spent || 0) > 0) && (
                             <div className="mt-2 pt-2 border-t border-gray-100">
-                              {d.projected_count > 0 && (
+                              {(d.projected_count || 0) > 0 && (
                                 <p className="text-purple-700 text-xs font-semibold">
                                   Pending Frequency: <span className="font-mono text-purple-600">+{d.projected_count}</span>
                                 </p>
                               )}
-                              {d.projected_spent > 0 && (
+                              {(d.projected_spent || 0) > 0 && (
                                 <p className="text-purple-700 text-xs font-semibold">
-                                  Pending Cost: <span className="font-mono text-purple-600">+{formatCurrency(d.projected_spent)}</span>
+                                  Pending Cost: <span className="font-mono text-purple-600">+{formatCurrency(d.projected_spent || 0)}</span>
                                 </p>
                               )}
                             </div>

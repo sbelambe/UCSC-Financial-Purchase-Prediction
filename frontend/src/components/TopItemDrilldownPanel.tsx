@@ -1,4 +1,4 @@
-import type { TopItem, VendorStat } from './TopItemsTable';
+import type { CondensedDrilldownItem, TopItem, VendorStat } from './TopItemsTable';
 
 type MetricType = 'currency' | 'quantity' | 'mixed';
 
@@ -45,6 +45,14 @@ const sortVendors = (vendors: VendorStat[]) => {
   });
 };
 
+const sortDrilldownItems = (items: CondensedDrilldownItem[]) => {
+  return [...items].sort((a, b) => {
+    const spendDelta = Number(b.total_spent || 0) - Number(a.total_spent || 0);
+    if (spendDelta !== 0) return spendDelta;
+    return Number(b.count || 0) - Number(a.count || 0);
+  });
+};
+
 export default function TopItemDrilldownPanel({
   selectedItem,
   metricLabel,
@@ -76,6 +84,9 @@ export default function TopItemDrilldownPanel({
   const entries = Object.entries(selectedItem.row_values || {}).filter(([, value]) => value !== null && value !== '');
   const projectEntries = entries.filter(([key]) => PROJECT_DETAIL_KEYWORDS.test(key));
   const otherEntries = entries.filter(([key]) => !PROJECT_DETAIL_KEYWORDS.test(key)).slice(0, 8);
+  const drilldownItems = sortDrilldownItems(selectedItem.drilldown_items || []).filter(
+    (item) => Number(item.count || 0) > 0 || Number(item.total_spent || 0) > 0
+  );
 
   const metricValue = (value: number) => {
     if (metricType === 'quantity') return formatNumber(value);
@@ -86,6 +97,11 @@ export default function TopItemDrilldownPanel({
     <div className="h-full rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
       <h4 className="text-sm font-semibold text-slate-700">Detailed Breakdown</h4>
       <p className="mt-1 text-xs text-slate-500">{selectedItem.clean_item_name}</p>
+      {selectedItem.is_condensed && (
+        <p className="mt-1 text-xs font-medium text-indigo-700">
+          Condensed group: {selectedItem.condensed_group || selectedItem.clean_item_name}
+        </p>
+      )}
 
       <div className="mt-4 grid grid-cols-2 gap-2">
         <div className="rounded-lg border border-blue-100 bg-blue-50 p-2">
@@ -103,6 +119,40 @@ export default function TopItemDrilldownPanel({
           )}
         </div>
       </div>
+
+      {selectedItem.is_condensed && (
+        <div className="mt-4">
+          <h5 className="text-xs font-semibold uppercase tracking-wide text-slate-500">Underlying Purchases</h5>
+          {drilldownItems.length === 0 ? (
+            <p className="mt-2 text-xs text-slate-400">No sub-item rows available for this condensed group.</p>
+          ) : (
+            <div className="mt-2 space-y-2 max-h-[260px] overflow-y-auto pr-1">
+              {drilldownItems.slice(0, 10).map((subItem) => {
+                const subItemVendors = sortVendors(subItem.vendors || []).slice(0, 3);
+                return (
+                  <div
+                    key={`${subItem.clean_item_name}-${subItem.count}-${subItem.total_spent}`}
+                    className="rounded-md border border-indigo-100 bg-indigo-50 p-2"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-xs font-semibold text-indigo-900 truncate">{subItem.clean_item_name}</p>
+                      <p className="text-xs font-medium text-indigo-900">{metricValue(Number(subItem.total_spent || 0))}</p>
+                    </div>
+                    <p className="mt-1 text-[11px] text-indigo-800">
+                      {formatNumber(Number(subItem.count || 0))} transactions
+                    </p>
+                    {subItemVendors.length > 0 && (
+                      <p className="mt-1 text-[11px] text-indigo-700">
+                        Vendors: {subItemVendors.map((vendor) => vendor.name || 'Unknown').join(', ')}
+                      </p>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="mt-4">
         <h5 className="text-xs font-semibold uppercase tracking-wide text-slate-500">Vendor Breakdown</h5>
