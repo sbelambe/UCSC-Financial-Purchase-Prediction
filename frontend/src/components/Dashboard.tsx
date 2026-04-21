@@ -20,56 +20,64 @@ import { FALLBACK_DATASET_SCHEMAS, type DatasetSchema } from '../lib/datasetConf
 // A single point on the spend-over-time chart. `pending_spend` is only 
 // populated when a staged projection has been blended into preview mode
 type SpendPoint = { period: string; spend: number; pending_spend?: number };
-type QuarterKey = 'fall24' | 'winter25' | 'spring25' | 'summer25' | 'fall25' | 'winter26';
-type SpendRangeMode = 'term' | 'year';
 
-// These term windows drive the "Term" selector below and determine which 
-// monthly buckets should be shown in the spend chart for each academic quarter
-const QUARTER_RANGES: Record<QuarterKey, { label: string; startMonth: string; endMonth: string }> = {
-  // Update these date windows as needed.
-  fall24: { label: 'Fall24', startMonth: '2024-10', endMonth: '2024-12' },
-  winter25: { label: 'Winter25', startMonth: '2025-01', endMonth: '2025-03' },
-  spring25: { label: 'Spring25', startMonth: '2025-04', endMonth: '2025-06' },
-  summer25: { label: 'Summer25', startMonth: '2025-07', endMonth: '2025-09' },
-  fall25: { label: 'Fall25', startMonth: '2025-10', endMonth: '2025-12' },
-  winter26: { label: 'Winter26', startMonth: '2026-01', endMonth: '2026-03' },
-};
+type QuarterName = 'All Quarters' | 'Fall' | 'Winter' | 'Spring' | 'Summer';
 
-
-// --- HELPER FUNCTIONS ---
-const monthWindow = (startMonth: string, endMonth: string) => {
-  const months: string[] = [];
-  const cursor = new Date(`${startMonth}-01T00:00:00Z`);
-  const end = new Date(`${endMonth}-01T00:00:00Z`);
-  while (cursor <= end) {
-    const y = cursor.getUTCFullYear();
-    const m = String(cursor.getUTCMonth() + 1).padStart(2, '0');
-    months.push(`${y}-${m}`);
-    cursor.setUTCMonth(cursor.getUTCMonth() + 1);
+const quarterForMonthDay = (month: number, day: number): QuarterName => {
+  if (
+    (month === 9 && day >= 15) ||
+    month === 10 ||
+    month === 11 ||
+    month === 12
+  ) {
+    return 'Fall';
   }
-  return months;
+
+  if (
+    month === 1 ||
+    month === 2 ||
+    (month === 3 && day <= 20)
+  ) {
+    return 'Winter';
+  }
+
+  if (
+    (month === 3 && day >= 21) ||
+    month === 4 ||
+    month === 5 ||
+    (month === 6 && day <= 20)
+  ) {
+    return 'Spring';
+  }
+
+  return 'Summer';
 };
 
-// filterSeriesByQuarter()
-// Filters a raw spend series to only include points that fall within the
-// specified quarter, and fills in any missing months with zero values so the
-// chart renders continuous time even if there were no transactions in a given 
-// month
-const filterSeriesByQuarter = (points: SpendPoint[], quarterKey: QuarterKey): SpendPoint[] => {
-  const { startMonth, endMonth } = QUARTER_RANGES[quarterKey];
-  const spendByMonth: Record<string, {spend: number, pending: number}> = {};
-  
-  points.forEach((p) => {
-    if (p.period >= startMonth && p.period <= endMonth) {
-      spendByMonth[p.period] = { spend: Number(p.spend) || 0, pending: Number(p.pending_spend) || 0 };
-    }
-  });
+const filterSeriesByQuarterName = (
+  points: SpendPoint[],
+  quarter: QuarterName
+): SpendPoint[] => {
+  if (quarter === 'All Quarters') return points;
 
-  return monthWindow(startMonth, endMonth).map((month) => ({
-    period: month,
-    spend: spendByMonth[month]?.spend || 0,
-    pending_spend: spendByMonth[month]?.pending || 0
-  }));
+  return points.filter((p) => {
+    const [yearStr, monthStr] = String(p.period).split('-');
+    const month = Number(monthStr);
+
+    if (!yearStr || !monthStr || Number.isNaN(month)) {
+      return false;
+    }
+
+    // Since spend series is monthly, use a representative day in that month
+    // to classify the month into your quarter system.
+    let representativeDay = 15;
+
+    if (month === 3) representativeDay = 21;
+    if (month === 6) representativeDay = 21;
+    if (month === 9) representativeDay = 15;
+    if (month === 12) representativeDay = 15;
+
+    return quarterForMonthDay(month, representativeDay) === quarter;
+  });
 };
 
 // availableYearsFromSeries()
@@ -81,22 +89,8 @@ const availableYearsFromSeries = (points: SpendPoint[]): string[] =>
     .filter((y) => /^\d{4}$/.test(y))
     .sort((a, b) => a.localeCompare(b));
 
-// filterSeriesByYear()
-// filterSeriesByQuarter but for the "Year" selector
 const filterSeriesByYear = (points: SpendPoint[], year: string): SpendPoint[] => {
-  const spendByMonth: Record<string, {spend: number, pending: number}> = {};
-  
-  points.forEach((p) => {
-    if (String(p.period).startsWith(`${year}-`)) {
-      spendByMonth[p.period] = { spend: Number(p.spend) || 0, pending: Number(p.pending_spend) || 0 };
-    }
-  });
-
-  return monthWindow(`${year}-01`, `${year}-12`).map((month) => ({
-    period: month,
-    spend: spendByMonth[month]?.spend || 0,
-    pending_spend: spendByMonth[month]?.pending || 0
-  }));
+  return points.filter((p) => String(p.period).startsWith(`${year}-`));
 };
 
 const mergeProjectedTopItems = (
@@ -173,8 +167,7 @@ export function Dashboard() {
   
   // Filter & UI States
   const [selectedYear, setSelectedYear] = useState('All Time');
-  const [selectedQuarter, setSelectedQuarter] = useState<QuarterKey>('winter25');
-  const [spendRangeMode, setSpendRangeMode] = useState<SpendRangeMode>('year');
+  const [selectedQuarter, setSelectedQuarter] = useState<QuarterName>('All Quarters');
   const [availableYears, setAvailableYears] = useState<string[]>([]);
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -234,6 +227,7 @@ export function Dashboard() {
       dataset: activeDatasetKey,
       search_query: deferredSearchQuery,
       selected_year: selectedYear,
+      selected_quarter: selectedQuarter,
       min_spend: String(minSpend || 0),
       limit: String(selectedLimit),
       sort_mode: selectedSortMode,
@@ -281,7 +275,7 @@ export function Dashboard() {
         setTopItemsError(error instanceof Error ? error.message : 'Failed to load BigQuery top items.');
         setIsLoadingTopItems(false);
       });
-  }, [activeDatasetKey, selectedYear, deferredSearchQuery, minSpend, selectedLimit, selectedSortMode, projectedData]);
+    }, [activeDatasetKey, selectedYear, selectedQuarter, deferredSearchQuery, minSpend, selectedLimit, selectedSortMode, projectedData]);
 
   // 2. BIGQUERY SPEND SERIES
   useEffect(() => {
@@ -290,6 +284,8 @@ export function Dashboard() {
     const params = new URLSearchParams({
       dataset: activeDatasetKey,
       time_period: 'month',
+      selected_year: selectedYear,
+      selected_quarter: selectedQuarter,
     });
     const cacheKey = params.toString();
     const cachedSpendSeries = spendSeriesCacheRef.current[cacheKey];
@@ -348,7 +344,7 @@ export function Dashboard() {
         setRawSpendSeries([]);
         setIsLoadingSpend(false);
       });
-  }, [activeTab, activeDatasetKey, projectedData]);
+  }, [activeTab, activeDatasetKey, projectedData, selectedYear, selectedQuarter]);
 
 
   // 4. UPDATE AVAILABLE YEARS FOR CHART
@@ -371,17 +367,8 @@ export function Dashboard() {
   // specific term or a specific year, and that it updates in real time as they change 
   // those filters
   useEffect(() => {
-    if (spendRangeMode === 'term') {
-      setSpendSeries(filterSeriesByQuarter(rawSpendSeries, selectedQuarter));
-    } else {
-      const targetYear = selectedYear === 'All Time' ? availableYears[availableYears.length - 1] : selectedYear;
-      if (targetYear) {
-         setSpendSeries(filterSeriesByYear(rawSpendSeries, targetYear));
-      } else {
-         setSpendSeries(rawSpendSeries);
-      }
-    }
-  }, [rawSpendSeries, selectedQuarter, spendRangeMode, selectedYear, availableYears]);
+    setSpendSeries(rawSpendSeries);
+  }, [rawSpendSeries]);
 
   // 6. APPLY ITEM FILTERS TO TABLE/CHART (Search, Categories, Min Spend)
   // This useMemo block applies the search query, category filter, and minimum spend 
@@ -443,21 +430,23 @@ export function Dashboard() {
       
       {/* --- FILTER BAR --- */}
       <div className="my-6 w-full min-w-0">
-        <FilterBar 
-          selectedYear={selectedYear}
-          selectedCategory={selectedCategory}
-          searchQuery={searchQuery}
-          minSpend={minSpend}
-          selectedLimit={selectedLimit}
-          selectedSortMode={selectedSortMode}
-          isLiveMode
-          onYearChange={setSelectedYear}
-          onCategoryChange={setSelectedCategory}
-          onSearchChange={setSearchQuery}
-          onMinSpendChange={setMinSpend}
-          onLimitChange={setSelectedLimit}
-          onSortModeChange={setSelectedSortMode}
-        />
+      <FilterBar 
+        selectedYear={selectedYear}
+        selectedQuarter={selectedQuarter}
+        selectedCategory={selectedCategory}
+        searchQuery={searchQuery}
+        minSpend={minSpend}
+        selectedLimit={selectedLimit}
+        selectedSortMode={selectedSortMode}
+        isLiveMode
+        onYearChange={setSelectedYear}
+        onQuarterChange={setSelectedQuarter}
+        onCategoryChange={setSelectedCategory}
+        onSearchChange={setSearchQuery}
+        onMinSpendChange={setMinSpend}
+        onLimitChange={setSelectedLimit}
+        onSortModeChange={setSelectedSortMode}
+      />
       </div>
 
       <div className="w-full max-w-full min-w-0 overflow-hidden rounded-xl border border-gray-200 bg-white p-8 shadow-sm">
@@ -531,43 +520,8 @@ export function Dashboard() {
               loading={isLoadingSpend}
               metricLabel={activeSchema?.metric_label}
               metricType={activeSchema?.metric_type}
-              title={`${activeSchema?.metric_label || 'Spend Over Time'} (${activeTab}, ${spendRangeMode === 'term' ? QUARTER_RANGES[selectedQuarter].label : selectedYear})`}
+              title={`${activeSchema?.metric_label || 'Spend Over Time'} (${activeTab}, ${selectedYear}, ${selectedQuarter})`}
             />
-            
-            <div className="flex justify-center gap-3">
-              <select
-                value={spendRangeMode}
-                onChange={(e) => setSpendRangeMode(e.target.value as SpendRangeMode)}
-                className="px-4 py-2 rounded-lg border border-gray-300 bg-white text-sm font-semibold text-gray-700"
-              >
-                <option value="term">Term</option>
-                <option value="year">Year</option>
-              </select>
-              {spendRangeMode === 'term' ? (
-                <select
-                  value={selectedQuarter}
-                  onChange={(e) => setSelectedQuarter(e.target.value as QuarterKey)}
-                  className="px-4 py-2 rounded-lg border border-gray-300 bg-white text-sm font-semibold text-gray-700"
-                >
-                  {(Object.entries(QUARTER_RANGES) as [QuarterKey, { label: string }][]).map(([key, val]) => (
-                    <option key={key} value={key}>{val.label}</option>
-                  ))}
-                </select>
-              ) : (
-                <select
-                  value={selectedYear}
-                  onChange={(e) => setSelectedYear(e.target.value)}
-                  className="px-4 py-2 rounded-lg border border-gray-300 bg-white text-sm font-semibold text-gray-700"
-                >
-                   <option value="All Time">All Time</option>
-                  {availableYears.map((year) => (
-                    <option key={year} value={year}>{year}</option>
-                  ))}
-                </select>
-              )}
-            </div>
-            {/* Keep term boundaries editable in QUARTER_RANGES above. */}
-            {/* Month values come from monthly summaries, grouped before this view. */}
 
             {/* shows inventory insights if amazon or bookstore tabs are selected */}
             {(activeTab === 'Amazon' || activeTab === 'Bookstore') && (

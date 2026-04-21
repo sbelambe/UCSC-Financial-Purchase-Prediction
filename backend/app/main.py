@@ -101,6 +101,7 @@ def get_top_items_bigquery(
     dataset: str = "overall",
     search_query: str = "",
     selected_year: str = "All Time",
+    selected_quarter: str = "All Quarters",
     min_spend: float = 0,
     limit: int = 20,
     sort_mode: str = "frequency",
@@ -110,6 +111,7 @@ def get_top_items_bigquery(
             dataset=dataset,
             search_query=search_query,
             selected_year=selected_year,
+            selected_quarter=selected_quarter,
             min_spend=min_spend,
             limit=limit,
             sort_mode=sort_mode,
@@ -197,11 +199,15 @@ def spend_over_time(
 def spend_over_time_bigquery(
     dataset: str = "overall",
     time_period: str = "month",
+    selected_year: str = "All Time",
+    selected_quarter: str = "All Quarters",
 ):
     try:
         data = query_spend_over_time_from_bigquery(
             dataset=dataset,
             time_period=time_period,
+            selected_year=selected_year,
+            selected_quarter=selected_quarter,
         )
         return {"status": "success", "data": data}
     except Exception as e:

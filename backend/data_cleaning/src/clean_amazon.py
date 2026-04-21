@@ -1,25 +1,45 @@
 import os
+import re
+import glob
 import pandas as pd
 from ..config.amazon_config import STATE_MAP, UNNECESSARY_COLUMNS
 
 RAW_DIR = os.path.join(os.path.dirname(__file__), "..", "data", "raw")
 CLEAN_DIR = os.path.join(os.path.dirname(__file__), "..", "data", "clean")
 
+def extract_year_from_filename(file_path):
+    filename = os.path.basename(file_path)
+    match = re.search(r"(19\d{2}|20\d{2})", filename)
+    if match:
+        return int(match.group(1))
+    return None
 
 # ------------------------------- STEP 1: LOAD -------------------------------
 # Read the dataset file and load into a Pandas dataframe
 def load_amazon():
-    file_path = os.path.join(RAW_DIR, "amazon.csv")
+    file_paths = sorted(glob.glob(os.path.join(RAW_DIR, "amazon_*.csv")))
 
-    if not os.path.exists(file_path):
-        print(f"[WARNING] File not found: {file_path}")
-        return pd.DataFrame()  # return empty df
+    if not file_paths:
+        print(f"[WARNING] No Amazon files found in {RAW_DIR}")
+        return pd.DataFrame()
 
-    df = pd.read_csv(file_path)
-    df = clean_amazon(df)
+    dfs = []
 
-    save_clean_data(df)
-    return df
+    for file_path in file_paths:
+        df = pd.read_csv(file_path, low_memory=False)
+
+        df = clean_amazon(df)
+
+        year = extract_year_from_filename(file_path)
+        if year is not None:
+            df["Year"] = year
+
+        dfs.append(df)
+
+    combined_df = pd.concat(dfs, ignore_index=True)
+
+    save_clean_data(combined_df)
+    return combined_df
 # ----------------------------------------------------------------------------
 
 
@@ -63,7 +83,8 @@ def clean_columns(df):
     })
 
     # For Transaction Date, change to datetime
-    df["Transaction Date"] = pd.to_datetime(df["Transaction Date"], errors="coerce")
+    if "Transaction Date" in df.columns:
+        df["Transaction Date"] = pd.to_datetime(df["Transaction Date"], errors="coerce")
 
     # Clean column names
     df.columns = (
@@ -89,7 +110,8 @@ def clean_numbers(df):
             df[col] = pd.to_numeric(df[col], errors="coerce")
 
     # For Subtotal (zero values), drop rows where Subtotal = 0
-    df = df[df["Subtotal"] != 0]
+    if "Subtotal" in df.columns:
+        df = df[df["Subtotal"] != 0]
 
     # For Quantity, should be numeric and >= 1
     if "Quantity" in df.columns:
@@ -170,13 +192,11 @@ def normalize_whitespace(series):
 # Any final touches to clean the dataframe
 def finalize_dataframe(df):
     # Sort rows by date
-    df = df.sort_values(by="Transaction Date")
+    if "Transaction Date" in df.columns:
+        df = df.sort_values(by="Transaction Date")
 
     # Add dollar signs back to price categories
-    price_cols = ["Subtotal",
-                   "Sales Tax",
-                   "Total Price"
-    ]
+    price_cols = ["Subtotal", "Sales Tax", "Total Price"]
     df = format_currency(df, price_cols)
 
     return df
