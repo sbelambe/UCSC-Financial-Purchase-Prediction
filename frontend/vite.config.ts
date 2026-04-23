@@ -1,10 +1,11 @@
 
   import { defineConfig } from 'vite';
+  import tailwindcss from "@tailwindcss/vite"
   import react from '@vitejs/plugin-react-swc';
   import path from 'path';
 
   export default defineConfig({
-    plugins: [react()],
+    plugins: [react(), tailwindcss()],
     envDir: '../',  // assuming the env file is in the root folder
     resolve: {
       extensions: ['.js', '.jsx', '.ts', '.tsx', '.json'],
