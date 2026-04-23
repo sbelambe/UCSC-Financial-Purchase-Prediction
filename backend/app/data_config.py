@@ -162,7 +162,10 @@ def dataset_schema(dataset: str) -> Dict[str, Any]:
             {
                 "canonical_name": column,
                 "available": config["columns"][column]["available"],
-                "display_in_table": column != "Transaction Date",
+                "display_in_table": (
+                    column != "Transaction Date"
+                    and not (dataset == "cruzbuy" and column == "Item Name")
+                ),
                 "source_name": config["columns"][column]["source_name"],
                 "cleaned_name": config["columns"][column]["cleaned_name"],
             }
