@@ -14,10 +14,15 @@ import {
 import {
   Card,
   CardContent,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
 
 export interface InsightRow {
   category: string;
@@ -33,6 +38,7 @@ export interface InsightRow {
 }
 
 export function InventoryInsights() {
+  // set default time to 1 quarter (3 months)
   const [timePeriod, setTimePeriod] = useState<string>('1_quarter');
 
   const { 
@@ -50,7 +56,7 @@ export function InventoryInsights() {
     staleTime: 1000 * 60 * 30,
   });
 
-  // MD3 Tonal Badges
+  // Action badges for status of bookstore stock
   const renderActionBadge = (action: string) => {
     const baseClass = "flex items-center gap-1.5 text-[11px] font-medium px-3 py-1 rounded-full whitespace-nowrap transition-colors";
     switch (action) {
@@ -75,29 +81,22 @@ export function InventoryInsights() {
   };
 
   return (
-    // Base Surface Color applied to the main wrapper
     <div className="w-full mb-10 flex flex-col gap-8 bg-[#FFFBFE] p-4 md:p-8 rounded-[32px] font-sans">
-      
-      {/* MD3 Hero Header Container 
-        Features atmospheric blur shapes, extra large radius (32px), and Surface Container background
-      */}
       <div className="relative overflow-hidden bg-[#F3EDF7] rounded-[32px] p-6 md:p-8 flex flex-col md:flex-row md:items-center justify-between gap-6 z-0 shadow-sm">
-        {/* Organic Decorative Blurs */}
         <div className="absolute top-0 right-0 w-72 h-72 bg-[#6750A4] opacity-10 blur-3xl rounded-full -translate-y-1/2 translate-x-1/3 mix-blend-multiply pointer-events-none" />
         <div className="absolute bottom-0 left-10 w-48 h-48 bg-[#7D5260] opacity-10 blur-3xl rounded-full translate-y-1/3 mix-blend-multiply pointer-events-none" />
 
         <div className="relative z-10">
-          <h3 className="text-3xl font-medium text-[#1C1B1F] tracking-tight">Inventory Optimization</h3>
-          <p className="text-base text-[#49454F] mt-1">High-density stock overview via ML forecasting.</p>
+          <h3 className="text-3xl font-medium text-[#1C1B1F] tracking-tight">Inventory Insights</h3>
+          <p className="text-base text-[#49454F] mt-1">Bookstore stock overview via ML forecasting.</p>
         </div>
         
-        {/* MD3 Filled Text Field Style Input */}
         <div className="relative z-10 flex items-center gap-3 bg-[#E7E0EC] rounded-t-[12px] rounded-b-none border-b-2 border-[#79747E] focus-within:border-[#6750A4] transition-colors duration-200 px-4 py-3 cursor-pointer group">
           <Clock className="size-5 text-[#49454F] group-focus-within:text-[#6750A4] transition-colors" />
           <select 
             value={timePeriod}
             onChange={(e) => setTimePeriod(e.target.value)}
-            className="border-none text-sm font-medium text-[#1C1B1F] bg-transparent focus:ring-0 cursor-pointer outline-none w-full appearance-none pr-6"
+            className="border-none text-sm font-medium text-[#1C1B1F] bg-transparent focus:ring-0 cursor-pointer outline-none w-full appearance-none"
           >
             <option value="1_month">Next 30 Days</option>
             <option value="1_quarter">Next 90 Days</option>
@@ -140,8 +139,7 @@ export function InventoryInsights() {
             return (
               <Card 
                 key={index} 
-                // MD3 Card Styling: Large radius, surface container color, shadow elevation, tactile active scale
-                className="group flex flex-col h-full overflow-hidden bg-[#F3EDF7] border-none rounded-[24px] shadow-sm hover:shadow-md hover:scale-[1.02] active:scale-95 transition-all duration-300 ease-[cubic-bezier(0.2,0,0,1)] cursor-pointer relative"
+                className="group flex flex-col h-full overflow-hidden bg-[#F3EDF7] border-none rounded-[24px] shadow-sm hover:shadow-md hover:scale-[1.02]"
               >
                 {/* State Layer Overlay (invisible until hover) */}
                 <div className="absolute inset-0 bg-[#1C1B1F] opacity-0 group-hover:opacity-[0.04] transition-opacity duration-300 pointer-events-none z-10" />
@@ -182,7 +180,7 @@ export function InventoryInsights() {
                     </div>
                   </div>
                   
-                  {/* Visualizer Bar - Softened for MD3 */}
+                  {/* Visualizer Bar for stock */}
                   <div>
                     <div className="relative w-full h-2.5 bg-[#E7E0EC] rounded-full overflow-hidden mb-2">
                       <div 
@@ -208,12 +206,35 @@ export function InventoryInsights() {
                   </div>
                 </CardContent>
 
-                {/* AI Reasoning - Surface Container Low for subtle separation */}
-                <CardFooter className="bg-[#E7E0EC]/50 p-5 mt-auto relative z-20 group-hover:bg-[#E7E0EC] transition-colors duration-300">
-                  <p className="text-sm text-[#49454F] leading-relaxed line-clamp-2" title={item.reasoning}>
-                    {item.reasoning}
-                  </p>
-                </CardFooter>
+                <div className="flex items-center justify-between mb-4 mt-auto pt-4 border-t border-[#E7E0EC]/50">
+                  
+                  <div className="flex items-center gap-1.5 bg-[#E8DEF8] px-2.5 py-1 rounded-full">
+                    <span className="text-[10px] font-medium text-[#1D192B]">Confidence: {item.certainty_score}%</span>
+                  </div>
+
+                  {/* The Compact "More Info" Trigger */}
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <button className="flex items-center gap-1 text-[10px] font-medium text-[#6750A4] hover:text-[#49454F] transition-colors p-1 rounded-md hover:bg-[#E7E0EC]">
+                        <Sparkles className="size-3" />
+                        <span>Analysis</span>
+                      </button>
+                    </PopoverTrigger>
+                    
+                    {/* The floating reasoning box */}
+                    <PopoverContent className="w-72 p-4 bg-[#F3EDF7] border-[#E7E0EC] shadow-md" align="end">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Sparkles className="size-4 text-[#6750A4]" />
+                        <span className="text-xs font-bold text-[#1C1B1F] uppercase tracking-widest">Deep Analysis Engine</span>
+                      </div>
+                      {/* AI Reasoning - Surface Container Low for subtle separation */}
+                      <p className="text-sm text-[#49454F] leading-relaxed">
+                        {item.reasoning}
+                      </p>
+                    </PopoverContent>
+                  </Popover>
+                  
+                </div>
               </Card>
             );
           })

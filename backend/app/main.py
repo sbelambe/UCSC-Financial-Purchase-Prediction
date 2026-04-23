@@ -306,7 +306,7 @@ def fetch_forecast_from_bigquery(time_period: str):
 
     InventoryBaseline AS (
         -- Baseline for theoretical inventory calculation
-        SELECT item_name, 2000 as starting_stock FROM TotalSales
+        SELECT item_name, 500 as starting_stock FROM TotalSales
     ),
 
     -- CurrentStock represents the bookstore's stock of items
