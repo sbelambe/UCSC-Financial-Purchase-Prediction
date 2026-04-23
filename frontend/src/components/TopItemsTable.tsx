@@ -20,6 +20,10 @@ export interface CondensedDrilldownItem {
   row_values?: Record<string, string | number | null>;
 }
 
+export interface CondensedDetailRow {
+  row_values?: Record<string, string | number | null>;
+}
+
 // TopItem represents the aggregated stats for a single item
 export interface TopItem {
   dataset?: string;
@@ -31,6 +35,7 @@ export interface TopItem {
   vendors: VendorStat[];
   row_values?: Record<string, string | number | null>;
   drilldown_items?: CondensedDrilldownItem[];
+  raw_rows?: CondensedDetailRow[];
   projected_count?: number; // Sandbox staging data
   projected_spent?: number; // Sandbox staging data
 }
@@ -247,6 +252,24 @@ export function TopItemsTable({
   const hasDynamicRows = Boolean(schema && data.some((item) => item.row_values));
   const activeColumns = schema?.columns?.filter((column) => column.available && column.display_in_table !== false) || [];
 
+  const getDisplayCellValue = (
+    item: TopItem,
+    columnName: string
+  ): string | number | null | undefined => {
+    // Condensed BigQuery groups should show the grouped label instead of one
+    // representative row's item description, which can be misleading.
+    if (item.is_condensed && columnName === 'Item Description') {
+      return item.clean_item_name;
+    }
+
+    return item.row_values?.[columnName];
+  };
+
+  const getRowCellValue = (
+    row: CondensedDetailRow,
+    columnName: string
+  ): string | number | null | undefined => row.row_values?.[columnName];
+
   if (hasDynamicRows) {
     return (
       <div className="top-items-table-shell w-full max-w-full min-w-0 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
@@ -276,37 +299,100 @@ export function TopItemsTable({
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {sortedData.map((item, index) => (
-                <tr key={`${item.dataset || 'dataset'}-${item.clean_item_name}-${index}`} className="odd:bg-white even:bg-slate-50/20">
-                  <td className="p-4 text-xs font-mono text-slate-500 sticky left-0 z-10 bg-inherit whitespace-nowrap">{index + 1}</td>
-                  {schema?.dataset === 'overall' && (
-                    <td className="p-4 font-semibold text-slate-800 whitespace-nowrap">
-                      {item.dataset || 'Unknown'}
-                    </td>
-                  )}
-                  {activeColumns.map((column) => (
-                    <td key={column.canonical_name} className="p-4 text-slate-700 align-top w-[200px] max-w-[200px]">
-                      <div className="max-w-[200px] overflow-hidden break-words" title={String(item.row_values?.[column.canonical_name] ?? '')}>
-                        {formatDynamicValue(
-                          column.canonical_name,
-                          item.row_values?.[column.canonical_name],
-                          schema?.metric_type
-                        )}
-                      </div>
-                    </td>
-                  ))}
-                  <td className="p-4 text-center">
-                    <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-bold bg-blue-50 text-blue-700 ring-1 ring-inset ring-blue-700/10">
-                      {item.count.toLocaleString()}
-                    </span>
-                  </td>
-                  <td className="p-4 text-right font-mono font-medium text-slate-900 whitespace-nowrap">
-                    {schema?.metric_type === 'quantity'
-                      ? Number(item.total_spent || 0).toLocaleString()
-                      : formatSpendOrNA(item.total_spent)}
-                  </td>
-                </tr>
-              ))}
+              {sortedData.map((item, index) => {
+                const isExpanded = expandedRow === index;
+                const detailRows = item.is_condensed ? (item.raw_rows || []) : [];
+                const hasDetails = detailRows.length > 0;
+                const totalColumns = activeColumns.length + (schema?.dataset === 'overall' ? 1 : 0) + 3;
+                const rowBackgroundClass = index % 2 === 0 ? 'bg-white' : 'bg-slate-50';
+
+                return (
+                  <React.Fragment key={`${item.dataset || 'dataset'}-${item.clean_item_name}-${index}`}>
+                    <tr
+                      onClick={() => hasDetails && setExpandedRow(isExpanded ? null : index)}
+                      className={`${rowBackgroundClass} ${hasDetails ? 'cursor-pointer hover:bg-slate-100' : ''}`}
+                    >
+                      <td className={`p-4 text-xs font-mono text-slate-500 sticky left-0 z-10 whitespace-nowrap ${rowBackgroundClass}`}>
+                        <span className={`mr-2 inline-block w-3 ${hasDetails ? 'text-blue-500' : ''}`}>
+                          {hasDetails ? (isExpanded ? '▼' : '▶') : '\u00A0'}
+                        </span>
+                        {index + 1}
+                      </td>
+                      {schema?.dataset === 'overall' && (
+                        <td className="p-4 font-semibold text-slate-800 whitespace-nowrap">
+                          {item.dataset || 'Unknown'}
+                        </td>
+                      )}
+                      {activeColumns.map((column) => (
+                        <td key={column.canonical_name} className="p-4 text-slate-700 align-top w-[200px] max-w-[200px]">
+                          <div className="max-w-[200px] overflow-hidden break-words" title={String(getDisplayCellValue(item, column.canonical_name) ?? '')}>
+                            {formatDynamicValue(
+                              column.canonical_name,
+                              getDisplayCellValue(item, column.canonical_name),
+                              schema?.metric_type
+                            )}
+                          </div>
+                        </td>
+                      ))}
+                      <td className="p-4 text-center">
+                        <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-bold bg-blue-50 text-blue-700 ring-1 ring-inset ring-blue-700/10">
+                          {item.count.toLocaleString()}
+                        </span>
+                      </td>
+                      <td className="p-4 text-right font-mono font-medium text-slate-900 whitespace-nowrap">
+                        {schema?.metric_type === 'quantity'
+                          ? Number(item.total_spent || 0).toLocaleString()
+                          : formatSpendOrNA(item.total_spent)}
+                      </td>
+                    </tr>
+
+                    {isExpanded && hasDetails && (
+                      <tr className="bg-slate-50 border-b border-gray-200 shadow-inner">
+                        <td colSpan={totalColumns} className="p-4 pl-12">
+                          <div className="overflow-hidden rounded border border-gray-200 bg-white shadow-sm">
+                            <div className="border-b border-gray-200 bg-slate-50 px-4 py-2 text-xs font-medium text-slate-500">
+                              Exact rows included in this grouped item: {detailRows.length}
+                            </div>
+                            <div className="max-h-[320px] w-full max-w-full overflow-auto overscroll-contain">
+                              <table className="min-w-max text-left text-sm border-collapse">
+                                <thead className="sticky top-0 z-10 bg-gray-50 border-b border-gray-200">
+                                  <tr>
+                                    {activeColumns.map((column) => (
+                                      <th
+                                        key={column.canonical_name}
+                                        className="p-3 font-semibold text-slate-700 whitespace-nowrap w-[200px]"
+                                      >
+                                        {column.canonical_name}
+                                      </th>
+                                    ))}
+                                  </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-100">
+                                  {detailRows.map((detailRow, detailIndex) => (
+                                    <tr key={`${item.clean_item_name}-detail-${detailIndex}`} className={detailIndex % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
+                                      {activeColumns.map((column) => (
+                                        <td key={`${detailIndex}-${column.canonical_name}`} className="p-3 text-slate-700 align-top w-[200px] max-w-[200px]">
+                                          <div className="max-w-[200px] overflow-hidden break-words" title={String(getRowCellValue(detailRow, column.canonical_name) ?? '')}>
+                                            {formatDynamicValue(
+                                              column.canonical_name,
+                                              getRowCellValue(detailRow, column.canonical_name),
+                                              schema?.metric_type
+                                            )}
+                                          </div>
+                                        </td>
+                                      ))}
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
+                );
+              })}
             </tbody>
           </table>
         </div>

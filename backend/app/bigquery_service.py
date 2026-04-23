@@ -478,6 +478,22 @@ def _serialize_drilldown_items(items: Any) -> List[Dict[str, Any]]:
     return serialized
 
 
+def _serialize_detail_rows(rows: Any) -> List[Dict[str, Any]]:
+    """Convert nested BigQuery raw-row structs into JSON-safe dictionaries."""
+    serialized: List[Dict[str, Any]] = []
+    for row in rows or []:
+        if row is None:
+            continue
+
+        serialized.append(
+            {
+                "row_values": _serialize_row_values(row),
+            }
+        )
+
+    return serialized
+
+
 def query_top_items_from_bigquery(
     *,
     dataset: str = "overall",
@@ -628,6 +644,32 @@ def query_top_items_from_bigquery(
                         AND sr.clean_item_name = sva.clean_item_name
                     GROUP BY sr.dataset, sr.display_item_name
                 ),
+                raw_row_arrays AS (
+                    SELECT
+                        dataset,
+                        display_item_name,
+                        ARRAY_AGG(
+                            STRUCT(
+                                transaction_date,
+                                item_name,
+                                item_description,
+                                category,
+                                subcategory,
+                                subtotal,
+                                sales_tax,
+                                total_price,
+                                quantity,
+                                merchant_name,
+                                merchant_state,
+                                merchant_city,
+                                merchant_type,
+                                transaction_type
+                            )
+                            ORDER BY transaction_date DESC, total_price DESC, item_description
+                        ) AS raw_rows
+                    FROM classified_source
+                    GROUP BY dataset, display_item_name
+                ),
         vendor_rollup AS (
           SELECT
             dataset,
@@ -699,7 +741,8 @@ def query_top_items_from_bigquery(
           ir.transaction_type,
           ir.total_spent,
                     va.vendors,
-                    da.drilldown_items
+                    da.drilldown_items,
+                    rra.raw_rows
         FROM item_rollup ir
         LEFT JOIN vendor_arrays va
           ON ir.dataset = va.dataset
@@ -707,6 +750,9 @@ def query_top_items_from_bigquery(
                 LEFT JOIN drilldown_arrays da
                     ON ir.dataset = da.dataset
                     AND ir.display_item_name = da.display_item_name
+                LEFT JOIN raw_row_arrays rra
+                    ON ir.dataset = rra.dataset
+                    AND ir.display_item_name = rra.display_item_name
         WHERE ir.total_spent >= @min_spend
         ORDER BY {order_by_clause}
         LIMIT @limit
@@ -738,6 +784,7 @@ def query_top_items_from_bigquery(
                 "vendors": _serialize_vendors(row.get("vendors")),
                 "row_values": _serialize_row_values(row),
                 "drilldown_items": _serialize_drilldown_items(row.get("drilldown_items")),
+                "raw_rows": _serialize_detail_rows(row.get("raw_rows")) if row.get("is_condensed") else [],
             }
         )
 
