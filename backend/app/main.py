@@ -4,14 +4,15 @@
 # and status checks, refresh data, and returning dashboard data
 import sys, os, io
 import pandas as pd
-from fastapi import FastAPI, HTTPException, File, UploadFile, Form
+from fastapi import FastAPI, HTTPException, File, UploadFile, Form, Query
 from fastapi.middleware.cors import CORSMiddleware
+from functools import lru_cache
 from typing import Optional
 from .analytics import get_item_freq, get_spend_over_time
 from .analytics_bookstore import get_campus_store_item_insights
 from .data_config import dataset_schema
 from .dataset_explorer import get_dataset_explorer_rows
-from .bigquery_service import query_spend_over_time_from_bigquery, query_top_items_from_bigquery
+from .bigquery_service import query_spend_over_time_from_bigquery, query_top_items_from_bigquery, _bigquery_client
 from firebase.summaries import compute_top_items_detailed
 # # from backend.jobs.run_full_pipeline import run_full_pipeline
 from dotenv import load_dotenv
@@ -252,6 +253,130 @@ def api_campus_store_items(top_n: int = 5, lookback_days: int = 90, account: str
         return _bookstore_items_response(top_n, lookback_days, account)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+    
+# This caches the last 10 unique time_period queries in server RAM.
+@lru_cache(maxsize=10)
+def fetch_forecast_from_bigquery(time_period: str):
+    """
+    Returns inventory insights based on BigQuery's ML.EXPLAIN_FORECAST
+    """
+    bq_project = os.getenv("VITE_FIREBASE_PROJECT_ID")
+    bq_dataset = os.getenv("BIGQUERY_DATASET")
+    model_path = f"{bq_project}.{bq_dataset}.bookstore_inventory_forecast"
+
+    horizon_map = {"1_month": 1, "1_quarter": 3, "6_months": 6, "1_year": 12}
+    months_to_forecast = horizon_map.get(time_period, 3)
+
+    # Query BigQuery ML
+    # will ask bigquery to predict future sales for various categories, explains the historical trends, 
+    # and compares those predicted numbers against the current stock
+    # TODO: Replace the mock 'CurrentStock' common table expression (CTE) with a LEFT JOIN to actual inventory table in db
+    sql = f"""
+    -- Explanations calls the BQML model
+    -- we SUM the predicted quantities over the horizon and AVG the trend/seasonality
+    WITH Explanations AS (
+        SELECT 
+            item_category as category, 
+            SUM(time_series_data) as predicted_qty,
+            AVG(trend) as avg_trend,
+            AVG(seasonal_period_yearly) as yearly_seasonality
+            FROM ML.EXPLAIN_FORECAST(MODEL `{model_path}`, 
+                                 STRUCT({months_to_forecast} AS horizon))
+        GROUP BY category
+    ),
+
+    -- CurrentStock represents the live inventory
+    CurrentStock AS (
+        SELECT 'Apparel' as category, 150 as stock UNION ALL
+        SELECT 'Textbooks', 10 UNION ALL
+        SELECT 'Electronics', 40 UNION ALL
+        SELECT 'Supplies', 500
+    )
+
+    -- we use LEFT JOIN so if the ML model predicts demand for an item out of stock (0 amount), it still appears in the final output
+    SELECT 
+        e.category,
+        CAST(e.predicted_qty AS INT64) as predicted_qty,
+        e.avg_trend,
+        e.yearly_seasonality,
+        COALESCE(c.stock, 0) as current_stock   -- COALESCE handles the NULL -> 0 conversion
+    FROM Explanations e
+    LEFT JOIN CurrentStock c ON e.category = c.category
+    ORDER BY predicted_qty DESC
+    """
+    
+    bq_client = _bigquery_client()
+    query_job = bq_client.query(sql)
+    results = []
+
+    for row in query_job.result():
+        category = row["category"]
+        predicted = row["predicted_qty"] if row["predicted_qty"] is not None else 0
+        stock = row["current_stock"] if row["current_stock"] is not None else 0
+        trend = row["avg_trend"] if row["avg_trend"] is not None else 0
+        seasonality = row["yearly_seasonality"] if row["yearly_seasonality"] is not None else 0
+
+        # Reasoning Section
+        # =================
+        # we calculate the shortfall (predicted - actual) to see if what we predicted match up with the actual stock
+        shortfall = predicted - stock
+
+
+        # update AI text generation to handle flat '0's
+        if trend > 0:
+            trend_direction = "growing"
+        elif trend < 0:
+            trend_direction = "declining"
+        else:
+            trend_direction = "stable"
+
+        seasonality_impact = "a strong historical seasonal spike" if seasonality > 0 else "standard seasonal baseline"
+
+        # Logic gate: will we completely run out of stock?
+        if shortfall > 0:
+            action = "Critical Reorder" if shortfall > (stock * 0.5) else "Reorder Soon"
+            reasoning = (
+                f"Predicted shortfall of {shortfall} units. "
+                f"The model projects {predicted} sales driven by a {trend_direction} long-term trend "
+                f"and {seasonality_impact}. Current stock ({stock}) will not cover the selected period."
+            )
+
+        # Logic gate: Are we within 20 units of running out of stock (the danger zone)?
+        elif shortfall > -20:
+            action = "Monitor Closely"
+            reasoning = (
+                f"Stock is cutting it close. You have {stock} units to cover a predicted demand of {predicted}. "
+                f"Based on historical data, unexpected seasonal variance could cause a stockout."
+            )
+
+        # Logic gate: otherwise, we have plenty of stock left
+        else:
+            action = "Adequate Stock"
+            reasoning = (
+                f"No immediate action needed. Current stock ({stock}) safely covers the predicted demand ({predicted}). "
+                f"Historical baseline trend is {trend_direction}, but you have sufficient buffer."
+            )
+
+        results.append({
+            "category": category,
+            "current_stock": stock,
+            "predicted_demand": predicted,
+            "action": action,
+            "reasoning": reasoning,
+        })           
+
+    return results
+
+@app.get("/api/analytics/bookstore-insights")
+def get_bookstore_insights(time_period: str = Query("1_quarter", description="Time horizon for forecast")):
+    try:
+        # This will be instant if the time_period was requested recently
+        results = fetch_forecast_from_bigquery(time_period)
+        return {"status": "success", "time_period": time_period, "data": results}
+    except Exception as e:
+        print(f"[ERROR] Bookstore Insights: {e}")
+        raise HTTPException(status_code=500, detail="Failed to fetch ML insights from BigQuery.")
+    
     
 # Accepts and uploads CSVs for data projection
 @app.post("/api/analytics/project")

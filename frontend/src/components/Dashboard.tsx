@@ -526,8 +526,6 @@ export function Dashboard() {
             {/* shows inventory insights if amazon or bookstore tabs are selected */}
             {(activeTab === 'Amazon' || activeTab === 'Bookstore') && (
               <InventoryInsights 
-                amazonData={insightsData.amazon} 
-                bookstoreData={insightsData.bookstore} 
               />
             )}
           </div>
