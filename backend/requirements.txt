@@ -10,3 +10,5 @@ openpyxl
 google-api-python-client
 google-cloud-bigquery
 python-multipart
+pyarrow
+pandas-gbq

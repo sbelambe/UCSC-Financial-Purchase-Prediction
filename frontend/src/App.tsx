@@ -1,5 +1,6 @@
 import { ReactNode, useState } from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Dashboard } from './components/Dashboard';
 import { Chatbot } from './components/Chatbot';
 import { AppHeader } from './components/AppHeader';
@@ -12,6 +13,18 @@ type AuthenticatedLayoutProps = {
   currentView: 'dashboard' | 'dataset-explorer';
   children: ReactNode;
 };
+
+// so the cache isn't destroyed on re-renders
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      // Prevents spamming the backend if the user switches tabs frequently
+      refetchOnWindowFocus: false, 
+      // Safe fallback: if a network request fails, try one more time before showing an error
+      retry: 1, 
+    },
+  },
+});
 
 function AuthenticatedLayout({ currentView, children }: AuthenticatedLayoutProps) {
   const [isChatOpen, setIsChatOpen] = useState(false);
@@ -77,18 +90,20 @@ function DatasetExplorerPage() {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <BrowserRouter>
-        <Routes>
-          <Route path="/login" element={<Login />} />
+  <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <BrowserRouter>
+          <Routes>
+            <Route path="/login" element={<Login />} />
 
-          <Route element={<ProtectedRoute />}>
-            <Route path="/dashboard" element={<DashboardPage />} />
-            <Route path="/dataset-explorer" element={<DatasetExplorerPage />} />
-            <Route path="/" element={<Navigate to="/dashboard" replace />} />
-          </Route>
-        </Routes>
-      </BrowserRouter>
-    </AuthProvider>
+            <Route element={<ProtectedRoute />}>
+              <Route path="/dashboard" element={<DashboardPage />} />
+              <Route path="/dataset-explorer" element={<DatasetExplorerPage />} />
+              <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            </Route>
+          </Routes>
+        </BrowserRouter>
+      </AuthProvider>
+    </QueryClientProvider>
   );
 }
