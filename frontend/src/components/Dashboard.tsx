@@ -501,7 +501,7 @@ export function Dashboard() {
               hasActiveProjection={projectedData !== null}
             />
 
-            <div className="h-[450px] w-full">
+            <div className="w-full">
                <TopItemsChart
                  data={chartTopItems.slice(0, selectedLimit)}
                  metricLabel={activeSchema?.metric_label}

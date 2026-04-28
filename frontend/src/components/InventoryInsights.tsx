@@ -1,14 +1,16 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { 
-  AlertCircle, 
-  CheckCircle, 
-  TrendingUp, 
-  Clock, 
-  TrendingDown, 
-  Minus, 
-  PackageSearch, 
-  Sparkles 
+import {
+  AlertCircle,
+  CheckCircle,
+  TrendingUp,
+  Clock,
+  TrendingDown,
+  Minus,
+  PackageSearch,
+  Sparkles,
+  FlaskConical,
+  ShoppingBag,
 } from 'lucide-react';
 
 import {
@@ -24,6 +26,13 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover"
 
+interface RecommendationRow {
+  item_name: string;
+  category: string;
+  amazon_count: number;
+  suggested_reason: string;
+}
+
 export interface InsightRow {
   category: string;
   current_stock: number;
@@ -32,6 +41,7 @@ export interface InsightRow {
   lower_bound: number;
   upper_bound: number;
   external_volume: number;
+  historical_avg: number;
   trend_direction: 'growing' | 'declining' | 'stable';
   action: 'Critical Reorder' | 'Reorder Soon' | 'Monitor Closely' | 'Adequate Stock' | 'Dead Stock Risk';
   reasoning: string;
@@ -40,20 +50,37 @@ export interface InsightRow {
 export function InventoryInsights() {
   // set default time to 1 quarter (3 months)
   const [timePeriod, setTimePeriod] = useState<string>('1_quarter');
+  const [devMode, setDevMode] = useState<boolean>(false);
+  const [lookback, setLookback] = useState<string>('2_year');
 
-  const { 
-    data: insights = [], 
-    isLoading: loading, 
-    error 
+  const {
+    data: insights = [],
+    isLoading: loading,
+    error,
   } = useQuery({
-    queryKey: ['bookstore-insights', timePeriod],
+    queryKey: ['bookstore-insights', timePeriod, devMode, lookback],
     queryFn: async ({ signal }) => {
-      const response = await fetch(`/api/analytics/bookstore-insights?time_period=${timePeriod}`, { signal });
+      const url = `/api/analytics/bookstore-insights?time_period=${timePeriod}&dev_mode=${devMode}&lookback=${lookback}`;
+      const response = await fetch(url, { signal });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload?.detail || 'Failed to load ML predictions.');
       return payload.data as InsightRow[];
     },
     staleTime: 1000 * 60 * 30,
+    refetchOnWindowFocus: false,
+  });
+
+  const {
+    data: recommendations,
+  } = useQuery({
+    queryKey: ['amazon-bookstore-recommendations'],
+    queryFn: async ({ signal }) => {
+      const response = await fetch('/api/analytics/amazon-bookstore-recommendations', { signal });
+      if (!response.ok) throw new Error('Failed to load recommendations.');
+      return response.json() as Promise<{ overlap: RecommendationRow[]; gaps: RecommendationRow[] }>;
+    },
+    staleTime: 1000 * 60 * 30,
+    refetchOnWindowFocus: false,
   });
 
   // Action badges for status of bookstore stock
@@ -87,22 +114,59 @@ export function InventoryInsights() {
         <div className="absolute bottom-0 left-10 w-48 h-48 bg-[#7D5260] opacity-10 blur-3xl rounded-full translate-y-1/3 mix-blend-multiply pointer-events-none" />
 
         <div className="relative z-10">
-          <h3 className="text-3xl font-medium text-[#1C1B1F] tracking-tight">Inventory Insights</h3>
+          <div className="flex items-center gap-3">
+            <h3 className="text-3xl font-medium text-[#1C1B1F] tracking-tight">Inventory Insights</h3>
+            {devMode && (
+              <span className="flex items-center gap-1.5 text-[11px] font-medium px-3 py-1 rounded-full bg-[#FFDF99] text-[#261A00] whitespace-nowrap">
+                <FlaskConical className="size-3.5" /> DEV MODE — Synthetic Data
+              </span>
+            )}
+          </div>
           <p className="text-base text-[#49454F] mt-1">Bookstore stock overview via ML forecasting.</p>
         </div>
-        
-        <div className="relative z-10 flex items-center gap-3 bg-[#E7E0EC] rounded-t-[12px] rounded-b-none border-b-2 border-[#79747E] focus-within:border-[#6750A4] transition-colors duration-200 px-4 py-3 cursor-pointer group">
-          <Clock className="size-5 text-[#49454F] group-focus-within:text-[#6750A4] transition-colors" />
-          <select 
-            value={timePeriod}
-            onChange={(e) => setTimePeriod(e.target.value)}
-            className="border-none text-sm font-medium text-[#1C1B1F] bg-transparent focus:ring-0 cursor-pointer outline-none w-full appearance-none"
+
+        <div className="relative z-10 flex items-center gap-4 flex-wrap justify-end">
+          {/* Dev mode toggle */}
+          <button
+            onClick={() => setDevMode(prev => !prev)}
+            className={`flex items-center gap-2 text-xs font-medium px-3 py-2 rounded-[10px] border transition-colors ${
+              devMode
+                ? 'bg-[#FFDF99] border-[#F5C842] text-[#261A00]'
+                : 'bg-[#E7E0EC] border-[#79747E] text-[#49454F] hover:border-[#6750A4]'
+            }`}
           >
-            <option value="1_month">Next 30 Days</option>
-            <option value="1_quarter">Next 90 Days</option>
-            <option value="6_months">Next 180 Days</option>
-            <option value="1_year">Fiscal Year</option>
-          </select>
+            <FlaskConical className="size-3.5" />
+            {devMode ? 'Dev Mode' : 'Real Data'}
+          </button>
+
+          {/* Lookback selector */}
+          <div className="flex items-center gap-3 bg-[#E7E0EC] rounded-t-[12px] rounded-b-none border-b-2 border-[#79747E] focus-within:border-[#6750A4] transition-colors duration-200 px-4 py-3 cursor-pointer group">
+            <TrendingUp className="size-5 text-[#49454F] group-focus-within:text-[#6750A4] transition-colors" />
+            <select
+              value={lookback}
+              onChange={(e) => setLookback(e.target.value)}
+              className="border-none text-sm font-medium text-[#1C1B1F] bg-transparent focus:ring-0 cursor-pointer outline-none w-full appearance-none"
+            >
+              <option value="1_year">vs. 1 Year ago</option>
+              <option value="2_year">vs. 2 Year avg</option>
+              <option value="3_year">vs. 3 Year avg</option>
+            </select>
+          </div>
+
+          {/* Time period selector */}
+          <div className="flex items-center gap-3 bg-[#E7E0EC] rounded-t-[12px] rounded-b-none border-b-2 border-[#79747E] focus-within:border-[#6750A4] transition-colors duration-200 px-4 py-3 cursor-pointer group">
+            <Clock className="size-5 text-[#49454F] group-focus-within:text-[#6750A4] transition-colors" />
+            <select
+              value={timePeriod}
+              onChange={(e) => setTimePeriod(e.target.value)}
+              className="border-none text-sm font-medium text-[#1C1B1F] bg-transparent focus:ring-0 cursor-pointer outline-none w-full appearance-none"
+            >
+              <option value="1_month">Next 30 Days</option>
+              <option value="1_quarter">Next 90 Days</option>
+              <option value="6_months">Next 180 Days</option>
+              <option value="1_year">Fiscal Year</option>
+            </select>
+          </div>
         </div>
       </div>
 
@@ -172,8 +236,16 @@ export function InventoryInsights() {
                         {item.current_stock.toLocaleString()}
                       </div>
                     </div>
+                    {item.historical_avg > 0 && (
+                      <div className="min-w-0 text-center">
+                        <div className="text-xs font-medium text-[#49454F] mb-1">Hist. Avg</div>
+                        <div className="text-xl font-medium text-[#49454F] leading-none truncate">
+                          {item.historical_avg.toLocaleString()}
+                        </div>
+                      </div>
+                    )}
                     <div className="min-w-0 text-right">
-                      <div className="text-xs font-medium text-[#6750A4] mb-1">Target</div>
+                      <div className="text-xs font-medium text-[#6750A4] mb-1">ML Forecast</div>
                       <div className="text-3xl font-medium text-[#6750A4] leading-none truncate">
                         {item.predicted_demand.toLocaleString()}
                       </div>
@@ -240,6 +312,68 @@ export function InventoryInsights() {
           })
         )}
       </div>
+
+      {/* Amazon Purchase Signals */}
+      {recommendations && (recommendations.overlap.length > 0 || recommendations.gaps.length > 0) && (
+        <div className="flex flex-col gap-6">
+          <div className="flex items-center gap-3">
+            <ShoppingBag className="size-5 text-[#6750A4]" />
+            <h4 className="text-xl font-medium text-[#1C1B1F]">Amazon Purchase Signals</h4>
+          </div>
+
+          {recommendations.overlap.length > 0 && (
+            <div className="flex flex-col gap-3">
+              <p className="text-sm font-medium text-[#49454F] uppercase tracking-wide">Also in Bookstore — Keep Stocked</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {recommendations.overlap.map((item, i) => (
+                  <Card key={i} className="bg-[#F3EDF7] border-none rounded-[20px] shadow-sm">
+                    <CardHeader className="pb-1 pt-5 px-5">
+                      <div className="flex items-start justify-between gap-2">
+                        <CardTitle className="text-sm font-medium text-[#1C1B1F] leading-snug line-clamp-2">{item.item_name}</CardTitle>
+                        <span className="shrink-0 text-[10px] font-medium px-2 py-0.5 rounded-full bg-[#C4EED0] text-[#00391C]">In Stock</span>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="px-5 pb-5">
+                      <p className="text-xs text-[#49454F] mb-2">{item.category}</p>
+                      <div className="flex items-center gap-1.5 mb-3">
+                        <Sparkles className="size-3 text-[#6750A4]" />
+                        <span className="text-xs font-medium text-[#6750A4]">{item.amazon_count.toLocaleString()} Amazon orders</span>
+                      </div>
+                      <p className="text-xs text-[#49454F] leading-relaxed">{item.suggested_reason}</p>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {recommendations.gaps.length > 0 && (
+            <div className="flex flex-col gap-3">
+              <p className="text-sm font-medium text-[#49454F] uppercase tracking-wide">High Amazon Demand — Not in Bookstore</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {recommendations.gaps.map((item, i) => (
+                  <Card key={i} className="bg-[#FFF8F0] border-none rounded-[20px] shadow-sm">
+                    <CardHeader className="pb-1 pt-5 px-5">
+                      <div className="flex items-start justify-between gap-2">
+                        <CardTitle className="text-sm font-medium text-[#1C1B1F] leading-snug line-clamp-2">{item.item_name}</CardTitle>
+                        <span className="shrink-0 text-[10px] font-medium px-2 py-0.5 rounded-full bg-[#FFDF99] text-[#261A00]">Gap</span>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="px-5 pb-5">
+                      <p className="text-xs text-[#49454F] mb-2">{item.category}</p>
+                      <div className="flex items-center gap-1.5 mb-3">
+                        <AlertCircle className="size-3 text-[#B45309]" />
+                        <span className="text-xs font-medium text-[#B45309]">{item.amazon_count.toLocaleString()} Amazon orders</span>
+                      </div>
+                      <p className="text-xs text-[#49454F] leading-relaxed">{item.suggested_reason}</p>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
