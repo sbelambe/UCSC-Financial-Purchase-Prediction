@@ -254,81 +254,122 @@ def api_campus_store_items(top_n: int = 5, lookback_days: int = 90, account: str
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     
-# This caches the last 10 unique time_period queries in server RAM.
-@lru_cache(maxsize=10)
-def fetch_forecast_from_bigquery(time_period: str):
+# This caches the last 30 unique (time_period, dev_mode, lookback) combos in server RAM.
+@lru_cache(maxsize=30)
+def fetch_forecast_from_bigquery(time_period: str, dev_mode: bool = False, lookback: str = "2_year"):
     """
-    Retrieves inventory health insights by comparing calculated current stock 
-    against BigQuery ML predictive demand.
-    
-    Logic:
-    1. Explanations: Fetches item-level demand forecast from BQML.
-    2. TotalSales: Aggregates all-time historical sales from bookstore_cleaned.
-    3. InventoryBaseline: Establishes a starting stock count (Mock for prototype).
-    4. Comparison: Subtracts sales from baseline to find current stock and 
-       evaluates if that stock covers the predicted demand.
-    5. Incorporates yearly seasonality to explain the 'why' behind demand spikes.
+    Retrieves inventory health insights by comparing current stock against BQML demand forecasts.
+
+    Key fixes vs. original:
+    - Filters ML.EXPLAIN_FORECAST to time_series_type = 'forecast' only (historical rows were
+      being summed in, inflating predictions by 10-30x).
+    - Uses a rolling 6-month window for stock depletion instead of all-time sales.
+    - Adds a HistoricalContext CTE that computes the average sales for the same calendar
+      period (the months being forecast) across the past N years, giving a reality-check
+      baseline alongside the ML prediction.
     """
+    import datetime
     bq_project = os.getenv("VITE_FIREBASE_PROJECT_ID", "")
     bq_dataset = os.getenv("BIGQUERY_DATASET", "")
-    model_path = f"{bq_project}.{bq_dataset}.bookstore_inventory_forecast"
+    model_suffix = "_dev" if dev_mode else ""
+    model_path = f"{bq_project}.{bq_dataset}.bookstore_inventory_forecast{model_suffix}"
+    data_table = f"{bq_project}.{bq_dataset}.bookstore_cleaned{model_suffix}"
 
     horizon_map = {"1_month": 1, "1_quarter": 3, "6_months": 6, "1_year": 12}
     months_to_forecast = horizon_map.get(time_period, 3)
 
-    # Query BigQuery ML
-    # will ask bigquery to predict future sales for various categories, explains the historical trends, 
-    # and compares those predicted numbers against the current stock
+    lookback_map = {"1_year": 1, "2_year": 2, "3_year": 3}
+    lookback_years = lookback_map.get(lookback, 2)
+
+    # Compute which calendar months we are forecasting (starting next month from today)
+    today = datetime.date.today()
+    forecast_months = [((today.month - 1 + i + 1) % 12) + 1 for i in range(months_to_forecast)]
+    month_list_sql = ", ".join(str(m) for m in forecast_months)
+
+    # Year range for historical comparison: the past N complete years before the current one
+    hist_end_year   = today.year - 1
+    hist_start_year = today.year - lookback_years
+
     sql = f"""
-    -- Explanations calls the BQML model
-    -- we SUM the predicted quantities over the horizon and AVG the trend/seasonality
+    -- Only sum FORECAST rows (not 'history' fitted rows).
+    -- Without this filter, ML.EXPLAIN_FORECAST returns historical fitted values too,
+    -- and summing all of them inflates predicted_qty by the full length of the training set.
     WITH Explanations AS (
-        SELECT 
+        SELECT
             item_name,
-            SUM(time_series_data) as predicted_qty,
-            SUM(prediction_interval_lower_bound) as lower_bound,
-            SUM(prediction_interval_upper_bound) as upper_bound,
-            AVG(trend) as avg_trend,
-            AVG(seasonal_period_yearly) as yearly_seasonality
-            FROM ML.EXPLAIN_FORECAST(MODEL `{model_path}`, 
-                                 STRUCT({months_to_forecast} AS horizon))
+            SUM(time_series_data)                  AS predicted_qty,
+            SUM(prediction_interval_lower_bound)   AS lower_bound,
+            SUM(prediction_interval_upper_bound)   AS upper_bound,
+            AVG(trend)                             AS avg_trend,
+            AVG(seasonal_period_yearly)            AS yearly_seasonality
+        FROM ML.EXPLAIN_FORECAST(
+            MODEL `{model_path}`,
+            STRUCT({months_to_forecast} AS horizon)
+        )
+        WHERE time_series_type = 'forecast'
         GROUP BY item_name
     ),
 
-    TotalSales AS (
-        -- Aggregate historical sales to calculate stock depletion
-        SELECT 
-            `Item Description` as item_name, 
-            SUM(Quantity) as amount_sold 
-        FROM `{bq_project}.{bq_dataset}.bookstore_cleaned`
+    -- AllTimeSales builds the item universe; not used directly for stock depletion.
+    AllTimeSales AS (
+        SELECT `Item Description` AS item_name, SUM(Quantity) AS total_sold
+        FROM `{data_table}`
+        GROUP BY item_name
+    ),
+
+    -- RecentSales: only the past 6 months deplete current shelf stock.
+    -- Using all-time sales would always exceed a fixed baseline and show 0 for everything.
+    RecentSales AS (
+        SELECT `Item Description` AS item_name, SUM(Quantity) AS recent_sold
+        FROM `{data_table}`
+        WHERE CAST(`Transaction Date` AS DATE) >= DATE_SUB(CURRENT_DATE(), INTERVAL 6 MONTH)
         GROUP BY item_name
     ),
 
     InventoryBaseline AS (
-        -- Baseline for theoretical inventory calculation
-        SELECT item_name, 500 as starting_stock FROM TotalSales
+        SELECT item_name, 500 AS starting_stock FROM AllTimeSales
     ),
 
-    -- CurrentStock represents the bookstore's stock of items
     CurrentStock AS (
-        SELECT 
+        SELECT
             b.item_name,
-            (b.starting_stock - COALESCE(s.amount_sold, 0)) as stock
+            (b.starting_stock - COALESCE(r.recent_sold, 0)) AS stock
         FROM InventoryBaseline b
-        LEFT JOIN TotalSales s ON b.item_name = s.item_name
+        LEFT JOIN RecentSales r ON b.item_name = r.item_name
+    ),
+
+    -- HistoricalContext: average sales for the SAME calendar months we are forecasting,
+    -- measured over the past {lookback_years} year(s). This grounds the ML prediction
+    -- in observed same-period demand from prior years.
+    HistoricalContext AS (
+        SELECT item_name, AVG(period_qty) AS historical_avg
+        FROM (
+            SELECT
+                `Item Description`                                    AS item_name,
+                EXTRACT(YEAR FROM CAST(`Transaction Date` AS DATE))   AS yr,
+                SUM(Quantity)                                         AS period_qty
+            FROM `{data_table}`
+            WHERE
+                EXTRACT(MONTH FROM CAST(`Transaction Date` AS DATE)) IN ({month_list_sql})
+                AND EXTRACT(YEAR FROM CAST(`Transaction Date` AS DATE))
+                    BETWEEN {hist_start_year} AND {hist_end_year}
+            GROUP BY item_name, yr
+        )
+        GROUP BY item_name
     )
 
-    -- we use LEFT JOIN so if the ML model predicts demand for an item out of stock (0 amount), it still appears in the final output
-    SELECT 
+    SELECT
         e.item_name,
-        CAST(e.predicted_qty AS INT64) as predicted_qty,
-        CAST(e.lower_bound as INT64) as lower_bound,
-        CAST(e.upper_bound as INT64) as upper_bound,
+        CAST(e.predicted_qty   AS INT64)                    AS predicted_qty,
+        CAST(e.lower_bound     AS INT64)                    AS lower_bound,
+        CAST(e.upper_bound     AS INT64)                    AS upper_bound,
         e.avg_trend,
         e.yearly_seasonality,
-        COALESCE(CAST(c.stock AS INT64), 0) as current_stock   -- COALESCE handles the NULL -> 0 conversion
+        COALESCE(CAST(c.stock  AS INT64), 0)                AS current_stock,
+        CAST(COALESCE(h.historical_avg, 0) AS INT64)        AS historical_avg
     FROM Explanations e
-    LEFT JOIN CurrentStock c ON e.item_name = c.item_name
+    LEFT JOIN CurrentStock      c ON e.item_name = c.item_name
+    LEFT JOIN HistoricalContext h ON e.item_name = h.item_name
     WHERE e.item_name IS NOT NULL
       AND CAST(e.predicted_qty AS INT64) > 0
     ORDER BY ABS(CAST(c.stock AS INT64) - CAST(e.predicted_qty AS INT64)) DESC
@@ -344,11 +385,12 @@ def fetch_forecast_from_bigquery(time_period: str):
         item_name = row["item_name"]
         category = row["item_name"]
         predicted = int(row["predicted_qty"] or 0)
-        stock = max(0, int(row["current_stock"] or 0))
+        stock = int(row["current_stock"] or 0)
         trend = row["avg_trend"] or 0
         seasonality = row["yearly_seasonality"] or 0
         upper = int(row["upper_bound"] or 0)
         lower = int(row["lower_bound"] or 0)
+        historical_avg = int(row["historical_avg"] or 0)
 
         # 1. CALCULATE ACTUAL CERTAINTY SCORE
         # Formula: 1 - (Range Width / (2 * Predicted))
@@ -383,6 +425,12 @@ def fetch_forecast_from_bigquery(time_period: str):
 
         # seasonality_impact = "a strong historical seasonal spike" if seasonality > 0 else "standard seasonal baseline"
 
+        # Historical context string for reasoning
+        hist_note = (
+            f" Same-period {lookback_years}yr avg: {historical_avg} units."
+            if historical_avg > 0 else ""
+        )
+
         # Logic gate: will we completely run out of stock?
         if shortfall > 0:
             action = "Critical Reorder" if shortfall > (stock * 0.5) else "Reorder Soon"
@@ -390,6 +438,7 @@ def fetch_forecast_from_bigquery(time_period: str):
                 f"Predicted shortfall of {shortfall} units. "
                 f"The model projects {predicted} sales driven by a {trend_direction} long-term trend "
                 f"and {seasonality_impact}. Current stock ({stock}) will not cover the selected period."
+                f"{hist_note}"
             )
 
         # Logic gate: Are we within 20 units of running out of stock (the danger zone)?
@@ -398,6 +447,7 @@ def fetch_forecast_from_bigquery(time_period: str):
             reasoning = (
                 f"Stock is cutting it close. You have {stock} units to cover a predicted demand of {predicted}. "
                 f"Based on historical data, unexpected {seasonality_impact} variance could cause a stockout."
+                f"{hist_note}"
             )
 
         # Logic gate: Dead Stock Risk
@@ -407,6 +457,7 @@ def fetch_forecast_from_bigquery(time_period: str):
             reasoning = (
                 f"Overstock Risk: Current stock ({stock}) exceeds the highest projected demand ({upper}). "
                 f"Historical baseline trend is {trend_direction}, suggesting ~{excess} units of trapped capital."
+                f"{hist_note}"
             )
 
         # Logic gate: otherwise, we have plenty of stock left
@@ -415,6 +466,7 @@ def fetch_forecast_from_bigquery(time_period: str):
             reasoning = (
                 f"No immediate action needed. Current stock ({stock}) safely covers the predicted demand ({predicted}). "
                 f"Historical baseline trend is {trend_direction}, but you have sufficient buffer."
+                f"{hist_note}"
             )
 
         reliability = "High" if certainty_score > 80 else "Moderate" if certainty_score > 50 else "Low"
@@ -428,21 +480,101 @@ def fetch_forecast_from_bigquery(time_period: str):
             "upper_bound": upper,
             "certainty_score": certainty_score,
             "action": action,
+            "historical_avg": historical_avg,
             "reasoning": f"{reasoning} Model reliability is {reliability} ({certainty_score}% certainty) based on prediction variance.",
             "trend_direction": trend_direction
-        }) 
+        })
 
     return results
 
 @app.get("/api/analytics/bookstore-insights")
-def get_bookstore_insights(time_period: str = Query("1_quarter", description="Time horizon for forecast")):
+def get_bookstore_insights(
+    time_period: str = Query("1_quarter", description="Time horizon for forecast"),
+    dev_mode: bool = Query(False, description="Use synthetic dev data and dev model"),
+    lookback: str = Query("2_year", description="How many years of same-period history to average (1_year, 2_year, 3_year)"),
+):
     try:
-        # This will be instant if the time_period was requested recently
-        results = fetch_forecast_from_bigquery(time_period)
-        return {"status": "success", "time_period": time_period, "data": results}
+        results = fetch_forecast_from_bigquery(time_period, dev_mode, lookback)
+        return {"status": "success", "time_period": time_period, "dev_mode": dev_mode, "lookback": lookback, "data": results}
     except Exception as e:
         print(f"[ERROR] Bookstore Insights: {e}")
         raise HTTPException(status_code=500, detail="Failed to fetch ML insights from BigQuery.")
+
+
+@lru_cache(maxsize=5)
+def fetch_amazon_bookstore_recommendations():
+    """
+    Returns top Amazon items grouped by category and flags which ones are
+    bookstore-adjacent so the UI can surface purchase signals.
+    """
+    bq_project = os.getenv("VITE_FIREBASE_PROJECT_ID", "")
+    bq_dataset = os.getenv("BIGQUERY_DATASET", "")
+
+    BOOKSTORE_ADJACENT = {
+        "book", "books", "office product", "office products",
+        "apparel", "clothing", "electronics", "computer",
+        "printed publications", "educational", "art", "craft",
+    }
+
+    sql = f"""
+    WITH AmazonTop AS (
+        SELECT
+            `Item Description` AS item_name,
+            `Category`         AS category,
+            SUM(Quantity)      AS amazon_count
+        FROM `{bq_project}.{bq_dataset}.amazon_cleaned`
+        WHERE `Item Description` IS NOT NULL
+          AND `Category`         IS NOT NULL
+        GROUP BY item_name, category
+        ORDER BY amazon_count DESC
+        LIMIT 50
+    ),
+    BookstoreItems AS (
+        SELECT DISTINCT LOWER(`Item Description`) AS item_name_lower
+        FROM `{bq_project}.{bq_dataset}.bookstore_cleaned`
+        WHERE `Item Description` IS NOT NULL
+    )
+    SELECT
+        a.item_name,
+        a.category,
+        a.amazon_count,
+        b.item_name_lower IS NOT NULL AS in_bookstore
+    FROM AmazonTop a
+    LEFT JOIN BookstoreItems b ON LOWER(a.item_name) = b.item_name_lower
+    ORDER BY a.amazon_count DESC
+    """
+
+    bq_client = _bigquery_client()
+    rows = list(bq_client.query(sql).result())
+
+    overlap, gaps = [], []
+    for row in rows:
+        category_lower = (row["category"] or "").lower()
+        is_adjacent = any(k in category_lower for k in BOOKSTORE_ADJACENT)
+        in_bookstore = bool(row["in_bookstore"])
+        count = int(row["amazon_count"] or 0)
+        item = {
+            "item_name": row["item_name"],
+            "category": row["category"],
+            "amazon_count": count,
+        }
+        if in_bookstore:
+            item["suggested_reason"] = f"High Amazon demand ({count:,} orders) confirms this is popular. Keep well-stocked."
+            overlap.append(item)
+        elif is_adjacent:
+            item["suggested_reason"] = f"{count:,} Amazon orders in '{row['category']}'. Consider stocking in the bookstore."
+            gaps.append(item)
+
+    return {"overlap": overlap[:15], "gaps": gaps[:15]}
+
+
+@app.get("/api/analytics/amazon-bookstore-recommendations")
+def get_amazon_bookstore_recommendations():
+    try:
+        return fetch_amazon_bookstore_recommendations()
+    except Exception as e:
+        print(f"[ERROR] Amazon-Bookstore Recommendations: {e}")
+        raise HTTPException(status_code=500, detail="Failed to fetch Amazon purchase signals.")
     
     
 # Accepts and uploads CSVs for data projection
