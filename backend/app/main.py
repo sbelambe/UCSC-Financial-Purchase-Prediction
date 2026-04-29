@@ -310,37 +310,29 @@ def fetch_forecast_from_bigquery(time_period: str, dev_mode: bool = False, lookb
         GROUP BY item_name
     ),
 
-    -- AllTimeSales builds the item universe; not used directly for stock depletion.
-    AllTimeSales AS (
-        SELECT `Item Description` AS item_name, SUM(Quantity) AS total_sold
+    -- Anchor all date calculations to the latest transaction in the dataset
+    -- so the query works correctly regardless of how old the data is relative to today.
+    DataBounds AS (
+        SELECT
+            MAX(CAST(`Transaction Date` AS DATE)) AS latest_date,
+            MIN(CAST(`Transaction Date` AS DATE)) AS earliest_date
         FROM `{data_table}`
-        GROUP BY item_name
     ),
 
-    -- RecentSales: only the past 6 months deplete current shelf stock.
-    -- Using all-time sales would always exceed a fixed baseline and show 0 for everything.
-    RecentSales AS (
-        SELECT `Item Description` AS item_name, SUM(Quantity) AS recent_sold
-        FROM `{data_table}`
-        WHERE CAST(`Transaction Date` AS DATE) >= DATE_SUB(CURRENT_DATE(), INTERVAL 6 MONTH)
-        GROUP BY item_name
-    ),
-
-    InventoryBaseline AS (
-        SELECT item_name, 500 AS starting_stock FROM AllTimeSales
-    ),
-
+    -- CurrentStock: the bookstore dataset represents inventory on hand, not a sales ledger.
+    -- We use the most recent quarter relative to the dataset's latest date as the freshest
+    -- snapshot of what is on the shelf. No baseline subtraction — SUM(Quantity) IS inventory.
     CurrentStock AS (
         SELECT
-            b.item_name,
-            (b.starting_stock - COALESCE(r.recent_sold, 0)) AS stock
-        FROM InventoryBaseline b
-        LEFT JOIN RecentSales r ON b.item_name = r.item_name
+            `Item Description` AS item_name,
+            SUM(Quantity)      AS stock
+        FROM `{data_table}`, DataBounds
+        WHERE CAST(`Transaction Date` AS DATE) >= DATE_SUB(DataBounds.latest_date, INTERVAL 3 MONTH)
+        GROUP BY item_name
     ),
 
     -- HistoricalContext: average sales for the SAME calendar months we are forecasting,
-    -- measured over the past {lookback_years} year(s). This grounds the ML prediction
-    -- in observed same-period demand from prior years.
+    -- measured over the past {lookback_years} year(s) relative to the dataset's latest year.
     HistoricalContext AS (
         SELECT item_name, AVG(period_qty) AS historical_avg
         FROM (
@@ -348,11 +340,12 @@ def fetch_forecast_from_bigquery(time_period: str, dev_mode: bool = False, lookb
                 `Item Description`                                    AS item_name,
                 EXTRACT(YEAR FROM CAST(`Transaction Date` AS DATE))   AS yr,
                 SUM(Quantity)                                         AS period_qty
-            FROM `{data_table}`
+            FROM `{data_table}`, DataBounds
             WHERE
                 EXTRACT(MONTH FROM CAST(`Transaction Date` AS DATE)) IN ({month_list_sql})
                 AND EXTRACT(YEAR FROM CAST(`Transaction Date` AS DATE))
-                    BETWEEN {hist_start_year} AND {hist_end_year}
+                    BETWEEN EXTRACT(YEAR FROM DataBounds.latest_date) - {lookback_years}
+                        AND EXTRACT(YEAR FROM DataBounds.latest_date) - 1
             GROUP BY item_name, yr
         )
         GROUP BY item_name
@@ -487,6 +480,15 @@ def fetch_forecast_from_bigquery(time_period: str, dev_mode: bool = False, lookb
 
     return results
 
+@app.get("/api/analytics/cache/clear")
+def clear_cache():
+    """Dev utility: clears all lru_cache entries so new SQL takes effect without restart."""
+    fetch_forecast_from_bigquery.cache_clear()
+    fetch_item_history.cache_clear()
+    fetch_amazon_bookstore_recommendations.cache_clear()
+    return {"status": "ok", "message": "All caches cleared."}
+
+
 @app.get("/api/analytics/bookstore-insights")
 def get_bookstore_insights(
     time_period: str = Query("1_quarter", description="Time horizon for forecast"),
@@ -499,6 +501,50 @@ def get_bookstore_insights(
     except Exception as e:
         print(f"[ERROR] Bookstore Insights: {e}")
         raise HTTPException(status_code=500, detail="Failed to fetch ML insights from BigQuery.")
+
+
+@lru_cache(maxsize=50)
+def fetch_item_history(item_name: str, dev_mode: bool = False):
+    """
+    Returns monthly aggregated purchase quantities for a single bookstore item.
+    Used to render the time-series chart in the ItemHistoryDrawer.
+    """
+    from google.cloud import bigquery as bq_lib
+    bq_project = os.getenv("VITE_FIREBASE_PROJECT_ID", "")
+    bq_dataset = os.getenv("BIGQUERY_DATASET", "")
+    suffix = "_dev" if dev_mode else ""
+    data_table = f"{bq_project}.{bq_dataset}.bookstore_cleaned{suffix}"
+
+    sql = f"""
+    SELECT
+        FORMAT_DATE('%Y-%m', DATE_TRUNC(CAST(`Transaction Date` AS DATE), MONTH)) AS month,
+        SUM(Quantity) AS quantity
+    FROM `{data_table}`
+    WHERE `Item Description` = @item_name
+      AND `Transaction Date` IS NOT NULL
+    GROUP BY month
+    ORDER BY month ASC
+    """
+
+    job_config = bq_lib.QueryJobConfig(
+        query_parameters=[bq_lib.ScalarQueryParameter("item_name", "STRING", item_name)]
+    )
+    bq_client = _bigquery_client()
+    rows = list(bq_client.query(sql, job_config=job_config).result())
+    return [{"month": row["month"], "quantity": int(row["quantity"] or 0)} for row in rows]
+
+
+@app.get("/api/analytics/item-history")
+def get_item_history(
+    item_name: str = Query(..., description="Exact Item Description from bookstore_cleaned"),
+    dev_mode: bool = Query(False),
+):
+    try:
+        history = fetch_item_history(item_name, dev_mode)
+        return {"item_name": item_name, "history": history}
+    except Exception as e:
+        print(f"[ERROR] Item History ({item_name}): {e}")
+        raise HTTPException(status_code=500, detail="Failed to fetch item history from BigQuery.")
 
 
 @lru_cache(maxsize=5)

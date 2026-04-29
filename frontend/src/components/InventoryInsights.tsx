@@ -20,11 +20,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover"
+import { ItemHistoryDrawer } from './ItemHistoryDrawer';
 
 interface RecommendationRow {
   item_name: string;
@@ -52,6 +48,7 @@ export function InventoryInsights() {
   const [timePeriod, setTimePeriod] = useState<string>('1_quarter');
   const [devMode, setDevMode] = useState<boolean>(false);
   const [lookback, setLookback] = useState<string>('2_year');
+  const [selectedItem, setSelectedItem] = useState<InsightRow | null>(null);
 
   const {
     data: insights = [],
@@ -201,9 +198,10 @@ export function InventoryInsights() {
             const targetPos = Math.max(0, Math.min(100, (safeTarget / maxScale) * 100));
 
             return (
-              <Card 
-                key={index} 
-                className="group flex flex-col h-full overflow-hidden bg-[#F3EDF7] border-none rounded-[24px] shadow-sm hover:shadow-md hover:scale-[1.02]"
+              <Card
+                key={index}
+                onClick={() => setSelectedItem(item)}
+                className="group flex flex-col h-full overflow-hidden bg-[#F3EDF7] border-none rounded-[24px] shadow-sm hover:shadow-md hover:scale-[1.02] cursor-pointer"
               >
                 {/* State Layer Overlay (invisible until hover) */}
                 <div className="absolute inset-0 bg-[#1C1B1F] opacity-0 group-hover:opacity-[0.04] transition-opacity duration-300 pointer-events-none z-10" />
@@ -231,7 +229,7 @@ export function InventoryInsights() {
                   {/* Core Numbers */}
                   <div className="flex justify-between items-end mb-4">
                     <div className="min-w-0">
-                      <div className="text-xs font-medium text-[#49454F] mb-1">Stock</div>
+                      <div className="text-xs font-medium text-[#49454F] mb-1">Inventory</div>
                       <div className={`text-3xl font-medium leading-none truncate ${item.current_stock < 0 ? 'text-[#BA1A1A]' : 'text-[#1C1B1F]'}`}>
                         {item.current_stock.toLocaleString()}
                       </div>
@@ -278,40 +276,24 @@ export function InventoryInsights() {
                   </div>
                 </CardContent>
 
-                <div className="flex items-center justify-between mb-4 mt-auto pt-4 border-t border-[#E7E0EC]/50">
-                  
-                  <div className="flex items-center gap-1.5 bg-[#E8DEF8] px-2.5 py-1 rounded-full">
-                    <span className="text-[10px] font-medium text-[#1D192B]">Confidence: {item.certainty_score}%</span>
+                <div className="flex items-center justify-end mb-4 mt-auto pt-4 border-t border-[#E7E0EC]/50 px-6">
+                  <div className="flex items-center gap-1 text-[10px] font-medium text-[#6750A4]">
+                    <Sparkles className="size-3" />
+                    <span>Tap for details</span>
                   </div>
-
-                  {/* The Compact "More Info" Trigger */}
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <button className="flex items-center gap-1 text-[10px] font-medium text-[#6750A4] hover:text-[#49454F] transition-colors p-1 rounded-md hover:bg-[#E7E0EC]">
-                        <Sparkles className="size-3" />
-                        <span>Analysis</span>
-                      </button>
-                    </PopoverTrigger>
-                    
-                    {/* The floating reasoning box */}
-                    <PopoverContent className="w-72 p-4 bg-[#F3EDF7] border-[#E7E0EC] shadow-md" align="end">
-                      <div className="flex items-center gap-2 mb-2">
-                        <Sparkles className="size-4 text-[#6750A4]" />
-                        <span className="text-xs font-bold text-[#1C1B1F] uppercase tracking-widest">Deep Analysis Engine</span>
-                      </div>
-                      {/* AI Reasoning - Surface Container Low for subtle separation */}
-                      <p className="text-sm text-[#49454F] leading-relaxed">
-                        {item.reasoning}
-                      </p>
-                    </PopoverContent>
-                  </Popover>
-                  
                 </div>
               </Card>
             );
           })
         )}
       </div>
+
+      {/* Item History Drawer */}
+      <ItemHistoryDrawer
+        item={selectedItem}
+        devMode={devMode}
+        onClose={() => setSelectedItem(null)}
+      />
 
       {/* Amazon Purchase Signals */}
       {recommendations && (recommendations.overlap.length > 0 || recommendations.gaps.length > 0) && (
