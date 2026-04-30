@@ -20,7 +20,7 @@ const TopItemsChart = ({
   metricType?: 'currency' | 'quantity' | 'mixed';
 }) => {
   // state to track which metric is selected from the dropdown
-  const [metric, setMetric] = useState<'count' | 'spend'>('count');
+  const [metric, setMetric] = useState<'count' | 'spend' | 'cost_per_item'>('count');
   const [selectedItem, setSelectedItem] = useState<TopItem | null>(null);
 
   type ChartDataPoint = TopItem & {
@@ -37,6 +37,10 @@ const TopItemsChart = ({
         const valA = (a.total_spent || 0) + (a.projected_spent || 0);
         const valB = (b.total_spent || 0) + (b.projected_spent || 0);
         return valB - valA;
+      } else if (metric === 'cost_per_item') {
+        const valA = a.cost_per_item || 0;
+        const valB = b.cost_per_item || 0;
+        return valB - valA;
       } else {
         const valA = (a.count || 0) + (a.projected_count || 0);
         const valB = (b.count || 0) + (b.projected_count || 0);
@@ -52,6 +56,8 @@ const TopItemsChart = ({
         : item.clean_item_name,
       count: item.count || 0,
       total_spent: Number(item.total_spent) || 0,
+      cost_per_item: Number(item.cost_per_item) || 0,
+      quantity: Number(item.quantity) || 0,
       fullName: item.clean_item_name,
       projected_count: item.projected_count ? Number(item.projected_count) : undefined,
       projected_spent: item.projected_spent ? Number(item.projected_spent) : undefined,
@@ -85,10 +91,10 @@ const TopItemsChart = ({
 
   // Smart Y-Axis formatter to prevent large numbers from overlapping
   const yAxisFormatter = (value: number) => {
-    if (metric === 'spend' && metricType !== 'quantity') {
+    if ((metric === 'spend' || metric === 'cost_per_item') && metricType !== 'quantity') {
       if (value >= 1000000) return `$${(value / 1000000).toFixed(1)}M`;
       if (value >= 1000) return `$${(value / 1000).toFixed(0)}k`;
-      return `$${value}`;
+      return `$${value.toFixed(0)}`;
     }
     // Format large transaction counts with commas
     return new Intl.NumberFormat('en-US').format(value);
@@ -104,12 +110,13 @@ const TopItemsChart = ({
         </h3>
         <select
           value={metric}
-          onChange={(e) => setMetric(e.target.value as 'count' | 'spend')}
+          onChange={(e) => setMetric(e.target.value as 'count' | 'spend' | 'cost_per_item')}
           className="px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm font-semibold text-gray-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
           style={{ outlineColor: '#003c6c' }}
         >
           <option value="count">Number of Transactions</option>
           <option value="spend">{metricLabel}</option>
+          <option value="cost_per_item">Cost Per Item</option>
         </select>
       </div>
       
@@ -158,6 +165,12 @@ const TopItemsChart = ({
                           <p className={`text-xs font-semibold ${metric === 'spend' ? 'text-blue-700' : 'text-slate-500'}`}>
                             {metricLabel}: <span className="font-mono text-slate-600">{metricType === 'quantity' ? new Intl.NumberFormat('en-US').format(d.total_spent) : formatCurrency(d.total_spent)}</span>
                           </p>
+                          <p className={`text-xs font-semibold ${metric === 'cost_per_item' ? 'text-blue-700' : 'text-slate-500'}`}>
+                            Cost Per Item: <span className="font-mono text-slate-600">{formatCurrency(d.cost_per_item || 0)}</span>
+                          </p>
+                          <p className="text-xs font-semibold text-slate-500">
+                            Quantity: <span className="font-mono text-slate-600">{new Intl.NumberFormat('en-US').format(d.quantity || 0)}</span>
+                          </p>
 
                           {/* display sandbox preview stats in the tooltip if they exist */}
                           {((d.projected_count || 0) > 0 || (d.projected_spent || 0) > 0) && (
@@ -186,9 +199,13 @@ const TopItemsChart = ({
 
               {/* Historical Count Bar */}
               <Bar 
-                dataKey={metric === 'count' ? "count" : "total_spent"} 
-                name={metric === 'count' ? "Current Frequency" : metricLabel} 
-                stackId="a" 
+                dataKey={metric === 'count' ? "count" : (metric === 'cost_per_item' ? 'cost_per_item' : "total_spent")} 
+                name={
+                  metric === 'count' 
+                    ? "Current Frequency" 
+                    : (metric === 'cost_per_item' ? "Cost Per Item" : metricLabel)
+                } 
+                stackId={metric === 'cost_per_item' ? undefined : "a"}
                 radius={[0, 0, 4, 4]}
               >
                 {chartData.map((entry, index) => {
@@ -206,22 +223,24 @@ const TopItemsChart = ({
                 })}
               </Bar>
 
-              {/* Preview Stacked Bar */}
-              <Bar 
-                dataKey={metric === 'count' ? "projected_count" : "projected_spent"} 
-                name="Pending Upload" 
-                stackId="a" 
-                fill="#a855f7" 
-                radius={[4, 4, 0, 0]} 
-              >
-                {chartData.map((entry, index) => (
-                  <Cell
-                    key={`pending-cell-${index}`}
-                    cursor="pointer"
-                    onClick={() => setSelectedItem(entry)}
-                  />
-                ))}
-              </Bar>
+              {/* Preview Stacked Bar - only show for count and spend metrics */}
+              {(metric === 'count' || metric === 'spend') && (
+                <Bar 
+                  dataKey={metric === 'count' ? "projected_count" : "projected_spent"} 
+                  name="Pending Upload" 
+                  stackId="a" 
+                  fill="#a855f7" 
+                  radius={[4, 4, 0, 0]} 
+                >
+                  {chartData.map((entry, index) => (
+                    <Cell
+                      key={`pending-cell-${index}`}
+                      cursor="pointer"
+                      onClick={() => setSelectedItem(entry)}
+                    />
+                  ))}
+                </Bar>
+              )}
 
             </BarChart>
           </div>

@@ -311,6 +311,7 @@ def _source_select_sql(table_name: str, dataset: str) -> str:
           {_year_expression(date_col)} AS transaction_year,
           {parsed_date_expression} AS parsed_transaction_date,
           {_quarter_case_expression(parsed_date_expression)} AS transaction_quarter,
+          {_numeric_expression('Quantity')} AS item_quantity,
           {canonical_fields}
         FROM `{table_name}`
     """.strip()
@@ -715,7 +716,11 @@ def query_top_items_from_bigquery(
             {_representative_text_field('merchant_city')},
             {_representative_text_field('merchant_type')},
             {_representative_text_field('transaction_type')},
-            ROUND(SUM(IFNULL(amount, 0)), 2) AS total_spent
+            ROUND(SUM(IFNULL(amount, 0)), 2) AS total_spent,
+            ROUND(
+              SUM(IFNULL(amount, 0)) / NULLIF(SUM(IFNULL(item_quantity, 0)), 0),
+              2
+            ) AS cost_per_item
                     FROM classified_source
                     GROUP BY dataset, display_item_name
         )
@@ -734,6 +739,7 @@ def query_top_items_from_bigquery(
           ir.sales_tax,
           ir.total_price,
           ir.quantity,
+          ir.cost_per_item,
           ir.merchant_name,
           ir.merchant_state,
           ir.merchant_city,
@@ -781,6 +787,8 @@ def query_top_items_from_bigquery(
                 "condensed_group": row.get("condensed_group"),
                 "count": int(row.get("count") or 0),
                 "total_spent": round(float(row.get("total_spent") or 0), 2),
+                "cost_per_item": round(float(row.get("cost_per_item") or 0), 2),
+                "quantity": round(float(row.get("quantity") or 0), 2),
                 "vendors": _serialize_vendors(row.get("vendors")),
                 "row_values": _serialize_row_values(row),
                 "drilldown_items": _serialize_drilldown_items(row.get("drilldown_items")),
