@@ -4,6 +4,7 @@
 # avoid unnecessary reprocessing.
 import io
 import os
+import re
 import json
 import pandas as pd
 from google.oauth2 import service_account
@@ -56,6 +57,35 @@ def convert_excel_to_csv(excel_path, csv_path):
     df = pd.read_excel(excel_path)
     df.to_csv(csv_path, index=False)
 
+# Extracts the source name from the Drive filename
+def detect_source(filename):
+    lower_name = filename.lower()
+
+    if "amazon" in lower_name:
+        return "amazon"
+    elif "cruzbuy" in lower_name:
+        return "cruzbuy"
+    elif "onecard" in lower_name or "procard" in lower_name:
+        return "onecard"
+    elif "bay tree" in lower_name or "bookstore" in lower_name:
+        return "bookstore"
+
+    return None
+
+
+# Extracts a 4-digit year from the filename
+def extract_year(filename):
+    match = re.search(r"(19\d{2}|20\d{2})", filename)
+    if not match:
+        return None
+
+    year = int(match.group(1))
+
+    if 1900 <= year <= 2100:
+        return str(year)
+
+    return None
+
 
 # ----------------------------------------------------
 # SYNC LOGIC
@@ -81,26 +111,24 @@ def sync_drive_folder(folder_id, raw_dir):
         file_id = file["id"]
         modified = file["modifiedTime"]
 
-        new_metadata[name] = modified
+        source = detect_source(name)
+        year = extract_year(name)
 
-        if name not in old_metadata or old_metadata[name] != modified:
+        if not source:
+            continue
+
+        # If no year is found, store as "unknown"
+        if not year:
+            year = "unknown"
+
+        metadata_key = f"{source}_{year}"
+
+        if metadata_key not in old_metadata or old_metadata[metadata_key] != modified:
             print(f"File changed: {name}")
             changed = True
 
-            # Determine normalized name for the file based on its name
-            if "Amazon" in name:
-                base_name = "amazon"
-            elif "CruzBuy" in name:
-                base_name = "cruzbuy"
-            elif "OneCard" in name:
-                base_name = "onecard"
-            elif "Bay Tree" in name or "Bookstore" in name:
-                base_name = "bookstore"
-            else:
-                continue
-
-            temp_excel_path = os.path.join(raw_dir, f"{base_name}.xlsx")
-            final_csv_path = os.path.join(raw_dir, f"{base_name}.csv")
+            temp_excel_path = os.path.join(raw_dir, f"{source}_{year}.xlsx")
+            final_csv_path = os.path.join(raw_dir, f"{source}_{year}.csv")
 
             # 1. Download Excel
             download_excel(file_id, temp_excel_path)
@@ -110,6 +138,9 @@ def sync_drive_folder(folder_id, raw_dir):
 
             # 3. Remove temp Excel
             os.remove(temp_excel_path)
+
+        new_metadata[metadata_key] = modified
+            
 
     # If any files were changed, save the new metadata
     if changed:
