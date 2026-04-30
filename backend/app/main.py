@@ -7,13 +7,15 @@ import pandas as pd
 from fastapi import FastAPI, HTTPException, File, UploadFile, Form, Query
 from fastapi.middleware.cors import CORSMiddleware
 from functools import lru_cache
-from typing import Optional
+from typing import Any, Dict, Optional
+from pydantic import BaseModel, Field
 from .analytics import get_item_freq, get_spend_over_time
 from .analytics_bookstore import get_campus_store_item_insights
 from .data_config import dataset_schema
 from .dataset_explorer import get_dataset_explorer_rows
 from .bigquery_service import query_spend_over_time_from_bigquery, query_top_items_from_bigquery, _bigquery_client
 from firebase.summaries import compute_top_items_detailed
+from .services.chatbot_service import generate_chatbot_guidance
 # # from backend.jobs.run_full_pipeline import run_full_pipeline
 from dotenv import load_dotenv
 
@@ -30,6 +32,16 @@ load_dotenv()
 
 # Create the FastAPI App.
 app = FastAPI(title="UCSC Financial Dashboard API")
+
+
+class ChatbotGuidanceRequest(BaseModel):
+    message: str = Field(default="", description="The user message from the chatbot input.")
+    current_view: str = Field(default="dashboard", description="Current UI view or route.")
+    dataset: str = Field(default="overall", description="Active dataset context.")
+    selected_vendor: Optional[str] = Field(default=None, description="Currently selected vendor, if any.")
+    selected_category: Optional[str] = Field(default=None, description="Currently selected category, if any.")
+    selected_time_period: Optional[str] = Field(default=None, description="Selected time period or quarter, if any.")
+    filters: Dict[str, Any] = Field(default_factory=dict, description="Additional dashboard filters.")
 
 # --- CORS Middleware ---
 # Allows the frontend (running on port 5173) to communicate with this backend (port 8000).
@@ -211,6 +223,25 @@ def spend_over_time_bigquery(
             selected_quarter=selected_quarter,
         )
         return {"status": "success", "data": data}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/chatbot/guidance")
+def chatbot_guidance(payload: ChatbotGuidanceRequest):
+    try:
+        result = generate_chatbot_guidance(
+            message=payload.message,
+            context={
+                "current_view": payload.current_view,
+                "dataset": payload.dataset,
+                "selected_vendor": payload.selected_vendor,
+                "selected_category": payload.selected_category,
+                "selected_time_period": payload.selected_time_period,
+                "filters": payload.filters,
+            },
+        )
+        return {"status": "success", "data": result}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     

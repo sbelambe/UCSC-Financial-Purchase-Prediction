@@ -67,7 +67,11 @@ function AuthenticatedLayout({ currentView, children }: AuthenticatedLayoutProps
 
       <main className="max-w-[1800px] mx-auto w-full min-w-0 px-6 py-6">{children}</main>
 
-      <Chatbot isOpen={isChatOpen} onToggle={() => setIsChatOpen(!isChatOpen)} />
+      <Chatbot
+        isOpen={isChatOpen}
+        onToggle={() => setIsChatOpen(!isChatOpen)}
+        currentView={currentView}
+      />
     </div>
   );
 }
