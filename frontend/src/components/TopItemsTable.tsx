@@ -28,6 +28,8 @@ export interface TopItem {
   condensed_group?: string | null;
   count: number;
   total_spent: number;
+  quantity?: number;
+  cost_per_item?: number;
   vendors: VendorStat[];
   row_values?: Record<string, string | number | null>;
   drilldown_items?: CondensedDrilldownItem[];
