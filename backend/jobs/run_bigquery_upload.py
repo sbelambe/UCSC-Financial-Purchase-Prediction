@@ -69,11 +69,60 @@ def upload_dataframe_to_bigquery(df: pd.DataFrame, table_name: str):
 def main():
     """
     Standalone execution to upload all local cleaned CSVs to BigQuery.
-    """
-    # Dynamically resolve the absolute path to 'clean' data folder.
-    base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "data_cleaning", "data", "clean"))
 
-    # Map local CSV filenames to their target BigQuery table names
+    Flags:
+      --dev   Upload the combined 3-year fake bookstore data as 'bookstore_cleaned_dev'
+              instead of the real production tables. Use this after running
+              generate_mock_data.py to prepare a dev BigQuery table for model testing.
+    """
+    import sys
+    dev_mode = "--dev" in sys.argv
+
+    base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "data_cleaning", "data"))
+
+    if dev_mode:
+        fake_dir = os.path.join(base_dir, "fake")
+
+        # Upload bookstore dev data
+        bookstore_files = ["fake_bookstore_23.csv", "fake_bookstore_24.csv", "fake_bookstore_25.csv"]
+        bookstore_present = [f for f in bookstore_files if os.path.exists(os.path.join(fake_dir, f))]
+
+        if bookstore_present:
+            print(f"[DEV MODE] Combining {len(bookstore_present)} fake bookstore files into 'bookstore_cleaned_dev'...\n")
+            frames = [pd.read_csv(os.path.join(fake_dir, f)) for f in bookstore_present]
+            combined = pd.concat(frames, ignore_index=True)
+            print(f"  Total rows: {len(combined):,}")
+            try:
+                upload_dataframe_to_bigquery(combined, "bookstore_cleaned_dev")
+            except Exception as e:
+                print(f"[ERROR] Failed to upload bookstore_cleaned_dev: {e}")
+        else:
+            print("[WARN] No fake bookstore files found in data/fake/. Run generate_mock_data.py first.")
+
+        # Upload amazon dev data
+        amazon_files = ["fake_amazon_23.csv", "fake_amazon_24.csv", "fake_amazon_25.csv"]
+        amazon_present = [f for f in amazon_files if os.path.exists(os.path.join(fake_dir, f))]
+
+        if amazon_present:
+            print(f"\n[DEV MODE] Combining {len(amazon_present)} fake amazon files into 'amazon_cleaned_dev'...\n")
+            frames = [pd.read_csv(os.path.join(fake_dir, f)) for f in amazon_present]
+            combined = pd.concat(frames, ignore_index=True)
+            print(f"  Total rows: {len(combined):,}")
+            try:
+                upload_dataframe_to_bigquery(combined, "amazon_cleaned_dev")
+            except Exception as e:
+                print(f"[ERROR] Failed to upload amazon_cleaned_dev: {e}")
+        else:
+            print("[WARN] No fake amazon files found in data/fake/. Run generate_mock_data.py first.")
+
+        print("\n[DEV MODE] Upload complete.")
+        print("Next: In BigQuery console, run the ARIMA_PLUS CREATE MODEL SQL")
+        print("  targeting 'bookstore_cleaned_dev' → 'bookstore_inventory_forecast_dev'")
+        print("  targeting 'amazon_cleaned_dev'    → 'amazon_demand_forecast_dev'")
+        return
+
+    # Normal (production) upload path
+    clean_dir = os.path.join(base_dir, "clean")
     datasets_to_upload = {
         "amazon_clean.csv": "amazon_cleaned",
         "bookstore_clean.csv": "bookstore_cleaned",
@@ -81,24 +130,21 @@ def main():
         "onecard_clean.csv": "onecard_cleaned"
     }
 
-    print(f"Starting BigQuery upload sequence. Looking for files in: {base_dir}\n")
+    print(f"Starting BigQuery upload sequence. Looking for files in: {clean_dir}\n")
 
     for filename, table_name in datasets_to_upload.items():
-        file_path = os.path.join(base_dir, filename)
-        
+        file_path = os.path.join(clean_dir, filename)
+
         if os.path.exists(file_path):
             print(f"Reading local file: {filename}...")
             try:
-                # Read the CSV into a pandas DataFrame
                 df = pd.read_csv(file_path)
-                
-                # Upload to BigQuery
                 upload_dataframe_to_bigquery(df, table_name)
             except Exception as e:
                 print(f"[ERROR] Failed to process {filename}: {e}")
         else:
             print(f"[SKIP] File not found: {filename}. Skipping upload for {table_name}.")
-            
+
     print("\nUpload sequence complete.")
 
 
