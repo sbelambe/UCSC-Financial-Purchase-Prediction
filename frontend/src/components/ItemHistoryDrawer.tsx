@@ -14,7 +14,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet';
-import { AlertCircle, CheckCircle, Clock, PackageSearch, Sparkles, X } from 'lucide-react';
+import { AlertCircle, CheckCircle, Clock, PackageSearch, Sparkles } from 'lucide-react';
 import type { InsightRow } from './InventoryInsights';
 
 interface ItemHistoryDrawerProps {
@@ -99,19 +99,11 @@ export function ItemHistoryDrawer({ item, devMode, onClose }: ItemHistoryDrawerP
           <>
             {/* Header */}
             <SheetHeader className="px-6 pt-6 pb-4 border-b border-[#E7E0EC]">
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex flex-col gap-2 min-w-0">
-                  <SheetTitle className="text-lg font-medium text-[#1C1B1F] leading-snug">
-                    {item.category}
-                  </SheetTitle>
-                  <ActionBadge action={item.action} />
-                </div>
-                <button
-                  onClick={onClose}
-                  className="shrink-0 p-1.5 rounded-full hover:bg-[#E7E0EC] transition-colors"
-                >
-                  <X className="size-4 text-[#49454F]" />
-                </button>
+              <div className="flex flex-col gap-2 min-w-0">
+                <SheetTitle className="text-lg font-medium text-[#1C1B1F] leading-snug">
+                  {item.category}
+                </SheetTitle>
+                <ActionBadge action={item.action} />
               </div>
             </SheetHeader>
 
