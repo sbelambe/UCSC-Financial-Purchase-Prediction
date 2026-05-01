@@ -480,10 +480,206 @@ def fetch_forecast_from_bigquery(time_period: str, dev_mode: bool = False, lookb
 
     return results
 
+@lru_cache(maxsize=30)
+def fetch_amazon_forecast_from_bigquery(time_period: str, dev_mode: bool = False, lookback: str = "2_year"):
+    """
+    Retrieves Amazon demand forecasts per item name using BQML ARIMA+.
+    current_stock = recent 3-month Amazon order volume for that item.
+    predicted_demand = ML forecast of future Amazon orders.
+    Both values come from amazon_cleaned so the comparison is always valid.
+    """
+    import datetime
+    bq_project = os.getenv("VITE_FIREBASE_PROJECT_ID", "")
+    bq_dataset = os.getenv("BIGQUERY_DATASET", "")
+    model_suffix = "_dev" if dev_mode else ""
+    model_path = f"{bq_project}.{bq_dataset}.amazon_demand_forecast{model_suffix}"
+    amazon_table = f"{bq_project}.{bq_dataset}.amazon_cleaned{model_suffix}"
+
+    horizon_map = {"1_month": 1, "1_quarter": 3, "6_months": 6, "1_year": 12}
+    months_to_forecast = horizon_map.get(time_period, 3)
+
+    lookback_map = {"1_year": 1, "2_year": 2, "3_year": 3}
+    lookback_years = lookback_map.get(lookback, 2)
+
+    today = datetime.date.today()
+    forecast_months = [((today.month - 1 + i + 1) % 12) + 1 for i in range(months_to_forecast)]
+    month_list_sql = ", ".join(str(m) for m in forecast_months)
+
+    sql = f"""
+    WITH Explanations AS (
+        SELECT
+            item_name,
+            SUM(time_series_data)                AS predicted_qty,
+            SUM(prediction_interval_lower_bound) AS lower_bound,
+            SUM(prediction_interval_upper_bound) AS upper_bound,
+            AVG(trend)                           AS avg_trend,
+            AVG(seasonal_period_yearly)          AS yearly_seasonality
+        FROM ML.EXPLAIN_FORECAST(
+            MODEL `{model_path}`,
+            STRUCT({months_to_forecast} AS horizon)
+        )
+        WHERE time_series_type = 'forecast'
+        GROUP BY item_name
+    ),
+
+    -- Recent 3-month order volume per item, anchored to dataset's own latest date
+    RecentOrders AS (
+        SELECT
+            `Item Description` AS item_name,
+            SUM(Quantity)      AS recent_qty
+        FROM `{amazon_table}`
+        WHERE CAST(`Transaction Date` AS DATE) >= DATE_SUB(
+            (SELECT MAX(CAST(`Transaction Date` AS DATE)) FROM `{amazon_table}`),
+            INTERVAL 3 MONTH
+        )
+          AND `Item Description` IS NOT NULL
+        GROUP BY `Item Description`
+    ),
+
+    HistoricalContext AS (
+        SELECT item_name, AVG(period_qty) AS historical_avg
+        FROM (
+            SELECT
+                `Item Description` AS item_name,
+                EXTRACT(YEAR FROM CAST(`Transaction Date` AS DATE))  AS yr,
+                SUM(Quantity)                                        AS period_qty
+            FROM `{amazon_table}`
+            WHERE
+                EXTRACT(MONTH FROM CAST(`Transaction Date` AS DATE)) IN ({month_list_sql})
+                AND EXTRACT(YEAR FROM CAST(`Transaction Date` AS DATE))
+                    BETWEEN (SELECT EXTRACT(YEAR FROM MAX(CAST(`Transaction Date` AS DATE))) FROM `{amazon_table}`) - {lookback_years}
+                        AND (SELECT EXTRACT(YEAR FROM MAX(CAST(`Transaction Date` AS DATE))) FROM `{amazon_table}`) - 1
+                AND `Item Description` IS NOT NULL
+            GROUP BY item_name, yr
+        )
+        GROUP BY item_name
+    )
+
+    SELECT
+        e.item_name,
+        CAST(e.predicted_qty   AS INT64)              AS predicted_qty,
+        CAST(e.lower_bound     AS INT64)              AS lower_bound,
+        CAST(e.upper_bound     AS INT64)              AS upper_bound,
+        e.avg_trend,
+        e.yearly_seasonality,
+        COALESCE(CAST(r.recent_qty AS INT64), 0)      AS recent_orders,
+        CAST(COALESCE(h.historical_avg, 0) AS INT64)  AS historical_avg
+    FROM Explanations e
+    LEFT JOIN RecentOrders      r ON e.item_name = r.item_name
+    LEFT JOIN HistoricalContext h ON e.item_name = h.item_name
+    WHERE e.item_name IS NOT NULL
+      AND CAST(e.predicted_qty AS INT64) > 0
+    ORDER BY CAST(e.predicted_qty AS INT64) DESC
+    LIMIT 25
+    """
+
+    bq_client = _bigquery_client()
+    query_job = bq_client.query(sql)
+    results = []
+
+    for row in query_job.result():
+        item_name = row["item_name"]
+        predicted = int(row["predicted_qty"] or 0)
+        recent = int(row["recent_orders"] or 0)
+        trend = row["avg_trend"] or 0
+        seasonality = row["yearly_seasonality"] or 0
+        upper = int(row["upper_bound"] or 0)
+        lower = int(row["lower_bound"] or 0)
+        historical_avg = int(row["historical_avg"] or 0)
+
+        if predicted > 0:
+            interval_width = upper - lower
+            error_margin = interval_width / (predicted * 2) if predicted > 0 else 0.5
+            certainty_score = max(5, min(99, int((1 - error_margin) * 100)))
+        else:
+            certainty_score = 50
+
+        if trend > 0.05:
+            trend_direction = "growing"
+        elif trend < -0.05:
+            trend_direction = "declining"
+        else:
+            trend_direction = "stable"
+
+        if seasonality == 0:
+            seasonality_impact = "a stable, non-seasonal baseline"
+        else:
+            seasonality_impact = "historical seasonal spikes" if seasonality > 0 else "standard seasonal baseline"
+
+        hist_note = (
+            f" Same-period {lookback_years}yr avg: {historical_avg} orders."
+            if historical_avg > 0 else ""
+        )
+
+        shortfall = predicted - recent
+        if shortfall > 0 and shortfall > (recent * 0.5):
+            action = "Critical Reorder"
+            reasoning = (
+                f"Amazon demand is surging — forecast of {predicted} orders vs. only {recent} recent. "
+                f"Shortfall of {shortfall} units driven by a {trend_direction} trend and {seasonality_impact}.{hist_note}"
+            )
+        elif shortfall > 0:
+            action = "Reorder Soon"
+            reasoning = (
+                f"Demand is climbing — {predicted} orders forecast vs. {recent} recently. "
+                f"A {trend_direction} trend suggests continued growth.{hist_note}"
+            )
+        elif shortfall > -20:
+            action = "Monitor Closely"
+            reasoning = (
+                f"Demand is near recent volume ({recent} orders vs. {predicted} forecast). "
+                f"Variance from {seasonality_impact} could push this higher.{hist_note}"
+            )
+        elif recent > upper:
+            action = "Dead Stock Risk"
+            reasoning = (
+                f"Recent orders ({recent}) exceed the high-end forecast ({upper}), suggesting demand is cooling. "
+                f"The {trend_direction} trend supports lower activity ahead.{hist_note}"
+            )
+        else:
+            action = "Adequate Stock"
+            reasoning = (
+                f"Demand is stable. Forecast of {predicted} orders aligns with recent volume ({recent}). "
+                f"Historical baseline is {trend_direction} with {seasonality_impact}.{hist_note}"
+            )
+
+        reliability = "High" if certainty_score > 80 else "Moderate" if certainty_score > 50 else "Low"
+
+        results.append({
+            "category": item_name,
+            "current_stock": recent,
+            "predicted_demand": predicted,
+            "lower_bound": lower,
+            "upper_bound": upper,
+            "certainty_score": certainty_score,
+            "action": action,
+            "historical_avg": historical_avg,
+            "reasoning": f"{reasoning} Model reliability is {reliability} ({certainty_score}% certainty).",
+            "trend_direction": trend_direction,
+        })
+
+    return results
+
+
+@app.get("/api/analytics/amazon-insights")
+def get_amazon_insights(
+    time_period: str = Query("1_quarter", description="Time horizon for forecast"),
+    dev_mode: bool = Query(False, description="Use synthetic dev data and dev model"),
+    lookback: str = Query("2_year", description="How many years of same-period history to average"),
+):
+    try:
+        results = fetch_amazon_forecast_from_bigquery(time_period, dev_mode, lookback)
+        return {"status": "success", "time_period": time_period, "dev_mode": dev_mode, "lookback": lookback, "data": results}
+    except Exception as e:
+        print(f"[ERROR] Amazon Insights: {e}")
+        raise HTTPException(status_code=500, detail="Failed to fetch Amazon ML insights from BigQuery.")
+
+
 @app.get("/api/analytics/cache/clear")
 def clear_cache():
     """Dev utility: clears all lru_cache entries so new SQL takes effect without restart."""
     fetch_forecast_from_bigquery.cache_clear()
+    fetch_amazon_forecast_from_bigquery.cache_clear()
     fetch_item_history.cache_clear()
     fetch_amazon_bookstore_recommendations.cache_clear()
     return {"status": "ok", "message": "All caches cleared."}
