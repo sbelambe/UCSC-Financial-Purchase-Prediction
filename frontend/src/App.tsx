@@ -5,6 +5,7 @@ import { Dashboard } from './components/Dashboard';
 import { Chatbot } from './components/Chatbot';
 import { AppHeader } from './components/AppHeader';
 import { AuthProvider } from './context/AuthContext';
+import { TooltipProvider } from './components/ui/tooltip';
 import ProtectedRoute from './components/ProtectedRoute';
 import Login from './pages/Login';
 import DatasetExplorer from './pages/DatasetExplorer';
@@ -94,19 +95,21 @@ function DatasetExplorerPage() {
 
 export default function App() {
   return (
-  <QueryClientProvider client={queryClient}>
+    <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <BrowserRouter>
-          <Routes>
-            <Route path="/login" element={<Login />} />
+        <TooltipProvider>
+          <BrowserRouter>
+            <Routes>
+              <Route path="/login" element={<Login />} />
 
-            <Route element={<ProtectedRoute />}>
-              <Route path="/dashboard" element={<DashboardPage />} />
-              <Route path="/dataset-explorer" element={<DatasetExplorerPage />} />
-              <Route path="/" element={<Navigate to="/dashboard" replace />} />
-            </Route>
-          </Routes>
-        </BrowserRouter>
+              <Route element={<ProtectedRoute />}>
+                <Route path="/dashboard" element={<DashboardPage />} />
+                <Route path="/dataset-explorer" element={<DatasetExplorerPage />} />
+                <Route path="/" element={<Navigate to="/dashboard" replace />} />
+              </Route>
+            </Routes>
+          </BrowserRouter>
+        </TooltipProvider>
       </AuthProvider>
     </QueryClientProvider>
   );
