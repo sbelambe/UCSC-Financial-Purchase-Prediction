@@ -207,6 +207,47 @@ def _records_for_json(df: pd.DataFrame) -> List[Dict[str, Any]]:
     ]
 
 
+def _filtered_dataset_frame(
+    *,
+    dataset: str,
+    search: str,
+    search_field: str,
+    merchant: str,
+    category: str,
+    start_date: str,
+    end_date: str,
+    sort_by: str,
+    sort_dir: str,
+) -> tuple[pd.DataFrame, pd.DataFrame, Dict[str, Any], str]:
+    normalized_dataset = dataset.strip().lower()
+    schema = dataset_schema(normalized_dataset)
+    raw_df = _load_dataset_frame(normalized_dataset)
+    df = _normalize_frame(raw_df, normalized_dataset)
+
+    filtered = _apply_search(df, search, search_field)
+    filtered = _apply_exact_filter(filtered, "Merchant Name", merchant)
+    filtered = _apply_exact_filter(filtered, "Category", category)
+    filtered = _apply_date_range(filtered, start_date, end_date)
+    filtered = _sort_frame(filtered, sort_by, sort_dir)
+
+    visible_columns = [
+        column_details["canonical_name"]
+        for column_details in schema["columns"]
+        if column_details["available"]
+    ]
+
+    export_df = filtered[visible_columns].copy()
+    if "Transaction Date" in export_df.columns:
+        export_df["Transaction Date"] = pd.to_datetime(
+            export_df["Transaction Date"], errors="coerce"
+        ).dt.strftime("%Y-%m-%d")
+        export_df["Transaction Date"] = export_df["Transaction Date"].where(
+            export_df["Transaction Date"].notna(), None
+        )
+
+    return export_df, df, schema, normalized_dataset
+
+
 def get_dataset_explorer_rows(
     *,
     dataset: str,
@@ -221,16 +262,17 @@ def get_dataset_explorer_rows(
     sort_by: str,
     sort_dir: str,
 ) -> Dict[str, Any]:
-    normalized_dataset = dataset.strip().lower()
-    schema = dataset_schema(normalized_dataset)
-    raw_df = _load_dataset_frame(normalized_dataset)
-    df = _normalize_frame(raw_df, normalized_dataset)
-
-    filtered = _apply_search(df, search, search_field)
-    filtered = _apply_exact_filter(filtered, "Merchant Name", merchant)
-    filtered = _apply_exact_filter(filtered, "Category", category)
-    filtered = _apply_date_range(filtered, start_date, end_date)
-    filtered = _sort_frame(filtered, sort_by, sort_dir)
+    filtered, df, schema, normalized_dataset = _filtered_dataset_frame(
+        dataset=dataset,
+        search=search,
+        search_field=search_field,
+        merchant=merchant,
+        category=category,
+        start_date=start_date,
+        end_date=end_date,
+        sort_by=sort_by,
+        sort_dir=sort_dir,
+    )
 
     safe_page = max(page, 1)
     safe_page_size = min(max(page_size, 10), 100)
@@ -241,15 +283,7 @@ def get_dataset_explorer_rows(
     end_index = start_index + safe_page_size
 
     page_df = filtered.iloc[start_index:end_index].copy()
-    if "Transaction Date" in page_df.columns:
-        page_df["Transaction Date"] = pd.to_datetime(page_df["Transaction Date"], errors="coerce").dt.strftime("%Y-%m-%d")
-        page_df["Transaction Date"] = page_df["Transaction Date"].where(page_df["Transaction Date"].notna(), None)
-
-    visible_columns = [
-        column_details["canonical_name"]
-        for column_details in schema["columns"]
-        if column_details["available"]
-    ]
+    visible_columns = list(page_df.columns)
 
     return {
         "dataset": normalized_dataset,
@@ -267,4 +301,39 @@ def get_dataset_explorer_rows(
             "categories": _available_filter_values(df, "Category"),
         },
         "schema": schema,
+    }
+
+
+def export_dataset_explorer_rows(
+    *,
+    dataset: str,
+    search: str,
+    search_field: str,
+    merchant: str,
+    category: str,
+    start_date: str,
+    end_date: str,
+    sort_by: str,
+    sort_dir: str,
+) -> Dict[str, Any]:
+    filtered, _, schema, normalized_dataset = _filtered_dataset_frame(
+        dataset=dataset,
+        search=search,
+        search_field=search_field,
+        merchant=merchant,
+        category=category,
+        start_date=start_date,
+        end_date=end_date,
+        sort_by=sort_by,
+        sort_dir=sort_dir,
+    )
+
+    return {
+        "dataset": normalized_dataset,
+        "label": schema["label"],
+        "columns": list(filtered.columns),
+        "rows": _records_for_json(filtered),
+        "total_rows": len(filtered),
+        "sort_by": sort_by if sort_by in filtered.columns else "Transaction Date",
+        "sort_dir": "desc" if sort_dir.lower() == "desc" else "asc",
     }
