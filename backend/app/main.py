@@ -6,13 +6,14 @@ import sys, os, io
 import pandas as pd
 from fastapi import FastAPI, HTTPException, File, UploadFile, Form, Query
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from functools import lru_cache
 from typing import Any, Dict, Optional
 from pydantic import BaseModel, Field
 from .analytics import get_item_freq, get_spend_over_time
 from .analytics_bookstore import get_campus_store_item_insights
 from .data_config import dataset_schema
-from .dataset_explorer import get_dataset_explorer_rows
+from .dataset_explorer import export_dataset_explorer_rows, get_dataset_explorer_rows
 from .bigquery_service import query_spend_over_time_from_bigquery, query_top_items_from_bigquery, _bigquery_client
 from firebase.summaries import compute_top_items_detailed
 from .services.chatbot_service import generate_chatbot_guidance
@@ -177,6 +178,66 @@ def dataset_explorer(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+# Exports the dataset explorer results
+@app.get("/api/dataset-explorer/export")
+def dataset_explorer_export(
+    dataset: str = "amazon",
+    search: str = "",
+    search_field: str = "all",
+    merchant: str = "",
+    category: str = "",
+    start_date: str = "",
+    end_date: str = "",
+    sort_by: str = "Transaction Date",
+    sort_dir: str = "desc",
+    format: str = Query("csv", pattern="^(csv|xlsx|json)$"),
+):
+    try:
+        export_payload = export_dataset_explorer_rows(
+            dataset=dataset,
+            search=search,
+            search_field=search_field,
+            merchant=merchant,
+            category=category,
+            start_date=start_date,
+            end_date=end_date,
+            sort_by=sort_by,
+            sort_dir=sort_dir,
+        )
+
+        rows = export_payload["rows"]
+        columns = export_payload["columns"]
+        df = pd.DataFrame(rows, columns=columns)
+        base_name = f"{export_payload['dataset']}_dataset_export"
+
+        if format == "csv":
+            buffer = io.StringIO()
+            df.to_csv(buffer, index=False)
+            file_buffer = io.BytesIO(buffer.getvalue().encode("utf-8"))
+            media_type = "text/csv"
+            filename = f"{base_name}.csv"
+        elif format == "xlsx":
+            file_buffer = io.BytesIO()
+            with pd.ExcelWriter(file_buffer, engine="openpyxl") as writer:
+                df.to_excel(writer, index=False, sheet_name="Dataset Explorer")
+            file_buffer.seek(0)
+            media_type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            filename = f"{base_name}.xlsx"
+        else:
+            json_buffer = io.StringIO()
+            df.to_json(json_buffer, orient="records", indent=2, force_ascii=False)
+            file_buffer = io.BytesIO(json_buffer.getvalue().encode("utf-8"))
+            media_type = "application/json"
+            filename = f"{base_name}.json"
+
+        headers = {
+            "Content-Disposition": f'attachment; filename="{filename}"'
+        }
+        return StreamingResponse(file_buffer, media_type=media_type, headers=headers)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 # Returns the time-series spend data
 @app.get("/api/analytics/spend-over-time")

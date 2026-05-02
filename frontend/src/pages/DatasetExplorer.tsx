@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, Info } from 'lucide-react';
+import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, Download, Info } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import {
@@ -23,6 +23,7 @@ import { cn } from '../components/ui/utils';
 type DatasetKey = 'amazon' | 'onecard' | 'cruzbuy' | 'bookstore';
 type SearchField = 'all' | 'item' | 'merchant' | 'category';
 type SortDirection = 'asc' | 'desc';
+type ExportFormat = 'csv' | 'xlsx' | 'json';
 
 type DatasetSchemaColumn = {
   canonical_name: string;
@@ -97,6 +98,8 @@ export default function DatasetExplorer() {
   const [sortDir, setSortDir] = useState<SortDirection>('desc');
   const [data, setData] = useState<DatasetExplorerResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  const [exportFormat, setExportFormat] = useState<ExportFormat>('csv');
+  const [isExporting, setIsExporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -156,6 +159,19 @@ export default function DatasetExplorer() {
 
   const columns = data?.columns || [];
 
+  const buildExplorerParams = () =>
+    new URLSearchParams({
+      dataset: activeDataset,
+      search,
+      search_field: searchField,
+      merchant: merchantFilter === 'all' ? '' : merchantFilter,
+      category: categoryFilter === 'all' ? '' : categoryFilter,
+      start_date: startDate,
+      end_date: endDate,
+      sort_by: sortBy,
+      sort_dir: sortDir,
+    });
+
   const handleSort = (column: string) => {
     if (sortBy === column) {
       setSortDir((current) => (current === 'asc' ? 'desc' : 'asc'));
@@ -178,6 +194,38 @@ export default function DatasetExplorer() {
     setSortDir('desc');
   };
 
+  const handleExport = async () => {
+    try {
+      setIsExporting(true);
+      setError(null);
+
+      const params = buildExplorerParams();
+      params.set('format', exportFormat);
+
+      const response = await fetch(`http://127.0.0.1:8000/api/dataset-explorer/export?${params.toString()}`);
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null);
+        throw new Error(payload?.detail || 'Failed to export dataset.');
+      }
+
+      const blob = await response.blob();
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      const timestamp = new Date().toISOString().slice(0, 10);
+
+      link.href = downloadUrl;
+      link.download = `${activeDataset}-dataset-${timestamp}.${exportFormat}`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(downloadUrl);
+    } catch (exportError) {
+      setError(exportError instanceof Error ? exportError.message : 'Failed to export dataset.');
+    } finally {
+      setIsExporting(false);
+    }
+  };
+  
   return (
     <div className="w-full min-w-0 space-y-6">
       <section className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
@@ -321,7 +369,7 @@ export default function DatasetExplorer() {
             </p>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center justify-end gap-3">
             <div className="w-28">
               <Select value={String(pageSize)} onValueChange={(value) => setPageSize(Number(value))}>
                 <SelectTrigger>
@@ -333,6 +381,28 @@ export default function DatasetExplorer() {
                   <SelectItem value="100">100 rows</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-24">
+                <Select value={exportFormat} onValueChange={(value) => setExportFormat(value as ExportFormat)}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="csv">CSV</SelectItem>
+                    <SelectItem value="xlsx">XLSX</SelectItem>
+                    <SelectItem value="json">JSON</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <Button
+                onClick={handleExport}
+                disabled={loading || isExporting}
+                className="border-[#003c6c] bg-[#003c6c] text-white hover:bg-[#002d52]"
+              >
+                <Download size={16} />
+                {isExporting ? 'Exporting...' : 'Export'}
+              </Button>
             </div>
             <Button variant="outline" onClick={clearFilters}>
               Clear Filters
