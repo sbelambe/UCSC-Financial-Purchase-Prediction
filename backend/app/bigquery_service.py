@@ -488,13 +488,17 @@ def query_top_items_from_bigquery(
     min_spend: float = 0,
     limit: int = 20,
     sort_mode: str = "frequency",
+    group_by: str = "item",
 ) -> Dict[str, Any]:
     """Query BigQuery external CSV tables for filtered and ranked top items."""
     normalized_dataset = _normalize_dataset(dataset)
     parsed_query = _parse_search_query(search_query)
     chosen_sort_mode = (sort_mode or "frequency").strip().lower()
+    chosen_group_by = (group_by or "item").strip().lower()
     if chosen_sort_mode not in {"frequency", "cost"}:
         raise ValueError("sort_mode must be one of: frequency, cost")
+    if chosen_group_by not in {"item", "merchant", "category"}:
+        raise ValueError("group_by must be one of: item, merchant, category")
     if parsed_query["year"] and selected_year == "All Time":
         selected_year = parsed_query["year"]
     if parsed_query.get("quarter") and selected_quarter == "All Quarters":
@@ -535,15 +539,16 @@ def query_top_items_from_bigquery(
             "warnings": ["No uploaded CSV files with storage paths were found for the selected dataset."],
         }
 
-    order_by_clause = (
-        "ir.count DESC, ir.total_spent DESC, ir.dataset, ir.display_item_name"
-        if chosen_sort_mode == "frequency"
-        else "ir.total_spent DESC, ir.count DESC, ir.dataset, ir.display_item_name"
-    )
+    if chosen_group_by == "item":
+        order_by_clause = (
+            "ir.count DESC, ir.total_spent DESC, ir.dataset, ir.display_item_name"
+            if chosen_sort_mode == "frequency"
+            else "ir.total_spent DESC, ir.count DESC, ir.dataset, ir.display_item_name"
+        )
 
-    condensed_group_case = _condensed_group_case_expression("fs")
+        condensed_group_case = _condensed_group_case_expression("fs")
 
-    sql = f"""
+        sql = f"""
         WITH source_data AS (
           {' UNION ALL '.join(source_queries)}
         ),
@@ -717,6 +722,90 @@ def query_top_items_from_bigquery(
         ORDER BY {order_by_clause}
         LIMIT @limit
     """
+    else:
+        group_expr = (
+            "IFNULL(NULLIF(vendor_name, ''), 'Unknown')"
+            if chosen_group_by == "merchant"
+            else "IFNULL(NULLIF(category, ''), 'Unknown')"
+        )
+        order_by_clause = (
+            "gr.count DESC, gr.total_spent DESC, gr.dataset, gr.group_name"
+            if chosen_sort_mode == "frequency"
+            else "gr.total_spent DESC, gr.count DESC, gr.dataset, gr.group_name"
+        )
+
+        sql = f"""
+        WITH source_data AS (
+          {' UNION ALL '.join(source_queries)}
+        ),
+        filtered_source AS (
+          SELECT *
+          FROM source_data
+          WHERE {_build_search_where(parsed_query)}
+        ),
+        grouped_rollup AS (
+          SELECT
+            dataset,
+            {group_expr} AS group_name,
+            COUNT(*) AS count,
+            MAX(transaction_date) AS transaction_date,
+            {_representative_text_field('item_name')},
+            {_representative_text_field('item_description')},
+            {_representative_text_field('category')},
+            {_representative_text_field('subcategory')},
+            ROUND(SUM(IFNULL(subtotal, 0)), 2) AS subtotal,
+            ROUND(SUM(IFNULL(sales_tax, 0)), 2) AS sales_tax,
+            ROUND(SUM(IFNULL(total_price, 0)), 2) AS total_price,
+            ROUND(SUM(IFNULL(quantity, 0)), 2) AS quantity,
+            {_representative_text_field('merchant_name')},
+            {_representative_text_field('merchant_state')},
+            {_representative_text_field('merchant_city')},
+            {_representative_text_field('merchant_type')},
+            {_representative_text_field('transaction_type')},
+            ROUND(SUM(IFNULL(amount, 0)), 2) AS total_spent
+          FROM filtered_source
+          GROUP BY dataset, group_name
+        )
+        SELECT
+          gr.dataset,
+          gr.group_name AS clean_item_name,
+          CAST(NULL AS STRING) AS condensed_group,
+          FALSE AS is_condensed,
+          gr.count,
+          gr.transaction_date,
+          gr.item_name,
+          gr.item_description,
+          gr.category,
+          gr.subcategory,
+          gr.subtotal,
+          gr.sales_tax,
+          gr.total_price,
+          gr.quantity,
+          CAST(NULL AS FLOAT64) AS cost_per_item,
+          gr.merchant_name,
+          gr.merchant_state,
+          gr.merchant_city,
+          gr.merchant_type,
+          gr.transaction_type,
+          gr.total_spent,
+          ARRAY<STRUCT<name STRING, count INT64, spend FLOAT64>>[] AS vendors,
+          ARRAY<STRUCT<
+            clean_item_name STRING,
+            count INT64,
+            total_spent FLOAT64,
+            item_name STRING,
+            item_description STRING,
+            category STRING,
+            subcategory STRING,
+            merchant_name STRING,
+            merchant_type STRING,
+            vendors ARRAY<STRUCT<name STRING, count INT64, spend FLOAT64>>
+          >>[] AS drilldown_items
+        FROM grouped_rollup gr
+        WHERE gr.total_spent >= @min_spend
+        ORDER BY {order_by_clause}
+        LIMIT @limit
+    """
 
     client = _bigquery_client()
     job_config = bigquery.QueryJobConfig(
@@ -756,6 +845,7 @@ def query_top_items_from_bigquery(
         "selected_quarter": selected_quarter,
         "search_query": search_query,
         "sort_mode": chosen_sort_mode,
+        "group_by": chosen_group_by,
         "schema": dataset_schema(normalized_dataset),
         "storage_paths": storage_paths,
         "warnings": [],
