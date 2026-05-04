@@ -20,6 +20,7 @@ import { FALLBACK_DATASET_SCHEMAS, type DatasetSchema } from '../lib/datasetConf
 // A single point on the spend-over-time chart. `pending_spend` is only 
 // populated when a staged projection has been blended into preview mode
 type SpendPoint = { period: string; spend: number; pending_spend?: number };
+type PatternDimension = 'item' | 'merchant' | 'category';
 
 type QuarterName = 'All Quarters' | 'Fall' | 'Winter' | 'Spring' | 'Summer';
 
@@ -144,6 +145,38 @@ const shouldExcludeAmazonGiftCardsFromCharts = (item: any, activeDatasetKey: str
   return cleanName === 'gift cards' || categoryValue === 'gift cards';
 };
 
+const hasSchemaColumn = (schema: DatasetSchema | null, canonicalName: string) =>
+  Boolean(schema?.columns?.some((column) => column.canonical_name === canonicalName && column.available));
+
+const getAvailablePatternDimensions = (
+  schema: DatasetSchema | null,
+  datasetKey: string
+): PatternDimension[] => {
+  const dimensions: PatternDimension[] = ['item'];
+
+  if (datasetKey !== 'bookstore' && hasSchemaColumn(schema, 'Merchant Name')) {
+    dimensions.push('merchant');
+  }
+
+  if (datasetKey !== 'overall' && hasSchemaColumn(schema, 'Category')) {
+    dimensions.push('category');
+  }
+
+  return dimensions;
+};
+
+const patternDimensionLabel = (dimension: PatternDimension) => {
+  if (dimension === 'merchant') return 'Merchants';
+  if (dimension === 'category') return 'Categories';
+  return 'Items';
+};
+
+const patternDimensionDescription = (dimension: PatternDimension) => {
+  if (dimension === 'merchant') return 'Compare the external merchants with the highest purchase activity.';
+  if (dimension === 'category') return 'Compare the categories with the highest purchase activity.';
+  return 'Compare the most frequently purchased items and inspect detailed item-level breakdowns.';
+};
+
 
 // --- MAIN COMPONENT ---
 export function Dashboard() {
@@ -155,6 +188,10 @@ export function Dashboard() {
   const [isLoadingTopItems, setIsLoadingTopItems] = useState(true);
   const [topItemsError, setTopItemsError] = useState<string | null>(null);
   const [activeSchema, setActiveSchema] = useState<DatasetSchema | null>(FALLBACK_DATASET_SCHEMAS.overall);
+  const [selectedPatternDimension, setSelectedPatternDimension] = useState<PatternDimension>('item');
+  const [topPatterns, setTopPatterns] = useState<any[]>([]);
+  const [isLoadingTopPatterns, setIsLoadingTopPatterns] = useState(true);
+  const [topPatternsError, setTopPatternsError] = useState<string | null>(null);
   
   // Spend states
   // `rawSpendSeries` is the unfiltered, unmodified series pulled from the 
@@ -182,6 +219,7 @@ export function Dashboard() {
   } | null>(null);
   const deferredSearchQuery = useDeferredValue(searchQuery);
   const topItemsCacheRef = useRef<Record<string, { items: any[]; schema?: DatasetSchema | null; warnings?: string[] }>>({});
+  const topPatternsCacheRef = useRef<Record<string, { items: any[]; warnings?: string[] }>>({});
   const spendSeriesCacheRef = useRef<Record<string, { combined: SpendPoint[]; datasets: Record<string, SpendPoint[]> }>>({});
 
   // This map helps us determine which series to pull from the raw spend data
@@ -217,6 +255,17 @@ export function Dashboard() {
       .then((res) => setActiveSchema(res.data || FALLBACK_DATASET_SCHEMAS[activeDatasetKey]))
       .catch(() => setActiveSchema(FALLBACK_DATASET_SCHEMAS[activeDatasetKey] || FALLBACK_DATASET_SCHEMAS.overall));
   }, [activeDatasetKey]);
+
+  const availablePatternDimensions = useMemo(
+    () => getAvailablePatternDimensions(activeSchema, activeDatasetKey),
+    [activeSchema, activeDatasetKey]
+  );
+
+  useEffect(() => {
+    if (!availablePatternDimensions.includes(selectedPatternDimension)) {
+      setSelectedPatternDimension(availablePatternDimensions[0] || 'item');
+    }
+  }, [availablePatternDimensions, selectedPatternDimension]);
 
   // 1. BIGQUERY TOP ITEMS
   useEffect(() => {
@@ -402,6 +451,60 @@ export function Dashboard() {
     () => filteredTopItems.filter((item) => !shouldExcludeAmazonGiftCardsFromCharts(item, activeDatasetKey)),
     [filteredTopItems, activeDatasetKey]
   );
+  const displayedPatternData = selectedPatternDimension === 'item' ? chartTopItems.slice(0, 5) : topPatterns;
+  const displayedPatternError = selectedPatternDimension === 'item' ? topItemsError : topPatternsError;
+
+  useEffect(() => {
+    setIsLoadingTopPatterns(true);
+    setTopPatternsError(null);
+
+    const params = new URLSearchParams({
+      dataset: activeDatasetKey,
+      search_query: deferredSearchQuery,
+      selected_year: selectedYear,
+      selected_quarter: selectedQuarter,
+      min_spend: String(minSpend || 0),
+      limit: '5',
+      sort_mode: selectedSortMode,
+      group_by: selectedPatternDimension,
+    });
+    const cacheKey = params.toString();
+    const cachedTopPatterns = topPatternsCacheRef.current[cacheKey];
+    if (cachedTopPatterns) {
+      setTopPatterns(cachedTopPatterns.items || []);
+      if (Array.isArray(cachedTopPatterns.warnings) && cachedTopPatterns.warnings.length > 0) {
+        setTopPatternsError(cachedTopPatterns.warnings.join(' '));
+      }
+      setIsLoadingTopPatterns(false);
+      return;
+    }
+
+    fetch(`http://127.0.0.1:8000/api/analytics/top-items/bigquery?${params.toString()}`)
+      .then(async (res) => {
+        const payload = await res.json();
+        if (!res.ok) {
+          throw new Error(payload?.detail || 'Failed to load top purchase patterns.');
+        }
+        return payload;
+      })
+      .then((res) => {
+        topPatternsCacheRef.current[cacheKey] = {
+          items: res.data?.items || [],
+          warnings: res.data?.warnings || [],
+        };
+        setTopPatterns(res.data?.items || []);
+        if (Array.isArray(res.data?.warnings) && res.data.warnings.length > 0) {
+          setTopPatternsError(res.data.warnings.join(' '));
+        }
+        setIsLoadingTopPatterns(false);
+      })
+      .catch((error) => {
+        console.error('Top purchase patterns fetch failed:', error);
+        setTopPatterns([]);
+        setTopPatternsError(error instanceof Error ? error.message : 'Failed to load top purchase patterns.');
+        setIsLoadingTopPatterns(false);
+      });
+  }, [activeDatasetKey, deferredSearchQuery, minSpend, selectedPatternDimension, selectedQuarter, selectedSortMode, selectedYear]);
 
   // Fetch baseline data specifically for the Inventory Insights cross-reference
   useEffect(() => {
@@ -491,7 +594,7 @@ export function Dashboard() {
 
       {/* --- CHART SECTION --- */}
       <div className="w-full min-w-0 rounded-xl border border-gray-200 bg-white p-8 shadow-sm min-h-[650px] flex flex-col">
-        {isLoadingTopItems ? (
+        {isLoadingTopPatterns ? (
           <div className="flex flex-1 items-center justify-center">Loading...</div>
         ) : (
           <div className="space-y-8 flex-1">
@@ -501,11 +604,56 @@ export function Dashboard() {
               hasActiveProjection={projectedData !== null}
             />
 
+            <div className="space-y-4">
+              <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                <div>
+                  <h2 className="text-xl font-bold text-slate-900">Top Purchase Patterns</h2>
+                  <p className="text-sm text-slate-500">
+                    View the leading items, merchants, or categories for the active dataset.
+                  </p>
+                  {activeDatasetKey === 'overall' && selectedPatternDimension === 'merchant' && (
+                    <p className="mt-1 text-xs text-slate-500">
+                      Merchant rankings exclude datasets without merchant fields.
+                    </p>
+                  )}
+                </div>
+                <div className="inline-flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 p-1">
+                  {availablePatternDimensions.map((dimension) => {
+                    const isActive = selectedPatternDimension === dimension;
+                    return (
+                      <button
+                        key={dimension}
+                        type="button"
+                        onClick={() => setSelectedPatternDimension(dimension)}
+                        className={`rounded-lg px-3 py-1.5 text-sm font-semibold transition-colors ${
+                          isActive
+                            ? 'bg-white text-slate-900 shadow-sm'
+                            : 'text-slate-600 hover:bg-white/70 hover:text-slate-900'
+                        }`}
+                      >
+                        {patternDimensionLabel(dimension)}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {displayedPatternError && (
+                <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                  {displayedPatternError}
+                </div>
+              )}
+            </div>
+
             <div className="w-full">
                <TopItemsChart
-                 data={chartTopItems.slice(0, selectedLimit)}
+                 data={displayedPatternData}
                  metricLabel={activeSchema?.metric_label}
                  metricType={activeSchema?.metric_type}
+                 title={`Top 5 ${patternDimensionLabel(selectedPatternDimension)}`}
+                 description={patternDimensionDescription(selectedPatternDimension)}
+                 enableDrilldown={selectedPatternDimension === 'item'}
+                 enableCostMetric={selectedPatternDimension === 'item'}
                />
             </div>
 

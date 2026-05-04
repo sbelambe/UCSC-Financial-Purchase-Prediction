@@ -14,10 +14,18 @@ const TopItemsChart = ({
   data,
   metricLabel = 'Total Spend',
   metricType = 'currency',
+  title = 'Top Purchase Patterns',
+  description = 'Compare the top purchase patterns across the selected dimension.',
+  enableDrilldown = true,
+  enableCostMetric = true,
 }: {
   data: TopItem[];
   metricLabel?: string;
   metricType?: 'currency' | 'quantity' | 'mixed';
+  title?: string;
+  description?: string;
+  enableDrilldown?: boolean;
+  enableCostMetric?: boolean;
 }) => {
   // state to track which metric is selected from the dropdown
   const [metric, setMetric] = useState<'count' | 'spend' | 'cost_per_item'>('count');
@@ -72,12 +80,22 @@ const TopItemsChart = ({
   }, [data, metric]);
 
   useEffect(() => {
+    if (metric === 'cost_per_item' && !enableCostMetric) {
+      setMetric('count');
+    }
+  }, [metric, enableCostMetric]);
+
+  useEffect(() => {
+    if (!enableDrilldown) {
+      setSelectedItem(null);
+      return;
+    }
     if (!selectedItem) return;
     const stillVisible = chartData.some((item) => item.fullName === selectedItem.clean_item_name);
     if (!stillVisible) {
       setSelectedItem(null);
     }
-  }, [chartData, selectedItem]);
+  }, [chartData, selectedItem, enableDrilldown]);
 
   const COLORS = ['#1e3a8a', '#2563eb', '#3b82f6', '#60a5fa', '#93c5fd'];
 
@@ -106,7 +124,7 @@ const TopItemsChart = ({
       {/* Flex Header with Dropdown */}
       <div className="flex justify-between items-center mb-4 px-4">
         <h3 className="text-lg font-bold text-gray-700">
-          Top 5 Most Frequent Purchases
+          {title}
         </h3>
         <select
           value={metric}
@@ -116,15 +134,15 @@ const TopItemsChart = ({
         >
           <option value="count">Number of Transactions</option>
           <option value="spend">{metricLabel}</option>
-          <option value="cost_per_item">Cost Per Item</option>
+          {enableCostMetric && <option value="cost_per_item">Cost Per Item</option>}
         </select>
       </div>
       
       <div className="mb-3 px-4 text-xs text-slate-500">
-        Click a bar to view vendor details and grouped purchase breakdowns.
+        {enableDrilldown ? 'Click a bar to view vendor details and grouped purchase breakdowns.' : description}
       </div>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(300px,1fr)]">
+      <div className={`grid grid-cols-1 gap-6 ${enableDrilldown ? 'lg:grid-cols-[minmax(0,2fr)_minmax(300px,1fr)]' : ''}`}>
         <div className="w-full overflow-x-auto">
           <div className="mx-auto min-w-[680px]">
             <BarChart
@@ -214,10 +232,10 @@ const TopItemsChart = ({
                     <Cell
                       key={`cell-${index}`}
                       fill={COLORS[index % COLORS.length]}
-                      cursor="pointer"
+                      cursor={enableDrilldown ? 'pointer' : 'default'}
                       stroke={isSelected ? '#0f172a' : undefined}
                       strokeWidth={isSelected ? 2 : 0}
-                      onClick={() => setSelectedItem(entry)}
+                      onClick={() => enableDrilldown && setSelectedItem(entry)}
                     />
                   );
                 })}
@@ -235,8 +253,8 @@ const TopItemsChart = ({
                   {chartData.map((entry, index) => (
                     <Cell
                       key={`pending-cell-${index}`}
-                      cursor="pointer"
-                      onClick={() => setSelectedItem(entry)}
+                      cursor={enableDrilldown ? 'pointer' : 'default'}
+                      onClick={() => enableDrilldown && setSelectedItem(entry)}
                     />
                   ))}
                 </Bar>
@@ -246,11 +264,13 @@ const TopItemsChart = ({
           </div>
         </div>
 
-        <TopItemDrilldownPanel
-          selectedItem={selectedItem}
-          metricLabel={metricLabel}
-          metricType={metricType}
-        />
+        {enableDrilldown && (
+          <TopItemDrilldownPanel
+            selectedItem={selectedItem}
+            metricLabel={metricLabel}
+            metricType={metricType}
+          />
+        )}
       </div>
     </div>
   );

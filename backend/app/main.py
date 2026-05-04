@@ -119,6 +119,7 @@ def get_top_items_bigquery(
     min_spend: float = 0,
     limit: int = 20,
     sort_mode: str = "frequency",
+    group_by: str = "item",
 ):
     try:
         data = query_top_items_from_bigquery(
@@ -129,6 +130,7 @@ def get_top_items_bigquery(
             min_spend=min_spend,
             limit=limit,
             sort_mode=sort_mode,
+            group_by=group_by,
         )
         return {"status": "success", "data": data}
     except Exception as e:
