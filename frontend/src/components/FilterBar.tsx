@@ -10,6 +10,7 @@ interface FilterBarProps {
   selectedYear: string;
   selectedQuarter: QuarterName;
   selectedCategory: string;
+  availableYears: string[];
   searchQuery: string;
   minSpend: number;
   selectedLimit: number;
@@ -30,6 +31,7 @@ export function FilterBar({
   selectedYear,
   selectedQuarter,
   selectedCategory,
+  availableYears,
   searchQuery,
   minSpend,
   selectedLimit,
@@ -44,7 +46,7 @@ export function FilterBar({
   onSortModeChange,
 }: FilterBarProps) {
   // Added 'All Time' so the dashboard doesn't default to an empty view
-  const years = ['All Time', '2026', '2025', '2024']; 
+  const years = ['All Time', ...Array.from(new Set(availableYears))];
   
   
   const quarters = [
@@ -70,18 +72,21 @@ export function FilterBar({
         <div className="text-sm font-medium text-gray-700">Filter:</div>
         
         {/* Year Filter */}
-        <select
-          value={selectedYear}
-          onChange={(e) => onYearChange(e.target.value)}
-          className="px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-opacity-50 text-sm"
-          style={{ outlineColor: '#003c6c' }}
-        >
-          {years.map((year) => (
-            <option key={year} value={year}>
-              {year === 'All Time' ? year : `Year: ${year}`}
-            </option>
-          ))}
-        </select>
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-gray-500 font-medium">Year</span>
+          <select
+            value={selectedYear}
+            onChange={(e) => onYearChange(e.target.value)}
+            className="px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-opacity-50 text-sm"
+            style={{ outlineColor: '#003c6c' }}
+          >
+            {years.map((year) => (
+              <option key={year} value={year}>
+                {year}
+              </option>
+            ))}
+          </select>
+        </div>
 
         
         {/* Quarter Filter */}

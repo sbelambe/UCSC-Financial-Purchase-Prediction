@@ -211,6 +211,7 @@ export function Dashboard() {
   const [minSpend, setMinSpend] = useState<number>(0);
   const [selectedLimit, setSelectedLimit] = useState<number>(20);
   const [selectedSortMode, setSelectedSortMode] = useState<'frequency' | 'cost'>('frequency');
+  const [activeChartSlide, setActiveChartSlide] = useState(0);
   const [insightsData, setInsightsData] = useState<{amazon: any[], bookstore: any[]}>({ amazon: [], bookstore: [] });
   const [projectedData, setProjectedData] = useState<{
     dataset: string;
@@ -453,6 +454,61 @@ export function Dashboard() {
   );
   const displayedPatternData = selectedPatternDimension === 'item' ? chartTopItems.slice(0, 5) : topPatterns;
   const displayedPatternError = selectedPatternDimension === 'item' ? topItemsError : topPatternsError;
+  const chartSlides = [
+    {
+      title: 'Top 5 Items',
+      subtitle: 'View the leading items, merchants, or categories for the active dataset.',
+      content: (
+        <TopItemsChart
+          data={displayedPatternData}
+          metricLabel={activeSchema?.metric_label}
+          metricType={activeSchema?.metric_type}
+          title={`Top 5 ${patternDimensionLabel(selectedPatternDimension)}`}
+          description={patternDimensionDescription(selectedPatternDimension)}
+          enableDrilldown={selectedPatternDimension === 'item'}
+          enableCostMetric={selectedPatternDimension === 'item'}
+        />
+      ),
+    },
+    {
+      title: 'High Impact Items',
+      subtitle: 'Compare high-frequency and high-spend purchases.',
+      content: (
+        <HighImpactScatterPlot
+          data={chartTopItems.slice(0, selectedLimit)}
+          metricLabel={activeSchema?.metric_label}
+          metricType={activeSchema?.metric_type}
+        />
+      ),
+    },
+    {
+      title: 'Total Spend Over Time',
+      subtitle: 'Track spending trends across the selected time period.',
+      content: (
+        <TransactionsOverTimeChart
+          data={spendSeries}
+          loading={isLoadingSpend}
+          metricLabel={activeSchema?.metric_label}
+          metricType={activeSchema?.metric_type}
+          title={`${activeSchema?.metric_label || 'Spend Over Time'} (${activeTab}, ${selectedYear}, ${selectedQuarter})`}
+        />
+      ),
+    },
+  ];
+  
+  const activeSlide = chartSlides[activeChartSlide] || chartSlides[0];
+  
+  const goToPreviousSlide = () => {
+    setActiveChartSlide((current) =>
+      current === 0 ? chartSlides.length - 1 : current - 1
+    );
+  };
+  
+  const goToNextSlide = () => {
+    setActiveChartSlide((current) =>
+      current === chartSlides.length - 1 ? 0 : current + 1
+    );
+  };
 
   useEffect(() => {
     setIsLoadingTopPatterns(true);
@@ -541,6 +597,7 @@ export function Dashboard() {
         minSpend={minSpend}
         selectedLimit={selectedLimit}
         selectedSortMode={selectedSortMode}
+        availableYears={availableYears}
         isLiveMode
         onYearChange={setSelectedYear}
         onQuarterChange={setSelectedQuarter}
@@ -645,31 +702,57 @@ export function Dashboard() {
               )}
             </div>
 
-            <div className="w-full">
-               <TopItemsChart
-                 data={displayedPatternData}
-                 metricLabel={activeSchema?.metric_label}
-                 metricType={activeSchema?.metric_type}
-                 title={`Top 5 ${patternDimensionLabel(selectedPatternDimension)}`}
-                 description={patternDimensionDescription(selectedPatternDimension)}
-                 enableDrilldown={selectedPatternDimension === 'item'}
-                 enableCostMetric={selectedPatternDimension === 'item'}
-               />
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+              <div className="mb-4 flex items-center justify-between gap-4">
+                <div>
+                  <h2 className="text-xl font-bold text-slate-900">{activeSlide.title}</h2>
+                  <p className="text-sm text-slate-500">{activeSlide.subtitle}</p>
+                </div>
+              </div>
+
+              <div className="min-h-[470px] w-full flex justify-center">
+                <div className="relative w-full min-h-[470px] flex items-center justify-center">
+                  
+                  {/* LEFT BUTTON */}
+                  <button
+                    type="button"
+                    onClick={goToPreviousSlide}
+                    className="absolute left-0 z-10 ml-2 rounded-full bg-white shadow-md border border-slate-200 px-3 py-2 text-lg font-bold text-slate-700 hover:bg-slate-100"
+                  >
+                    ‹
+                  </button>
+
+                  {/* CONTENT */}
+                  <div className="w-full max-w-4xl">
+                    {activeSlide.content}
+                  </div>
+
+                  {/* RIGHT BUTTON */}
+                  <button
+                    type="button"
+                    onClick={goToNextSlide}
+                    className="absolute right-0 z-10 mr-2 rounded-full bg-white shadow-md border border-slate-200 px-3 py-2 text-lg font-bold text-slate-700 hover:bg-slate-100"
+                  >
+                    ›
+                  </button>
+
+                </div>
+              </div>
+
+              <div className="mt-4 flex justify-center gap-2">
+                {chartSlides.map((slide, index) => (
+                  <button
+                    key={slide.title}
+                    type="button"
+                    onClick={() => setActiveChartSlide(index)}
+                    className={`h-2.5 rounded-full transition-all ${
+                      activeChartSlide === index ? 'w-8 bg-slate-900' : 'w-2.5 bg-slate-300'
+                    }`}
+                    aria-label={`Show ${slide.title}`}
+                  />
+                ))}
+              </div>
             </div>
-
-            <HighImpactScatterPlot
-              data={chartTopItems.slice(0, selectedLimit)}
-              metricLabel={activeSchema?.metric_label}
-              metricType={activeSchema?.metric_type}
-            />
-
-            <TransactionsOverTimeChart
-              data={spendSeries}
-              loading={isLoadingSpend}
-              metricLabel={activeSchema?.metric_label}
-              metricType={activeSchema?.metric_type}
-              title={`${activeSchema?.metric_label || 'Spend Over Time'} (${activeTab}, ${selectedYear}, ${selectedQuarter})`}
-            />
 
             {/* shows inventory insights if amazon or bookstore tabs are selected */}
             {(activeTab === 'Amazon' || activeTab === 'Bookstore') && (

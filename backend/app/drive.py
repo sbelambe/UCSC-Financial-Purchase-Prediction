@@ -86,7 +86,21 @@ def extract_year(filename):
 
     return None
 
+def list_available_years(folder_id):
+    files = list_files(folder_id)
 
+    years = set()
+
+    for file in files:
+        name = file["name"]
+
+        source = detect_source(name)
+        year = extract_year(name)
+
+        if source and year:
+            years.add(year)
+
+    return sorted(years, reverse=True)
 # ----------------------------------------------------
 # SYNC LOGIC
 # ----------------------------------------------------
@@ -104,6 +118,7 @@ def sync_drive_folder(folder_id, raw_dir):
     new_metadata = {}
 
     changed = False
+    changed_files = []
 
     # Process each file
     for file in files:
@@ -126,6 +141,7 @@ def sync_drive_folder(folder_id, raw_dir):
         if metadata_key not in old_metadata or old_metadata[metadata_key] != modified:
             print(f"File changed: {name}")
             changed = True
+            changed_files.append(name)
 
             temp_excel_path = os.path.join(raw_dir, f"{source}_{year}.xlsx")
             final_csv_path = os.path.join(raw_dir, f"{source}_{year}.csv")
@@ -146,7 +162,10 @@ def sync_drive_folder(folder_id, raw_dir):
     if changed:
         save_metadata(metadata_path, new_metadata)
 
-    return changed
+    return {
+    "changed": changed,
+    "files": changed_files
+}
 
 
 # ----------------------------------------------------

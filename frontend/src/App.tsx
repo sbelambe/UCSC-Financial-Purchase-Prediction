@@ -43,12 +43,12 @@ function AuthenticatedLayout({ currentView, children }: AuthenticatedLayoutProps
 
       const data = await response.json();
 
-      if (data?.result) {
+      if (data?.changed_files?.length > 0) {
         setRefreshMsg(
-          `Refreshed successfully. Amazon rows: ${data.result.amazon_rows}, CruzBuy rows: ${data.result.cruzbuy_rows}, OneCard rows: ${data.result.onecard_rows}, Bookstore rows: ${data.result.bookstore_rows}`
+          `Updated files:\n${data.changed_files.join('\n')}`
         );
       } else {
-        setRefreshMsg(data?.message || 'Refresh completed');
+        setRefreshMsg(data?.message || 'No changes made to the data.');
       }
     } catch (error) {
       setRefreshMsg('Refresh failed. Is the backend running?');
