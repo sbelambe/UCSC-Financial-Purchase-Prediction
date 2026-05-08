@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/card";
 
 import { ItemHistoryDrawer } from './ItemHistoryDrawer';
+import { FeedbackModal } from './FeedbackModal';
 
 export interface InsightRow {
   category: string;
@@ -32,7 +33,7 @@ export interface InsightRow {
   external_volume: number;
   historical_avg: number;
   trend_direction: 'growing' | 'declining' | 'stable';
-  action: 'Critical Reorder' | 'Reorder Soon' | 'Monitor Closely' | 'Adequate Stock' | 'Dead Stock Risk';
+  action: 'Critical Reorder' | 'Reorder Soon' | 'Monitor Closely' | 'Adequate Stock' | 'Dead Stock Risk' | 'Declining Signal' | 'High Demand Signal';
   reasoning: string;
 }
 
@@ -40,6 +41,14 @@ interface Props {
   activeTab: string;
 }
 
+/**
+ * Displays a responsive grid of cards showing inventory status, ML predictions, and trends.
+ * Handles fetching dynamic data from either the Bookstore or Amazon endpoints based on the active tab,
+ * and manages local state for development mode toggles, time periods, and historical lookback intervals.
+ * @param {Props} props - The component props.
+ * @param {string} props.activeTab - The currently selected tab ('Amazon' or 'Bookstore'), which determines which API endpoint to fetch data from.
+ * @returns {JSX.Element} The rendered grid of inventory insights and associated portal modals.
+ */
 export function InventoryInsights({ activeTab }: Props) {
   const isAmazon = activeTab === 'Amazon';
 
@@ -47,6 +56,7 @@ export function InventoryInsights({ activeTab }: Props) {
   const [devMode, setDevMode] = useState<boolean>(false);
   const [lookback, setLookback] = useState<string>('2_year');
   const [selectedItem, setSelectedItem] = useState<InsightRow | null>(null);
+  const [feedbackItem, setFeedbackItem] = useState<InsightRow | null>(null);
 
   const {
     data: bookstoreInsights = [],
@@ -291,7 +301,19 @@ export function InventoryInsights({ activeTab }: Props) {
                 </CardContent>
 
                 {!isAmazon && (
-                  <div className="flex items-center justify-end mb-4 mt-auto pt-4 border-t border-[#C5D8F6]/50 px-6">
+                  <div className="flex items-center justify-between mb-4 mt-auto pt-4 border-t border-[#C5D8F6]/50 px-6">
+                    {/* prediction feedback modal */}
+                    <button 
+                      onClick={(e) => {
+                        e.stopPropagation(); // Stops the Card drawer from opening
+                        setFeedbackItem(item); // Triggers the Feedback Modal
+                      }}
+                      className="text-[10px] text-[#49454F] hover:text-[#1D69C4] underline font-medium transition-colors"
+                    >
+                      Flag Issue
+                    </button>
+
+                    {/* detail modal */}
                     <div className="flex items-center gap-1 text-[10px] font-medium text-[#1D69C4]">
                       <Sparkles className="size-3" />
                       <span>Tap for details</span>
@@ -306,11 +328,18 @@ export function InventoryInsights({ activeTab }: Props) {
 
       {/* ItemHistoryDrawer only for bookstore */}
       {!isAmazon && (
-        <ItemHistoryDrawer
-          item={selectedItem}
-          devMode={devMode}
-          onClose={() => setSelectedItem(null)}
-        />
+        <>
+          <ItemHistoryDrawer
+            item={selectedItem}
+            devMode={devMode}
+            onClose={() => setSelectedItem(null)}
+          />
+          
+          <FeedbackModal 
+            item={feedbackItem} 
+            onClose={() => setFeedbackItem(null)} 
+          />
+        </>
       )}
     </div>
   );

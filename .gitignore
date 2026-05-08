@@ -11,6 +11,7 @@ __pycache_/
 *.pyo
 *.pyd
 .env
+.env.test
 .venv/
 venv/
 
@@ -20,6 +21,7 @@ venv/
 **/node_modules
 sync_branch.sh
 serviceAccountKey.json
+serviceAccountKey2.json
 google-drive-service.json
 
 **google-drive-service.json
