@@ -60,7 +60,7 @@ AMAZON_GIFT_CARD_CATEGORIES = (
 )
 
 CONDENSED_PURCHASE_GROUP_RULES = (
-    ("Gift Cards", r"(?i)\\bgift\\s*cards?\\b|giftcard"),
+    ("Gift Cards", r"(?i)\\b|gift\\s*cards?\\b|giftcard"),
     ("AT&T Bills", r"(?i)\\bat\\s*&\\s*t\\b|\\batt\\b|\\bat and t\\b|wireless bill|mobility bill"),
     ("Food Bulk Purchases", r"(?i)(bulk|case|pack).*(food|grocery|snack|beverage)|\\b(food|grocery|snack|beverage)\\b.*(bulk|case|pack)|costco wholesale"),
     ("Order Summaries", r"(?i)order summary|order total|summary line|invoice summary"),
@@ -317,8 +317,8 @@ def _source_select_sql(table_name: str, dataset: str) -> str:
     """.strip()
 
 
-def _build_search_where(parsed_query: Dict[str, Any]) -> str:
-    """Build the WHERE clause used for year, text, item, and vendor filters."""
+def _build_search_where(parsed_query: Dict[str, Any], category_originals: Optional[List[str]] = None) -> str:
+    """Build the WHERE clause used for year, text, item, vendor, and category filters."""
     clauses = [
         "clean_item_name IS NOT NULL",
         "clean_item_name != ''",
@@ -344,6 +344,9 @@ def _build_search_where(parsed_query: Dict[str, Any]) -> str:
         clauses.append(
             f"LOWER(vendor_name) LIKE CONCAT('%', LOWER(@vendor_term_{index}), '%')"
         )
+
+    if category_originals:
+        clauses.append("LOWER(COALESCE(category, '')) IN UNNEST(@category_list)")
 
     return " AND ".join(clauses)
 
@@ -375,9 +378,10 @@ def _query_parameters(
     min_spend: float,
     limit: int,
     parsed_query: Dict[str, Any],
+    category_originals: Optional[List[str]] = None,
 ) -> List[bigquery.ScalarQueryParameter]:
     """Create parameter bindings for the top-items BigQuery request."""
-    params: List[bigquery.ScalarQueryParameter] = [
+    params: List[bigquery.QueryParameter] = [
         bigquery.ScalarQueryParameter("selected_year", "STRING", selected_year),
         bigquery.ScalarQueryParameter("selected_quarter", "STRING", selected_quarter),
         bigquery.ScalarQueryParameter("min_spend", "FLOAT64", float(min_spend or 0)),
@@ -390,6 +394,9 @@ def _query_parameters(
 
     for index, value in enumerate(parsed_query["vendor_terms"]):
         params.append(bigquery.ScalarQueryParameter(f"vendor_term_{index}", "STRING", value))
+
+    if category_originals:
+        params.append(bigquery.ArrayQueryParameter("category_list", "STRING", category_originals))
 
     return params
 
@@ -489,6 +496,7 @@ def query_top_items_from_bigquery(
     limit: int = 20,
     sort_mode: str = "frequency",
     group_by: str = "item",
+    category_originals: Optional[List[str]] = None,
 ) -> Dict[str, Any]:
     """Query BigQuery external CSV tables for filtered and ranked top items."""
     normalized_dataset = _normalize_dataset(dataset)
@@ -555,7 +563,7 @@ def query_top_items_from_bigquery(
         filtered_source AS (
           SELECT *
           FROM source_data
-          WHERE {_build_search_where(parsed_query)}
+          WHERE {_build_search_where(parsed_query, category_originals)}
         ),
                 classified_source AS (
                     SELECT
@@ -741,7 +749,7 @@ def query_top_items_from_bigquery(
         filtered_source AS (
           SELECT *
           FROM source_data
-          WHERE {_build_search_where(parsed_query)}
+          WHERE {_build_search_where(parsed_query, category_originals)}
         ),
         grouped_rollup AS (
           SELECT
@@ -816,6 +824,7 @@ def query_top_items_from_bigquery(
             min_spend=min_spend,
             limit=limit,
             parsed_query=parsed_query,
+            category_originals=category_originals,
         ),
     )
 

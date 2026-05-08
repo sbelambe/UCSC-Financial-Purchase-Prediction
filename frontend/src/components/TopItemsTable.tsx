@@ -249,6 +249,28 @@ export function TopItemsTable({
   const hasDynamicRows = Boolean(schema && data.some((item) => item.row_values));
   const activeColumns = schema?.columns?.filter((column) => column.available && column.display_in_table !== false) || [];
 
+  const CATEGORY_COLUMNS = new Set(['Category', 'Subcategory', 'Sub-Category', 'Sub Category', 'Item Category']);
+
+  const getDisplayCellValue = (
+    item: TopItem,
+    columnName: string
+  ): string | number | null | undefined => {
+    if (item.is_condensed) {
+      if (columnName === 'Item Description') return item.clean_item_name;
+      // Category/subcategory for grouped rows is misleading — each sub-item
+      // may have a different category, shown in the expanded detail table.
+      if (CATEGORY_COLUMNS.has(columnName)) return null;
+    }
+
+    return item.row_values?.[columnName];
+  };
+
+  const getRowCellValue = (
+    row: CondensedDetailRow,
+    columnName: string
+  ): string | number | null | undefined => row.row_values?.[columnName];
+
+
   if (hasDynamicRows) {
     return (
       <div className="top-items-table-shell w-full max-w-full min-w-0 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
