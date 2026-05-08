@@ -262,13 +262,7 @@ export function TopItemsTable({
   ): string | number | null | undefined => {
     if (item.is_condensed) {
       if (columnName === 'Item Description') return item.clean_item_name;
-      // Category/subcategory for grouped rows is misleading — each sub-item
-      // may have a different category, shown in the expanded detail table.
       if (CATEGORY_COLUMNS.has(columnName)) return null;
-    // Condensed BigQuery groups should show the grouped label instead of one
-    // representative row's item description, which can be misleading.
-    if (item.is_condensed && columnName === 'Item Description') {
-      return item.clean_item_name;
     }
 
     return item.row_values?.[columnName];
