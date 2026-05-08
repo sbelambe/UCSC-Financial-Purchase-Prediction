@@ -315,24 +315,6 @@ def spend_over_time_bigquery(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-
-@app.post("/api/chatbot/guidance")
-def chatbot_guidance(payload: ChatbotGuidanceRequest):
-    try:
-        result = generate_chatbot_guidance(
-            message=payload.message,
-            context={
-                "current_view": payload.current_view,
-                "dataset": payload.dataset,
-                "selected_vendor": payload.selected_vendor,
-                "selected_category": payload.selected_category,
-                "selected_time_period": payload.selected_time_period,
-                "filters": payload.filters,
-            },
-        )
-        return {"status": "success", "data": result}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
     
 def _bookstore_items_response(top_n: int, lookback_days: int, account: str):
     return get_campus_store_item_insights(
@@ -451,6 +433,72 @@ def api_campus_store_items(top_n: int = 5, lookback_days: int = 90, account: str
         return _bookstore_items_response(top_n, lookback_days, account)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+    
+@lru_cache(maxsize=5)
+def fetch_amazon_bookstore_recommendations():
+    """
+    Returns top Amazon items grouped by category and flags which ones are
+    bookstore-adjacent so the UI can surface purchase signals.
+    """
+    bq_project = os.getenv("VITE_FIREBASE_PROJECT_ID", "")
+    bq_dataset = os.getenv("BIGQUERY_DATASET", "")
+
+    BOOKSTORE_ADJACENT = {
+        "book", "books", "office product", "office products",
+        "apparel", "clothing", "electronics", "computer",
+        "printed publications", "educational", "art", "craft",
+    }
+
+    sql = f"""
+    WITH AmazonTop AS (
+        SELECT
+            `Item Description` AS item_name,
+            `Category`         AS category,
+            SUM(Quantity)      AS amazon_count
+        FROM `{bq_project}.{bq_dataset}.amazon_cleaned`
+        WHERE `Item Description` IS NOT NULL
+          AND `Category`         IS NOT NULL
+        GROUP BY item_name, category
+        ORDER BY amazon_count DESC
+        LIMIT 50
+    ),
+    BookstoreItems AS (
+        SELECT DISTINCT LOWER(`Item Description`) AS item_name_lower
+        FROM `{bq_project}.{bq_dataset}.bookstore_cleaned`
+        WHERE `Item Description` IS NOT NULL
+    )
+    SELECT
+        a.item_name,
+        a.category,
+        a.amazon_count,
+        b.item_name_lower IS NOT NULL AS in_bookstore
+    FROM AmazonTop a
+    LEFT JOIN BookstoreItems b ON LOWER(a.item_name) = b.item_name_lower
+    ORDER BY a.amazon_count DESC
+    """
+
+    bq_client = _bigquery_client()
+    rows = list(bq_client.query(sql).result())
+
+    overlap, gaps = [], []
+    for row in rows:
+        category_lower = (row["category"] or "").lower()
+        is_adjacent = any(k in category_lower for k in BOOKSTORE_ADJACENT)
+        in_bookstore = bool(row["in_bookstore"])
+        count = int(row["amazon_count"] or 0)
+        item = {
+            "item_name": row["item_name"],
+            "category": row["category"],
+            "amazon_count": count,
+        }
+        if in_bookstore:
+            item["suggested_reason"] = f"High Amazon demand ({count:,} orders) confirms this is popular. Keep well-stocked."
+            overlap.append(item)
+        elif is_adjacent:
+            item["suggested_reason"] = f"{count:,} Amazon orders in '{row['category']}'. Consider stocking in the bookstore."
+            gaps.append(item)
+
+    return {"overlap": overlap[:15], "gaps": gaps[:15]}
     
 # This caches the last 30 unique (time_period, dev_mode, lookback) combos in server RAM.
 @lru_cache(maxsize=30)
@@ -940,159 +988,6 @@ def get_item_history(
         print(f"[ERROR] Item History ({item_name}): {e}")
         raise HTTPException(status_code=500, detail="Failed to fetch item history from BigQuery.")
 
-
-@lru_cache(maxsize=5)
-def fetch_amazon_bookstore_recommendations():
-    """
-    Returns top Amazon items grouped by category and flags which ones are
-    bookstore-adjacent so the UI can surface purchase signals.
-    """
-    bq_project = os.getenv("VITE_FIREBASE_PROJECT_ID", "")
-    bq_dataset = os.getenv("BIGQUERY_DATASET", "")
-
-    BOOKSTORE_ADJACENT = {
-        "book", "books", "office product", "office products",
-        "apparel", "clothing", "electronics", "computer",
-        "printed publications", "educational", "art", "craft",
-    }
-
-    sql = f"""
-    WITH AmazonTop AS (
-        SELECT
-            `Item Description` AS item_name,
-            `Category`         AS category,
-            SUM(Quantity)      AS amazon_count
-        FROM `{bq_project}.{bq_dataset}.amazon_cleaned`
-        WHERE `Item Description` IS NOT NULL
-          AND `Category`         IS NOT NULL
-        GROUP BY item_name, category
-        ORDER BY amazon_count DESC
-        LIMIT 50
-    ),
-    BookstoreItems AS (
-        SELECT DISTINCT LOWER(`Item Description`) AS item_name_lower
-        FROM `{bq_project}.{bq_dataset}.bookstore_cleaned`
-        WHERE `Item Description` IS NOT NULL
-    )
-    SELECT
-        a.item_name,
-        a.category,
-        a.amazon_count,
-        b.item_name_lower IS NOT NULL AS in_bookstore
-    FROM AmazonTop a
-    LEFT JOIN BookstoreItems b ON LOWER(a.item_name) = b.item_name_lower
-    ORDER BY a.amazon_count DESC
-    """
-
-    bq_client = _bigquery_client()
-    rows = list(bq_client.query(sql).result())
-
-    overlap, gaps = [], []
-    for row in rows:
-        category_lower = (row["category"] or "").lower()
-        is_adjacent = any(k in category_lower for k in BOOKSTORE_ADJACENT)
-        in_bookstore = bool(row["in_bookstore"])
-        count = int(row["amazon_count"] or 0)
-        item = {
-            "item_name": row["item_name"],
-            "category": row["category"],
-            "amazon_count": count,
-        }
-        if in_bookstore:
-            item["suggested_reason"] = f"High Amazon demand ({count:,} orders) confirms this is popular. Keep well-stocked."
-            overlap.append(item)
-        elif is_adjacent:
-            item["suggested_reason"] = f"{count:,} Amazon orders in '{row['category']}'. Consider stocking in the bookstore."
-            gaps.append(item)
-
-    return {"overlap": overlap[:15], "gaps": gaps[:15]}
-
-
-@app.get("/api/analytics/amazon-bookstore-recommendations")
-def get_amazon_bookstore_recommendations():
-    try:
-        return fetch_amazon_bookstore_recommendations()
-    except Exception as e:
-        print(f"[ERROR] Amazon-Bookstore Recommendations: {e}")
-        raise HTTPException(status_code=500, detail="Failed to fetch Amazon purchase signals.")
-    
-    
-# Accepts and uploads CSVs for data projection
-@app.post("/api/analytics/project")
-async def project_csv_data(
-    file: UploadFile = File(...),
-    dataset: str = Form(...) 
-):
-    try:
-        print(f"Starting in-memory staging for dataset: {dataset}")
-        contents = await file.read()
-        df = pd.read_csv(io.BytesIO(contents))
-
-        # clean up column names immediately (strip whitespace)
-        df.columns = [c.strip() for c in df.columns]
-        
-        # map columns (including date)
-        dataset_lower = dataset.lower()
-
-        # Helper to find a column even if the user didn't match case perfectly
-        def find_col(possible_names):
-            for name in possible_names:
-                if name in df.columns: return name
-            # Fallback to the first column if all else fails so it doesn't crash
-            return df.columns[0]
-        
-        if dataset_lower == "amazon":
-            item_col = find_col(["Title", "Item Name", "Product Name"])
-            price_col = find_col(["Item Total", "Price", "Total"])
-            vendor_col = find_col(["Seller", "Merchant"])
-            date_col = find_col(["Order Date", "Date"])
-
-        elif dataset_lower == "cruzbuy":
-            item_col = find_col(["Product Description", "Description", "Item Description"])
-            price_col = find_col(["Extended Price", "Total Price", "Amount"])
-            vendor_col = find_col(["Supplier Name", "Supplier", "Vendor"])
-            date_col = find_col(["PO Date", "Date", "Created Date"])
-
-        elif dataset_lower == "onecard":
-            item_col = find_col(["Transaction Description", "Description"])
-            price_col = find_col(["Amount", "Transaction Amount"])
-            vendor_col = find_col(["Merchant", "Vendor Name"])
-            date_col = find_col(["Transaction Date", "Date"])
-            
-        else:
-            raise ValueError(f"Unknown dataset type: {dataset}")
-
-        # --- LOGGING FOR DEBUGGING ---
-        # inside the /project_csv_data endpoint
-        print(f"Detected columns - Item: {item_col}, Price: {price_col}, Date: {date_col}")
-
-        projected_items = compute_top_items_detailed(df, item_col, price_col, vendor_col, date_col)
-        
-        # process Spend Over Time (Group by YYYY-MM)
-        df_time = df.copy()
-        df_time[price_col] = df_time[price_col].astype(str).str.replace(r'[\$,]', '', regex=True)
-        df_time[price_col] = pd.to_numeric(df_time[price_col], errors='coerce').fillna(0.0)
-        df_time['temp_date'] = pd.to_datetime(df_time[date_col], errors='coerce')
-        
-        # group into "YYYY-MM"
-        df_time['period'] = df_time['temp_date'].dt.to_period("M").astype(str) 
-        time_stats = df_time.groupby('period')[price_col].sum().reset_index()
-        
-        time_series_data = [{"period": row['period'], "pending_spend": row[price_col]} for _, row in time_stats.iterrows()]
-
-        print(f"[OK] Successfully staged {len(projected_items)} items and {len(time_series_data)} months.")
-        
-        # return both arrays
-        return {
-            "status": "success",
-            "dataset": dataset_lower,
-            "data": projected_items,       # For the table
-            "time_data": time_series_data  # For the chart
-        }
-        
-    except Exception as e:
-        print(f"[ERROR] Staging failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
     
 # Entry point for running via 'py app/main.py' directly
 if __name__ == "__main__":
