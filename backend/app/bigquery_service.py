@@ -8,6 +8,7 @@ from google.cloud.firestore import FieldFilter, Query
 
 from .data_config import CANONICAL_COLUMN_ORDER, DATASET_COLUMN_CONFIG, dataset_schema
 from .firebase import bucket, cred_path, db
+from functools import lru_cache
 
 
 BACKEND_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -1005,3 +1006,508 @@ def query_spend_over_time_from_bigquery(
         "combined": combined,
         "warnings": [],
     }
+
+
+@lru_cache(maxsize=5)
+def fetch_amazon_bookstore_recommendations():
+    """
+    Returns top Amazon items grouped by category and flags which ones are
+    bookstore-adjacent so the UI can surface purchase signals.
+    """
+    bq_project = os.getenv("VITE_FIREBASE_PROJECT_ID", "")
+    bq_dataset = os.getenv("BIGQUERY_DATASET", "")
+
+    BOOKSTORE_ADJACENT = {
+        "book", "books", "office product", "office products",
+        "apparel", "clothing", "electronics", "computer",
+        "printed publications", "educational", "art", "craft",
+    }
+
+    sql = f"""
+    WITH AmazonTop AS (
+        SELECT
+            `Item Description` AS item_name,
+            `Category`         AS category,
+            SUM(Quantity)      AS amazon_count
+        FROM `{bq_project}.{bq_dataset}.amazon_cleaned`
+        WHERE `Item Description` IS NOT NULL
+          AND `Category`         IS NOT NULL
+        GROUP BY item_name, category
+        ORDER BY amazon_count DESC
+        LIMIT 50
+    ),
+    BookstoreItems AS (
+        SELECT DISTINCT LOWER(`Item Description`) AS item_name_lower
+        FROM `{bq_project}.{bq_dataset}.bookstore_cleaned`
+        WHERE `Item Description` IS NOT NULL
+    )
+    SELECT
+        a.item_name,
+        a.category,
+        a.amazon_count,
+        b.item_name_lower IS NOT NULL AS in_bookstore
+    FROM AmazonTop a
+    LEFT JOIN BookstoreItems b ON LOWER(a.item_name) = b.item_name_lower
+    ORDER BY a.amazon_count DESC
+    """
+
+    bq_client = _bigquery_client()
+    rows = list(bq_client.query(sql).result())
+
+    overlap, gaps = [], []
+    for row in rows:
+        category_lower = (row["category"] or "").lower()
+        is_adjacent = any(k in category_lower for k in BOOKSTORE_ADJACENT)
+        in_bookstore = bool(row["in_bookstore"])
+        count = int(row["amazon_count"] or 0)
+        item = {
+            "item_name": row["item_name"],
+            "category": row["category"],
+            "amazon_count": count,
+        }
+        if in_bookstore:
+            item["suggested_reason"] = f"High Amazon demand ({count:,} orders) confirms this is popular. Keep well-stocked."
+            overlap.append(item)
+        elif is_adjacent:
+            item["suggested_reason"] = f"{count:,} Amazon orders in '{row['category']}'. Consider stocking in the bookstore."
+            gaps.append(item)
+
+    return {"overlap": overlap[:15], "gaps": gaps[:15]}
+
+# This caches the last 30 unique (time_period, dev_mode, lookback) combos in server RAM.
+@lru_cache(maxsize=30)
+def fetch_bookstore_forecast_from_bigquery(time_period: str, dev_mode: bool = False, lookback: str = "2_year"):
+    """
+    Retrieves inventory health insights by comparing current stock against BQML demand forecasts.
+
+    Key fixes vs. original:
+    - Filters ML.EXPLAIN_FORECAST to time_series_type = 'forecast' only (historical rows were
+      being summed in, inflating predictions by 10-30x).
+    - Uses a rolling 6-month window for stock depletion instead of all-time sales.
+    - Adds a HistoricalContext CTE that computes the average sales for the same calendar
+      period (the months being forecast) across the past N years, giving a reality-check
+      baseline alongside the ML prediction.
+    """
+    import datetime
+    bq_project = os.getenv("VITE_FIREBASE_PROJECT_ID", "")
+    bq_dataset = os.getenv("BIGQUERY_DATASET", "")
+    model_suffix = "_dev" if dev_mode else ""
+    model_path = f"{bq_project}.{bq_dataset}.bookstore_inventory_forecast{model_suffix}"
+    data_table = f"{bq_project}.{bq_dataset}.bookstore_cleaned{model_suffix}"
+
+    horizon_map = {"1_month": 1, "1_quarter": 3, "6_months": 6, "1_year": 12}
+    months_to_forecast = horizon_map.get(time_period, 3)
+
+    lookback_map = {"1_year": 1, "2_year": 2, "3_year": 3}
+    lookback_years = lookback_map.get(lookback, 2)
+
+    # Compute which calendar months we are forecasting (starting next month from today)
+    today = datetime.date.today()
+    forecast_months = [((today.month - 1 + i + 1) % 12) + 1 for i in range(months_to_forecast)]
+    month_list_sql = ", ".join(str(m) for m in forecast_months)
+
+    # Year range for historical comparison: the past N complete years before the current one
+    hist_end_year   = today.year - 1
+    hist_start_year = today.year - lookback_years
+
+    sql = f"""
+    -- Only sum FORECAST rows (not 'history' fitted rows).
+    -- Without this filter, ML.EXPLAIN_FORECAST returns historical fitted values too,
+    -- and summing all of them inflates predicted_qty by the full length of the training set.
+    WITH Explanations AS (
+        SELECT
+            `Item_Description` AS item_name,
+            SUM(time_series_data)                  AS predicted_qty,
+            SUM(prediction_interval_lower_bound)   AS lower_bound,
+            SUM(prediction_interval_upper_bound)   AS upper_bound,
+            AVG(trend)                             AS avg_trend,
+            AVG(seasonal_period_yearly)            AS yearly_seasonality
+        FROM ML.EXPLAIN_FORECAST(
+            MODEL `{model_path}`,
+            STRUCT({months_to_forecast} AS horizon)
+        )
+        WHERE time_series_type = 'forecast'
+        GROUP BY item_name
+    ),
+
+    -- Anchor all date calculations to the latest transaction in the dataset
+    -- so the query works correctly regardless of how old the data is relative to today.
+    DataBounds AS (
+        SELECT
+            MAX(CAST(`Transaction Date` AS DATE)) AS latest_date,
+            MIN(CAST(`Transaction Date` AS DATE)) AS earliest_date
+        FROM `{data_table}`
+    ),
+
+    -- CurrentStock: the bookstore dataset represents inventory on hand, not a sales ledger.
+    -- We use the most recent quarter relative to the dataset's latest date as the freshest
+    -- snapshot of what is on the shelf. No baseline subtraction — SUM(Quantity) IS inventory.
+    CurrentStock AS (
+        SELECT
+            `Item Description` AS item_name,
+            SUM(Quantity)      AS stock
+        FROM `{data_table}`, DataBounds
+        WHERE CAST(`Transaction Date` AS DATE) >= DATE_SUB(DataBounds.latest_date, INTERVAL 3 MONTH)
+        GROUP BY item_name
+    ),
+
+    -- HistoricalContext: average sales for the SAME calendar months we are forecasting,
+    -- measured over the past {lookback_years} year(s) relative to the dataset's latest year.
+    HistoricalContext AS (
+        SELECT item_name, AVG(period_qty) AS historical_avg
+        FROM (
+            SELECT
+                `Item Description`                                    AS item_name,
+                EXTRACT(YEAR FROM CAST(`Transaction Date` AS DATE))   AS yr,
+                SUM(Quantity)                                         AS period_qty
+            FROM `{data_table}`, DataBounds
+            WHERE
+                EXTRACT(MONTH FROM CAST(`Transaction Date` AS DATE)) IN ({month_list_sql})
+                AND EXTRACT(YEAR FROM CAST(`Transaction Date` AS DATE))
+                    BETWEEN EXTRACT(YEAR FROM DataBounds.latest_date) - {lookback_years}
+                        AND EXTRACT(YEAR FROM DataBounds.latest_date) - 1
+            GROUP BY item_name, yr
+        )
+        GROUP BY item_name
+    )
+
+    SELECT
+        e.item_name,
+        CAST(e.predicted_qty   AS INT64)                    AS predicted_qty,
+        CAST(e.lower_bound     AS INT64)                    AS lower_bound,
+        CAST(e.upper_bound     AS INT64)                    AS upper_bound,
+        e.avg_trend,
+        e.yearly_seasonality,
+        COALESCE(CAST(c.stock  AS INT64), 0)                AS current_stock,
+        CAST(COALESCE(h.historical_avg, 0) AS INT64)        AS historical_avg
+    FROM Explanations e
+    LEFT JOIN CurrentStock      c ON e.item_name = c.item_name
+    LEFT JOIN HistoricalContext h ON e.item_name = h.item_name
+    WHERE e.item_name IS NOT NULL
+      AND CAST(e.predicted_qty AS INT64) > 0
+    ORDER BY ABS(CAST(c.stock AS INT64) - CAST(e.predicted_qty AS INT64)) DESC
+    LIMIT 25
+    """
+    
+    bq_client = _bigquery_client()
+    query_job = bq_client.query(sql)
+    results = []
+
+    for row in query_job.result():
+        # data extraction
+        item_name = row["item_name"]
+        category = row["item_name"]
+        predicted = int(row["predicted_qty"] or 0)
+        stock = int(row["current_stock"] or 0)
+        trend = row["avg_trend"] or 0
+        seasonality = row["yearly_seasonality"] or 0
+        upper = int(row["upper_bound"] or 0)
+        lower = int(row["lower_bound"] or 0)
+        historical_avg = int(row["historical_avg"] or 0)
+
+        # 1. CALCULATE ACTUAL CERTAINTY SCORE
+        # Formula: 1 - (Range Width / (2 * Predicted))
+        # A tight range = high certainty. A wide range = low certainty.
+        if predicted > 0:
+            interval_width = upper - lower
+            # We normalize the width against the prediction to get a percentage
+            error_margin = interval_width / (predicted * 2) if predicted > 0 else 0.5
+            certainty_score = max(5, min(99, int((1 - error_margin) * 100)))
+        else:
+            certainty_score = 50 # Default for items with no predicted sales
+
+        # 2. HANDLE "NO SEASONALITY" DATA
+        # we adjust the reasoning to reflect that this is a "Steady" item
+        if seasonality == 0:
+            seasonality_impact = "a stable, non-seasonal baseline"
+        else:
+            seasonality_impact = "historical seasonal spikes" if seasonality > 0 else "standard seasonal baseline"
+        
+        # Reasoning Section
+        # =================
+        # we calculate the shortfall (predicted - actual) to see if what we predicted match up with the actual stock
+        shortfall = predicted - stock
+
+        # update AI text generation to handle flat '0's
+        if trend > 0.05:
+            trend_direction = "growing"
+        elif trend < -0.05:
+            trend_direction = "declining"
+        else:
+            trend_direction = "stable"
+
+        # seasonality_impact = "a strong historical seasonal spike" if seasonality > 0 else "standard seasonal baseline"
+
+        # Historical context string for reasoning
+        hist_note = (
+            f" Same-period {lookback_years}yr avg: {historical_avg} units."
+            if historical_avg > 0 else ""
+        )
+
+        # Logic gate: will we completely run out of stock?
+        if shortfall > 0:
+            action = "Critical Reorder" if shortfall > (stock * 0.5) else "Reorder Soon"
+            reasoning = (
+                f"Predicted shortfall of {shortfall} units. "
+                f"The model projects {predicted} sales driven by a {trend_direction} long-term trend "
+                f"and {seasonality_impact}. Current stock ({stock}) will not cover the selected period."
+                f"{hist_note}"
+            )
+
+        # Logic gate: Are we within 20 units of running out of stock (the danger zone)?
+        elif shortfall > -20:
+            action = "Monitor Closely"
+            reasoning = (
+                f"Stock is cutting it close. You have {stock} units to cover a predicted demand of {predicted}. "
+                f"Based on historical data, unexpected {seasonality_impact} variance could cause a stockout."
+                f"{hist_note}"
+            )
+
+        # Logic gate: Dead Stock Risk
+        elif stock > upper:
+            action = "Dead Stock Risk"
+            excess = stock - upper
+            reasoning = (
+                f"Overstock Risk: Current stock ({stock}) exceeds the highest projected demand ({upper}). "
+                f"Historical baseline trend is {trend_direction}, suggesting ~{excess} units of trapped capital."
+                f"{hist_note}"
+            )
+
+        # Logic gate: otherwise, we have plenty of stock left
+        else:
+            action = "Adequate Stock"
+            reasoning = (
+                f"No immediate action needed. Current stock ({stock}) safely covers the predicted demand ({predicted}). "
+                f"Historical baseline trend is {trend_direction}, but you have sufficient buffer."
+                f"{hist_note}"
+            )
+
+        reliability = "High" if certainty_score > 80 else "Moderate" if certainty_score > 50 else "Low"
+
+        # Final Payload
+        results.append({
+            "category": category,
+            "current_stock": stock,
+            "predicted_demand": predicted,
+            "lower_bound": lower,
+            "upper_bound": upper,
+            "certainty_score": certainty_score,
+            "action": action,
+            "historical_avg": historical_avg,
+            "reasoning": f"{reasoning} Model reliability is {reliability} ({certainty_score}% certainty) based on prediction variance.",
+            "trend_direction": trend_direction
+        })
+
+    return results
+
+
+@lru_cache(maxsize=30)
+def fetch_amazon_forecast_from_bigquery(time_period: str, dev_mode: bool = False, lookback: str = "2_year"):
+    """
+    Retrieves Amazon demand forecasts per item name using BQML ARIMA+.
+    current_stock = recent 3-month Amazon order volume for that item.
+    predicted_demand = ML forecast of future Amazon orders.
+    Both values come from amazon_cleaned so the comparison is always valid.
+    """
+    import datetime
+    bq_project = os.getenv("VITE_FIREBASE_PROJECT_ID", "")
+    bq_dataset = os.getenv("BIGQUERY_DATASET", "")
+    model_suffix = "_dev" if dev_mode else ""
+    model_path = f"{bq_project}.{bq_dataset}.amazon_demand_forecast{model_suffix}"
+    amazon_table = f"{bq_project}.{bq_dataset}.amazon_cleaned{model_suffix}"
+
+    horizon_map = {"1_month": 1, "1_quarter": 3, "6_months": 6, "1_year": 12}
+    months_to_forecast = horizon_map.get(time_period, 3)
+
+    lookback_map = {"1_year": 1, "2_year": 2, "3_year": 3}
+    lookback_years = lookback_map.get(lookback, 2)
+
+    today = datetime.date.today()
+    forecast_months = [((today.month - 1 + i + 1) % 12) + 1 for i in range(months_to_forecast)]
+    month_list_sql = ", ".join(str(m) for m in forecast_months)
+
+    sql = f"""
+    WITH Explanations AS (
+        SELECT
+            `Item_Description` AS item_name,
+            SUM(time_series_data)                AS predicted_qty,
+            SUM(prediction_interval_lower_bound) AS lower_bound,
+            SUM(prediction_interval_upper_bound) AS upper_bound,
+            AVG(trend)                           AS avg_trend,
+            AVG(seasonal_period_yearly)          AS yearly_seasonality
+        FROM ML.EXPLAIN_FORECAST(
+            MODEL `{model_path}`,
+            STRUCT({months_to_forecast} AS horizon)
+        )
+        WHERE time_series_type = 'forecast'
+        GROUP BY item_name
+    ),
+
+    -- Recent 3-month order volume per item, anchored to dataset's own latest date
+    RecentOrders AS (
+        SELECT
+            `Item Description` AS item_name,
+            SUM(Quantity)      AS recent_qty
+        FROM `{amazon_table}`
+        WHERE CAST(`Transaction Date` AS DATE) >= DATE_SUB(
+            (SELECT MAX(CAST(`Transaction Date` AS DATE)) FROM `{amazon_table}`),
+            INTERVAL 3 MONTH
+        )
+          AND `Item Description` IS NOT NULL
+        GROUP BY `Item Description`
+    ),
+
+    HistoricalContext AS (
+        SELECT item_name, AVG(period_qty) AS historical_avg
+        FROM (
+            SELECT
+                `Item Description` AS item_name,
+                EXTRACT(YEAR FROM CAST(`Transaction Date` AS DATE))  AS yr,
+                SUM(Quantity)                                        AS period_qty
+            FROM `{amazon_table}`
+            WHERE
+                EXTRACT(MONTH FROM CAST(`Transaction Date` AS DATE)) IN ({month_list_sql})
+                AND EXTRACT(YEAR FROM CAST(`Transaction Date` AS DATE))
+                    BETWEEN (SELECT EXTRACT(YEAR FROM MAX(CAST(`Transaction Date` AS DATE))) FROM `{amazon_table}`) - {lookback_years}
+                        AND (SELECT EXTRACT(YEAR FROM MAX(CAST(`Transaction Date` AS DATE))) FROM `{amazon_table}`) - 1
+                AND `Item Description` IS NOT NULL
+            GROUP BY item_name, yr
+        )
+        GROUP BY item_name
+    )
+
+    SELECT
+        e.item_name,
+        CAST(e.predicted_qty   AS INT64)              AS predicted_qty,
+        CAST(e.lower_bound     AS INT64)              AS lower_bound,
+        CAST(e.upper_bound     AS INT64)              AS upper_bound,
+        e.avg_trend,
+        e.yearly_seasonality,
+        COALESCE(CAST(r.recent_qty AS INT64), 0)      AS recent_orders,
+        CAST(COALESCE(h.historical_avg, 0) AS INT64)  AS historical_avg
+    FROM Explanations e
+    LEFT JOIN RecentOrders      r ON e.item_name = r.item_name
+    LEFT JOIN HistoricalContext h ON e.item_name = h.item_name
+    WHERE e.item_name IS NOT NULL
+      AND CAST(e.predicted_qty AS INT64) > 0
+    ORDER BY CAST(e.predicted_qty AS INT64) DESC
+    LIMIT 25
+    """
+
+    bq_client = _bigquery_client()
+    query_job = bq_client.query(sql)
+    results = []
+
+    for row in query_job.result():
+        item_name = row["item_name"]
+        predicted = int(row["predicted_qty"] or 0)
+        recent = int(row["recent_orders"] or 0)
+        trend = row["avg_trend"] or 0
+        seasonality = row["yearly_seasonality"] or 0
+        upper = int(row["upper_bound"] or 0)
+        lower = int(row["lower_bound"] or 0)
+        historical_avg = int(row["historical_avg"] or 0)
+
+        if predicted > 0:
+            interval_width = upper - lower
+            error_margin = interval_width / (predicted * 2) if predicted > 0 else 0.5
+            certainty_score = max(5, min(99, int((1 - error_margin) * 100)))
+        else:
+            certainty_score = 50
+
+        if trend > 0.05:
+            trend_direction = "growing"
+        elif trend < -0.05:
+            trend_direction = "declining"
+        else:
+            trend_direction = "stable"
+
+        if seasonality == 0:
+            seasonality_impact = "a stable, non-seasonal baseline"
+        else:
+            seasonality_impact = "historical seasonal spikes" if seasonality > 0 else "standard seasonal baseline"
+
+        hist_note = (
+            f" Same-period {lookback_years}yr avg: {historical_avg} orders."
+            if historical_avg > 0 else ""
+        )
+
+        shortfall = predicted - recent
+        if shortfall > 0 and shortfall > (recent * 0.5):
+            action = "Critical Reorder"
+            reasoning = (
+                f"Amazon demand is surging — forecast of {predicted} orders vs. only {recent} recent. "
+                f"Shortfall of {shortfall} units driven by a {trend_direction} trend and {seasonality_impact}.{hist_note}"
+            )
+        elif shortfall > 0:
+            action = "Reorder Soon"
+            reasoning = (
+                f"Demand is climbing — {predicted} orders forecast vs. {recent} recently. "
+                f"A {trend_direction} trend suggests continued growth.{hist_note}"
+            )
+        elif shortfall > -20:
+            action = "Monitor Closely"
+            reasoning = (
+                f"Demand is near recent volume ({recent} orders vs. {predicted} forecast). "
+                f"Variance from {seasonality_impact} could push this higher.{hist_note}"
+            )
+        elif recent > upper:
+            action = "Dead Stock Risk"
+            reasoning = (
+                f"Recent orders ({recent}) exceed the high-end forecast ({upper}), suggesting demand is cooling. "
+                f"The {trend_direction} trend supports lower activity ahead.{hist_note}"
+            )
+        else:
+            action = "Adequate Stock"
+            reasoning = (
+                f"Demand is stable. Forecast of {predicted} orders aligns with recent volume ({recent}). "
+                f"Historical baseline is {trend_direction} with {seasonality_impact}.{hist_note}"
+            )
+
+        reliability = "High" if certainty_score > 80 else "Moderate" if certainty_score > 50 else "Low"
+
+        results.append({
+            "category": item_name,
+            "current_stock": recent,
+            "predicted_demand": predicted,
+            "lower_bound": lower,
+            "upper_bound": upper,
+            "certainty_score": certainty_score,
+            "action": action,
+            "historical_avg": historical_avg,
+            "reasoning": f"{reasoning} Model reliability is {reliability} ({certainty_score}% certainty).",
+            "trend_direction": trend_direction,
+        })
+
+    return results
+
+
+@lru_cache(maxsize=50)
+def fetch_item_history(item_name: str, dev_mode: bool = False):
+    """
+    Returns monthly aggregated purchase quantities for a single bookstore item.
+    Used to render the time-series chart in the ItemHistoryDrawer.
+    """
+    from google.cloud import bigquery as bq_lib
+    bq_project = os.getenv("VITE_FIREBASE_PROJECT_ID", "")
+    bq_dataset = os.getenv("BIGQUERY_DATASET", "")
+    suffix = "_dev" if dev_mode else ""
+    data_table = f"{bq_project}.{bq_dataset}.bookstore_cleaned{suffix}"
+
+    sql = f"""
+    SELECT
+        FORMAT_DATE('%Y-%m', DATE_TRUNC(CAST(`Transaction Date` AS DATE), MONTH)) AS month,
+        SUM(Quantity) AS quantity
+    FROM `{data_table}`
+    WHERE `Item Description` = @item_name
+      AND `Transaction Date` IS NOT NULL
+    GROUP BY month
+    ORDER BY month ASC
+    """
+
+    job_config = bq_lib.QueryJobConfig(
+        query_parameters=[bq_lib.ScalarQueryParameter("item_name", "STRING", item_name)]
+    )
+    bq_client = _bigquery_client()
+    rows = list(bq_client.query(sql, job_config=job_config).result())
+    return [{"month": row["month"], "quantity": int(row["quantity"] or 0)} for row in rows]
