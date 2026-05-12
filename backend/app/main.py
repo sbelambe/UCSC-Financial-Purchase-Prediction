@@ -21,6 +21,7 @@ from .routes.system import router as system_router
 from .routes.analytics import router as analytics_router
 from .routes.explorer import router as explorer_router
 from .routes.upload import router as upload_router
+from .routes.chatbot import router as chatbot_router
 
 # Create the FastAPI App.
 app = FastAPI(title="UCSC Financial Dashboard API")
@@ -96,6 +97,13 @@ app.include_router(explorer_router)
 # Key Routes: 
 #   - POST /api/analytics/project (Accepts multipart/form-data for projection mode)
 app.include_router(upload_router)
+
+
+# CHATBOT ROUTER
+# Router for the chatbot
+# Key Route:
+# - POST /api/chatbot/guidance
+app.include_router(chatbot_router, prefix="/api/chatbot", tags=["chatbot"])
 
 
 
