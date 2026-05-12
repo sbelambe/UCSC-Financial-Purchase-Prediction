@@ -75,7 +75,7 @@ export function ProjectionUploader({ onProjectionSuccess, onClearProjection, has
     formData.append('dataset', dataset);
 
     try {
-      const response = await fetch('http://127.0.0.1:8000/api/analytics/project', {
+      const response = await fetch('/api/analytics/project', {
         method: 'POST',
         body: formData,
       });
