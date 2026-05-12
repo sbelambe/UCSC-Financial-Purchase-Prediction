@@ -459,6 +459,7 @@ export function Dashboard() {
   const displayedPatternError = selectedPatternDimension === 'item' ? topItemsError : topPatternsError;
   const chartSlides = [
     {
+      title: 'Top Items Overview',
       content: (
         <TopItemsChart
           data={displayedPatternData}
