@@ -1,13 +1,13 @@
-import os
-import re
+import os, re, json
 from typing import Any, Dict, List, Optional
 
 from dotenv import load_dotenv
 from google.cloud import bigquery
+from google.oauth2 import service_account
 from google.cloud.firestore import FieldFilter, Query
 
 from .data_config import CANONICAL_COLUMN_ORDER, DATASET_COLUMN_CONFIG, dataset_schema
-from .firebase import bucket, cred_path, db
+from app.firebase import bucket, db
 from functools import lru_cache
 
 
@@ -415,11 +415,36 @@ def _bigquery_client() -> bigquery.Client:
         )
 
     location = os.getenv("BIGQUERY_LOCATION")
-    return bigquery.Client.from_service_account_json(
-        cred_path,
-        project=project_id,
-        location=location,
-    )
+    
+    # 1. Try to load from Vercel Environment Variable (JSON String)
+    bq_env_creds = os.getenv("FIREBASE_SERVICE_ACCOUNT")
+    
+    if bq_env_creds:
+        # We are on Vercel: Parse the JSON string and use oauth2
+        cred_dict = json.loads(bq_env_creds)
+        credentials = service_account.Credentials.from_service_account_info(cred_dict)
+        return bigquery.Client(
+            credentials=credentials, 
+            project=project_id, 
+            location=location
+        )
+    else:
+        # 2. Fall back to local file path for development
+        cred_filename = os.getenv("FIREBASE_CREDENTIALS_PATH")
+        if not cred_filename:
+            raise ValueError("Error: FIREBASE_CREDENTIALS_PATH is missing in .env")
+
+        # Construct absolute path to the credentials file using ROOT_DIR defined at the top
+        cred_path = os.path.join(ROOT_DIR, cred_filename)
+
+        if not os.path.exists(cred_path):
+            raise FileNotFoundError(f"Could not find the key file at: {cred_path}")
+
+        return bigquery.Client.from_service_account_json(
+            cred_path,
+            project=project_id,
+            location=location,
+        )
 
 
 def _serialize_vendors(vendors: Any) -> List[Dict[str, Any]]:

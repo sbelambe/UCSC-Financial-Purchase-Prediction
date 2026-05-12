@@ -20,7 +20,23 @@ SCOPES = ["https://www.googleapis.com/auth/drive.readonly"]
 # Authenticates and creates a Google Drive service client using 
 # a service account
 def get_drive_service():
-    cred_filename = os.getenv("GOOGLE_DRIVE_CREDENTIALS", "google-drive-service.json")
+    # vercel prod path
+    env_creds = os.getenv("GOOGLE_CREDENTIALS_JSON")
+    if env_creds:
+        print("[INFO] Authenticating Google Drive via Vercel Environment Variable.")
+        try:
+            cred_dict = json.loads(env_creds)
+            creds = service_account.Credentials.from_service_account_info(
+                cred_dict, 
+                scopes=SCOPES
+            )
+            return build("drive", "v3", credentials=creds)
+        except json.JSONDecodeError as e:
+            raise ValueError(f"Failed to parse GOOGLE_CREDENTIALS_JSON for Drive. Error: {e}")
+
+    # local dev path
+    print("[INFO] Authenticating Google Drive via Local JSON File.")
+    cred_filename = os.getenv("GOOGLE_APPLICATION_CREDENTIALS", "google-drive-service.json")
     current_dir = os.path.dirname(os.path.abspath(__file__))
     backend_dir = os.path.dirname(current_dir)
     project_root = os.path.dirname(backend_dir)

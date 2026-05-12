@@ -1,7 +1,7 @@
 # Runs all cleaning scripts and returns structured clean data and where
 # it should be stored in the codebase
 import os
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 
 # Import cleaning script files
 from .clean_amazon import load_amazon
@@ -22,7 +22,21 @@ def _clean_csv_paths() -> Dict[str, str]:
 
 
 # Run cleaning scripts and return cleaned dataframes and local CSVs
-def run_data_cleaning() -> Dict[str, Any]:
+def run_data_cleaning(base_dir: Optional[str] = None) -> Dict[str, Any]:
+    # safely configure the output directory
+
+    # vercel prod: route to /tmp
+    if base_dir:
+        output_dir = os.path.join(base_dir, "data_cleaning", "data", "cleaned")
+
+    # local dev: route to /data
+    else:
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        output_dir = os.path.join(current_dir, "..", "data", "cleaned")
+
+    # ensure the directory actually exists before Pandas writes to it
+    os.makedirs(output_dir, exist_ok=True)
+
     amazon_df = load_amazon()
     cruzbuy_df = load_cruzbuy()
     onecard_df = load_onecard()

@@ -35,7 +35,7 @@ def get_available_years():
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.post("/refresh")
+@router.post("/api/refresh")
 async def refresh_data():
     """
     Triggers the global data refresh pipeline safely.
@@ -58,9 +58,14 @@ async def refresh_data():
         print("[INFO] Refresh lock acquired. Starting background tasks.")
         try:
             folder_id = os.getenv("GOOGLE_DRIVE_FOLDER_ID")
-            raw_dir = os.path.join(
-                os.path.dirname(os.path.dirname(__file__)), "data_cleaning", "data", "raw"
-            )
+
+            # If Vercel is detected, route all file writes to the temporary /tmp directory
+            is_vercel = os.environ.get("VERCEL") == "1"
+            base_write_dir = "/tmp" if is_vercel else os.path.dirname(os.path.dirname(__file__))
+            raw_dir = os.path.join(base_write_dir, "data_cleaning", "data", "raw")
+
+            # Ensure the directories actually exist before downloading
+            os.makedirs(raw_dir, exist_ok=True)
             sync_result = sync_drive_folder(folder_id, raw_dir)
 
             # if no files changed, skip ML retraining and exit early
@@ -68,7 +73,7 @@ async def refresh_data():
                 return {"status": "ok", "message": "No changes made to the data. Skipped ML retraining.", "changed_files": []}
 
             # process new data
-            result = run_full_pipeline()
+            result = run_full_pipeline(base_dir=base_write_dir)
 
             # trigger ML retraining only because new data was processed successfully
             print("[INFO] New data processed. Executing ML model retraining.")
