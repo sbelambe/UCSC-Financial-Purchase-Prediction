@@ -1,7 +1,7 @@
 import io
 import pandas as pd
 from fastapi import APIRouter, HTTPException, File, UploadFile, Form
-from firebase.summaries import compute_top_items_detailed
+from firebase_client.summaries import compute_top_items_detailed
 
 router = APIRouter(tags=["upload"])
 
