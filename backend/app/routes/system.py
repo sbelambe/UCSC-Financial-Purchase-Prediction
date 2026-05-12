@@ -65,7 +65,7 @@ async def refresh_data():
 
             # if no files changed, skip ML retraining and exit early
             if not sync_result["changed"]:
-                return {"status": "ok", "message": "No changes made to the data.", "changed_files": []}
+                return {"status": "ok", "message": "No changes made to the data. Skipped ML retraining.", "changed_files": []}
 
             # process new data
             result = run_full_pipeline()
