@@ -4,6 +4,7 @@ import uuid, os
 from datetime import datetime, timezone
 from google.cloud import bigquery
 from dotenv import load_dotenv
+from app.bigquery_service import _bigquery_client
 
 router = APIRouter(
     prefix="/api/analytics",
@@ -40,25 +41,14 @@ def submit_feedback(feedback: FeedbackSubmission):
         dict: A status dictionary containing a success message.
 
     Raises:
-        ValueError: If the `serviceAccountKey.json` or `BIGQUERY_DATASET` cannot be found.
+        ValueError: If the `BIGQUERY_DATASET` cannot be found.
         HTTPException (500): If the BigQuery insertion fails or an unexpected error occurs.
     """
     try:
         load_dotenv()
+        client = _bigquery_client()
         
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        root_dir = os.path.dirname(os.path.dirname(os.path.dirname(current_dir)))
-        actual_path = os.path.join(root_dir, "serviceAccountKey.json")
-        if not os.path.exists(actual_path):
-            print(f"[DEBUG] File not found. Looked in exact location:\n{actual_path}")
-            raise ValueError(f"CRITICAL: Could not find serviceAccountKey.json at project root ({actual_path})!")
-
-        
-        os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = actual_path
- 
-        client = bigquery.Client()
         dataset_id = os.getenv("BIGQUERY_DATASET")
-        
         if not dataset_id:
             raise ValueError("BIGQUERY_DATASET environment variable is not set.")
 
