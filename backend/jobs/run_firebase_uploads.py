@@ -12,7 +12,7 @@ BACKEND_ROOT = os.path.abspath(os.path.join(current_dir, ".."))
 if BACKEND_ROOT not in sys.path:
     sys.path.insert(0, BACKEND_ROOT)
 
-from firebase.pipeline import upload_cleaned_data
+from firebase_client.pipeline import upload_cleaned_data
 from jobs.run_cleaning import run_cleaning
 
 

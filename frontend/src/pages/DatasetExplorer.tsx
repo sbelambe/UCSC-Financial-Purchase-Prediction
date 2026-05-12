@@ -122,7 +122,7 @@ export default function DatasetExplorer() {
       setLoading(true);
       setError(null);
 
-      fetch(`http://127.0.0.1:8000/api/dataset-explorer?${params.toString()}`, {
+      fetch(`/api/dataset-explorer?${params.toString()}`, {
         signal: controller.signal,
       })
         .then(async (response) => {
@@ -202,7 +202,7 @@ export default function DatasetExplorer() {
       const params = buildExplorerParams();
       params.set('format', exportFormat);
 
-      const response = await fetch(`http://127.0.0.1:8000/api/dataset-explorer/export?${params.toString()}`);
+      const response = await fetch(`/api/dataset-explorer/export?${params.toString()}`);
       if (!response.ok) {
         const payload = await response.json().catch(() => null);
         throw new Error(payload?.detail || 'Failed to export dataset.');

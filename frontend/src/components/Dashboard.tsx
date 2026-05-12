@@ -255,7 +255,7 @@ export function Dashboard() {
   const activeDatasetKey = tabToBigQueryDatasetMap[activeTab] || 'overall';
 
   useEffect(() => {
-    fetch(`http://127.0.0.1:8000/api/analytics/dataset-config?dataset=${activeDatasetKey}`)
+    fetch(`/api/analytics/dataset-config?dataset=${activeDatasetKey}`)
       .then(async (res) => {
         const payload = await res.json();
         if (!res.ok) {
@@ -312,7 +312,7 @@ export function Dashboard() {
       return;
     }
 
-    fetch(`http://127.0.0.1:8000/api/analytics/top-items/bigquery?${params.toString()}`)
+    fetch(`/api/analytics/top-items/bigquery?${params.toString()}`)
       .then(async (res) => {
         const payload = await res.json();
         if (!res.ok) {
@@ -375,7 +375,7 @@ export function Dashboard() {
       return;
     }
 
-    fetch(`http://127.0.0.1:8000/api/analytics/spend-over-time/bigquery?${params.toString()}`)
+    fetch(`/api/analytics/spend-over-time/bigquery?${params.toString()}`)
       .then(async (res) => {
         const payload = await res.json();
         if (!res.ok) {
@@ -459,6 +459,7 @@ export function Dashboard() {
   const displayedPatternError = selectedPatternDimension === 'item' ? topItemsError : topPatternsError;
   const chartSlides = [
     {
+      title: 'Top Items Overview',
       content: (
         <TopItemsChart
           data={displayedPatternData}
@@ -536,7 +537,7 @@ export function Dashboard() {
       return;
     }
 
-    fetch(`http://127.0.0.1:8000/api/analytics/top-items/bigquery?${params.toString()}`)
+    fetch(`/api/analytics/top-items/bigquery?${params.toString()}`)
       .then(async (res) => {
         const payload = await res.json();
         if (!res.ok) {
@@ -567,8 +568,8 @@ export function Dashboard() {
   useEffect(() => {
     if (activeTab === 'Amazon' || activeTab === 'Bookstore') {
       Promise.all([
-        fetch('http://127.0.0.1:8000/api/analytics/top-items/bigquery?dataset=amazon&limit=100').then(r => r.json()),
-        fetch('http://127.0.0.1:8000/api/analytics/top-items/bigquery?dataset=bookstore&limit=100').then(r => r.json())
+        fetch('/api/analytics/top-items/bigquery?dataset=amazon&limit=100').then(r => r.json()),
+        fetch('/api/analytics/top-items/bigquery?dataset=bookstore&limit=100').then(r => r.json())
       ])
       .then(([amazonRes, bookstoreRes]) => {
         setInsightsData({

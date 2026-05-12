@@ -2,9 +2,9 @@
 # Takes cleaned dataframes, stores metadata, then generates summaries usable
 # By the dashboard
 from typing import Dict, Any, Optional
-from firebase.storage import upload_all_to_storage
-from firebase.firestore import df_to_firestore
-from firebase.summaries import save_top_values_summary, save_spend_over_time_summary, save_top_items_detailed_summary
+from firebase_client.storage import upload_all_to_storage
+from firebase_client.firestore import df_to_firestore
+from firebase_client.summaries import save_top_values_summary, save_spend_over_time_summary, save_top_items_detailed_summary
 
 DEFAULT_UPLOAD_IDS = {
     "amazon": "amazon",

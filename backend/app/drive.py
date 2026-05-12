@@ -20,8 +20,17 @@ SCOPES = ["https://www.googleapis.com/auth/drive.readonly"]
 # Authenticates and creates a Google Drive service client using 
 # a service account
 def get_drive_service():
+    cred_filename = os.getenv("GOOGLE_DRIVE_CREDENTIALS", "google-drive-service.json")
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    backend_dir = os.path.dirname(current_dir)
+    project_root = os.path.dirname(backend_dir)
+    absolute_cred_path = os.path.join(project_root, cred_filename)
+
+    if not os.path.exists(absolute_cred_path):
+        raise FileNotFoundError(f"[ERROR] Missing Drive credentials at: {absolute_cred_path}")
+
     creds = service_account.Credentials.from_service_account_file(
-        os.getenv("GOOGLE_DRIVE_CREDENTIALS"),
+        absolute_cred_path,
         scopes=SCOPES
     )
     return build("drive", "v3", credentials=creds)
