@@ -14,6 +14,7 @@ import { TopItemsTable } from './TopItemsTable';
 import { ProjectionUploader } from './ProjectionUploader';
 import { InventoryInsights } from './InventoryInsights';
 import { FALLBACK_DATASET_SCHEMAS, type DatasetSchema } from '../lib/datasetConfig';
+import { getOriginalCategoriesForBroad } from '../lib/categoryMapping';
 
 
 // --- TYPES & CONSTANTS ---
@@ -137,12 +138,21 @@ const mergeProjectedSpendSeries = (
   return merged.sort((a, b) => a.period.localeCompare(b.period));
 };
 
-const shouldExcludeAmazonGiftCardsFromCharts = (item: any, activeDatasetKey: string) => {
-  if (activeDatasetKey !== 'amazon') return false;
+const EXCLUDED_CONDENSED_GROUPS = new Set([
+  'gift cards',
+  'food bulk purchases',
+  'business services',
+]);
 
-  const cleanName = String(item.clean_item_name || '').trim().toLowerCase();
-  const categoryValue = String(item.row_values?.Category || item.row_values?.category || '').trim().toLowerCase();
-  return cleanName === 'gift cards' || categoryValue === 'gift cards';
+const shouldExcludeFromCharts = (item: any, activeDatasetKey: string) => {
+  if (activeDatasetKey === 'amazon') {
+    const cleanName = String(item.clean_item_name || '').trim().toLowerCase();
+    const categoryValue = String(item.row_values?.Category || item.row_values?.category || '').trim().toLowerCase();
+    if (cleanName === 'gift cards' || categoryValue === 'gift cards') return true;
+  }
+
+  const condensedGroup = String(item.condensed_group || '').trim().toLowerCase();
+  return EXCLUDED_CONDENSED_GROUPS.has(condensedGroup);
 };
 
 const hasSchemaColumn = (schema: DatasetSchema | null, canonicalName: string) =>
@@ -282,6 +292,12 @@ export function Dashboard() {
       limit: String(selectedLimit),
       sort_mode: selectedSortMode,
     });
+    if (selectedCategory !== 'all') {
+      const originals = getOriginalCategoriesForBroad(selectedCategory);
+      if (originals.length > 0) {
+        params.set('category_filter', originals.join('|'));
+      }
+    }
     const cacheKey = params.toString();
     const cachedTopItems = topItemsCacheRef.current[cacheKey];
     if (cachedTopItems) {
@@ -325,7 +341,7 @@ export function Dashboard() {
         setTopItemsError(error instanceof Error ? error.message : 'Failed to load BigQuery top items.');
         setIsLoadingTopItems(false);
       });
-    }, [activeDatasetKey, selectedYear, selectedQuarter, deferredSearchQuery, minSpend, selectedLimit, selectedSortMode, projectedData]);
+    }, [activeDatasetKey, selectedYear, selectedQuarter, deferredSearchQuery, minSpend, selectedLimit, selectedSortMode, selectedCategory, projectedData]);
 
   // 2. BIGQUERY SPEND SERIES
   useEffect(() => {
@@ -432,32 +448,17 @@ export function Dashboard() {
   // views. 
   const filteredTopItems = useMemo(() => {
     if (!topItems || !Array.isArray(topItems)) return [];
-    
-    return topItems.filter(item => {
-      const name = item.clean_item_name.toLowerCase();
-
-      // Categories
-      if (selectedCategory !== 'all') {
-        if (selectedCategory === 'technology' && !(/laptop|monitor|adapter|switch|drive|ipad|macbook|workstation|mouse|battery/.test(name))) return false;
-        if (selectedCategory === 'lab-supplies' && !(/centrifuge|glove|pipette|beaker|dna|microscope|slide|goggle|parafilm/.test(name))) return false;
-        if (selectedCategory === 'office' && !(/paper|marker|board|chair|stapler|pad|post-it|binder|toner/.test(name))) return false;
-        if (selectedCategory === 'facilities' && !(/bulb|filter|trash|ladder|vest|handle|soap|wipe/.test(name))) return false;
-      }
-
-      return true;
-    });
-  }, [topItems, selectedCategory]);
+    return topItems;
+  }, [topItems]);
 
   const chartTopItems = useMemo(
-    () => filteredTopItems.filter((item) => !shouldExcludeAmazonGiftCardsFromCharts(item, activeDatasetKey)),
+    () => filteredTopItems.filter((item) => !shouldExcludeFromCharts(item, activeDatasetKey)),
     [filteredTopItems, activeDatasetKey]
   );
   const displayedPatternData = selectedPatternDimension === 'item' ? chartTopItems.slice(0, 5) : topPatterns;
   const displayedPatternError = selectedPatternDimension === 'item' ? topItemsError : topPatternsError;
   const chartSlides = [
     {
-      title: 'Top 5 Items',
-      subtitle: 'View the leading items, merchants, or categories for the active dataset.',
       content: (
         <TopItemsChart
           data={displayedPatternData}

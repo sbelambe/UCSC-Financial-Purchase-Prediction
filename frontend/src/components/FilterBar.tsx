@@ -1,6 +1,7 @@
 // Renders the filter bar at the top of the dashboard
 import { Search } from 'lucide-react';
 import React from 'react';
+import { BROAD_CATEGORIES } from '../lib/categoryMapping';
 
 type QuarterName = 'All Quarters' | 'Fall' | 'Winter' | 'Spring' | 'Summer';
 
@@ -57,14 +58,7 @@ export function FilterBar({
     'Summer',
   ]; 
 
-  // Custom categories matching your campus procurement data
-  const categories = [
-    { value: 'all', label: 'All Categories' },
-    { value: 'technology', label: 'Technology & IT' },
-    { value: 'lab-supplies', label: 'Lab & Science Supplies' },
-    { value: 'office', label: 'Office & Classroom' },
-    { value: 'facilities', label: 'Facilities & Maintenance' },
-  ];
+  const categories = BROAD_CATEGORIES;
 
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">

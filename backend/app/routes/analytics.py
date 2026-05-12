@@ -25,9 +25,10 @@ def get_top_items_bigquery(
     min_spend: float = 0,
     limit: int = 20,
     sort_mode: str = "frequency",
-    group_by: str = "item",
+    category_filter: str = "",
 ):
     try:
+        category_originals = [c.strip() for c in category_filter.split("|") if c.strip()] if category_filter else []
         data = query_top_items_from_bigquery(
             dataset=dataset,
             search_query=search_query,
@@ -36,7 +37,7 @@ def get_top_items_bigquery(
             min_spend=min_spend,
             limit=limit,
             sort_mode=sort_mode,
-            group_by=group_by,
+            category_originals=category_originals,
         )
         return {"status": "success", "data": data}
     except Exception as e:
