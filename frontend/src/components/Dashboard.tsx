@@ -12,8 +12,7 @@ import HighImpactScatterPlot from './HighImpactScatterPlot';
 import TransactionsOverTimeChart from './TransactionsOverTimeChart';
 import ItemSpendTrendChart from './ItemSpendTrendChart';
 import { TopItemsTable } from './TopItemsTable';
-import { ProjectionUploader } from './ProjectionUploader';
-import { InventoryInsights } from './InventoryInsights';
+import { InventoryInsights, type InsightRow } from './InventoryInsights';
 import { FALLBACK_DATASET_SCHEMAS, type DatasetSchema } from '../lib/datasetConfig';
 import { getOriginalCategoriesForBroad } from '../lib/categoryMapping';
 
@@ -139,6 +138,71 @@ const mergeProjectedSpendSeries = (
   return merged.sort((a, b) => a.period.localeCompare(b.period));
 };
 
+const timePeriodToMonths = (tp: string): number => {
+  switch (tp) {
+    case '1_month': return 1;
+    case '1_quarter': return 3;
+    case '6_months': return 6;
+    case '1_year': return 12;
+    default: return 3;
+  }
+};
+
+const getFutureMonths = (numMonths: number): string[] => {
+  const months: string[] = [];
+  const now = new Date();
+  for (let i = 0; i < numMonths; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
+    months.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+  }
+  return months;
+};
+
+const computePredictionProjection = (
+  predictions: { item: InsightRow; timePeriod: string }[],
+  topItems: any[],
+  dataset: string
+): { dataset: string; data: any[]; time_data: { period: string; pending_spend: number }[] } | null => {
+  if (predictions.length === 0) return null;
+
+  const dataItems: any[] = [];
+  const timeMap: Record<string, number> = {};
+
+  predictions.forEach(({ item, timePeriod }) => {
+    const catLower = item.category.toLowerCase();
+    const match = topItems.find((ti: any) => {
+      const name = String(ti.clean_item_name || '').toLowerCase();
+      return name.includes(catLower) || catLower.includes(name);
+    });
+
+    const avgUnitPrice = match && match.count > 0 ? match.total_spent / match.count : null;
+    const projectedCost = avgUnitPrice != null ? item.predicted_demand * avgUnitPrice : null;
+
+    dataItems.push({
+      clean_item_name: item.category,
+      count: item.predicted_demand,
+      total_spent: projectedCost ?? 0,
+      vendors: [],
+      year: 'Projected',
+    });
+
+    if (projectedCost != null) {
+      const numMonths = timePeriodToMonths(timePeriod);
+      const months = getFutureMonths(numMonths);
+      const spendPerMonth = projectedCost / numMonths;
+      months.forEach((period) => {
+        timeMap[period] = (timeMap[period] || 0) + spendPerMonth;
+      });
+    }
+  });
+
+  const time_data = Object.entries(timeMap)
+    .map(([period, pending_spend]) => ({ period, pending_spend }))
+    .sort((a, b) => a.period.localeCompare(b.period));
+
+  return { dataset, data: dataItems, time_data };
+};
+
 const EXCLUDED_CONDENSED_GROUPS = new Set([
   'gift cards',
   'food bulk purchases',
@@ -230,6 +294,13 @@ export function Dashboard() {
     data: any[];
     time_data: { period: string; pending_spend: number }[];
   } | null>(null);
+  const [acceptedPredictions, setAcceptedPredictions] = useState<
+    { item: InsightRow; timePeriod: string }[]
+  >([]);
+  const acceptedCategories = useMemo(
+    () => new Set(acceptedPredictions.map((p) => p.item.category)),
+    [acceptedPredictions]
+  );
   const deferredSearchQuery = useDeferredValue(searchQuery);
   const topItemsCacheRef = useRef<Record<string, { items: any[]; schema?: DatasetSchema | null; warnings?: string[] }>>({});
   const topPatternsCacheRef = useRef<Record<string, { items: any[]; warnings?: string[] }>>({});
@@ -622,6 +693,30 @@ export function Dashboard() {
   }, [activeTab]);
 
 
+  // Recompute projectedData whenever accepted predictions or the active dataset changes
+  useEffect(() => {
+    if (acceptedPredictions.length === 0) {
+      setProjectedData(null);
+      return;
+    }
+    const baseItems =
+      activeDatasetKey === 'amazon' ? insightsData.amazon : insightsData.bookstore;
+    const projection = computePredictionProjection(
+      acceptedPredictions,
+      baseItems,
+      activeDatasetKey
+    );
+    setProjectedData(projection);
+  }, [acceptedPredictions, activeDatasetKey, insightsData]);
+
+  const handleFollowPrediction = (item: InsightRow, timePeriod: string) => {
+    setAcceptedPredictions((prev) => {
+      const exists = prev.some((p) => p.item.category === item.category);
+      if (exists) return prev;
+      return [...prev, { item, timePeriod }];
+    });
+  };
+
   // The return statement below renders the entire dashboard
   return (
     <div className="w-full min-w-0 space-y-6">
@@ -678,8 +773,11 @@ export function Dashboard() {
             )}
 
             {projectedData && (
-              <div className="rounded-lg border border-purple-200 bg-purple-50 px-4 py-3 text-sm text-purple-800">
-                Projection overlay active for {projectedData.dataset}. BigQuery data is still the base layer.
+              <div className="rounded-lg border border-purple-200 bg-purple-50 px-4 py-3 text-sm text-purple-800 flex items-start gap-2">
+                <span className="mt-0.5 w-2 h-2 rounded-full bg-purple-500 shrink-0 animate-pulse" />
+                <span>
+                  <strong>ML Projection active</strong> — purple figures below are estimated future values based on accepted ML predictions. Historical (actual) data remains unchanged as the base layer.
+                </span>
               </div>
             )}
 
@@ -699,20 +797,42 @@ export function Dashboard() {
           <div className="flex flex-1 items-center justify-center">Loading...</div>
         ) : (
           <div className="space-y-8 flex-1">
-            <div className="space-y-4">
-              <div>
-                <h2 className="text-xl font-bold text-slate-900">Purchase Analytics Graphs</h2>
-                <p className="text-sm text-slate-500">
-                  Explore purchase patterns, high-impact items, and overall or per-item spending trends for the active dataset.
-                </p>
+            {acceptedPredictions.length > 0 && (
+              <div className="p-4 bg-purple-50 border border-purple-200 rounded-xl shadow-sm">
+                <div className="flex justify-between items-center mb-2">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-3 h-3 rounded-full bg-purple-500 animate-pulse" />
+                    <span className="font-bold text-purple-900">Projection Active</span>
+                  </div>
+                  <button
+                    onClick={() => setAcceptedPredictions([])}
+                    className="px-4 py-2 bg-white border border-purple-200 text-purple-700 rounded-lg text-sm font-bold shadow-sm hover:bg-purple-50 transition-colors"
+                  >
+                    Clear All
+                  </button>
+                </div>
+                <div className="flex flex-wrap gap-2 mt-1">
+                  {acceptedPredictions.map(({ item }) => (
+                    <span
+                      key={item.category}
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-purple-100 text-purple-800 text-xs font-medium"
+                    >
+                      {item.category}
+                      <button
+                        onClick={() =>
+                          setAcceptedPredictions((prev) =>
+                            prev.filter((p) => p.item.category !== item.category)
+                          )
+                        }
+                        className="ml-1 hover:text-purple-500 leading-none"
+                      >
+                        ×
+                      </button>
+                    </span>
+                  ))}
+                </div>
               </div>
-
-              <ProjectionUploader
-                onProjectionSuccess={(dataset, data, time_data) => setProjectedData({ dataset, data, time_data })}
-                onClearProjection={() => setProjectedData(null)}
-                hasActiveProjection={projectedData !== null}
-              />
-            </div>
+            )}
 
             <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
               <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
@@ -779,7 +899,11 @@ export function Dashboard() {
 
             {/* shows inventory insights if amazon or bookstore tabs are selected */}
             {(activeTab === 'Amazon' || activeTab === 'Bookstore') && (
-              <InventoryInsights activeTab={activeTab} />
+              <InventoryInsights
+                activeTab={activeTab}
+                onFollowPrediction={handleFollowPrediction}
+                acceptedCategories={acceptedCategories}
+              />
             )}
           </div>
         )}

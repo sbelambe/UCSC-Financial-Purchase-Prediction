@@ -39,6 +39,8 @@ export interface InsightRow {
 
 interface Props {
   activeTab: string;
+  onFollowPrediction?: (item: InsightRow, timePeriod: string) => void;
+  acceptedCategories?: Set<string>;
 }
 
 /**
@@ -49,7 +51,7 @@ interface Props {
  * @param {string} props.activeTab - The currently selected tab ('Amazon' or 'Bookstore'), which determines which API endpoint to fetch data from.
  * @returns {JSX.Element} The rendered grid of inventory insights and associated portal modals.
  */
-export function InventoryInsights({ activeTab }: Props) {
+export function InventoryInsights({ activeTab, onFollowPrediction, acceptedCategories }: Props) {
   const isAmazon = activeTab === 'Amazon';
 
   const [timePeriod, setTimePeriod] = useState<string>('1_quarter');
@@ -300,26 +302,43 @@ export function InventoryInsights({ activeTab }: Props) {
                   </div>
                 </CardContent>
 
-                {!isAmazon && (
-                  <div className="flex items-center justify-between mb-4 mt-auto pt-4 border-t border-[#C5D8F6]/50 px-6">
-                    {/* prediction feedback modal */}
-                    <button 
+                <div className="flex items-center justify-between mb-4 mt-auto pt-4 border-t border-[#C5D8F6]/50 px-6">
+                  {!isAmazon ? (
+                    <button
                       onClick={(e) => {
-                        e.stopPropagation(); // Stops the Card drawer from opening
-                        setFeedbackItem(item); // Triggers the Feedback Modal
+                        e.stopPropagation();
+                        setFeedbackItem(item);
                       }}
                       className="text-[10px] text-[#49454F] hover:text-[#1D69C4] underline font-medium transition-colors"
                     >
                       Flag Issue
                     </button>
+                  ) : <span />}
 
-                    {/* detail modal */}
-                    <div className="flex items-center gap-1 text-[10px] font-medium text-[#1D69C4]">
-                      <Sparkles className="size-3" />
-                      <span>Tap for details</span>
-                    </div>
+                  <div className="flex items-center gap-2">
+                    {onFollowPrediction && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onFollowPrediction(item, timePeriod);
+                        }}
+                        className={`text-[10px] font-semibold px-2.5 py-1 rounded-full border transition-colors ${
+                          acceptedCategories?.has(item.category)
+                            ? 'bg-purple-100 border-purple-300 text-purple-700'
+                            : 'bg-[#EBF3FF] border-[#C5D8F6] text-[#1D69C4] hover:bg-[#D0E4FF]'
+                        }`}
+                      >
+                        {acceptedCategories?.has(item.category) ? 'Accepted ✓' : 'Follow prediction'}
+                      </button>
+                    )}
+                    {!isAmazon && (
+                      <div className="flex items-center gap-1 text-[10px] font-medium text-[#1D69C4]">
+                        <Sparkles className="size-3" />
+                        <span>Tap for details</span>
+                      </div>
+                    )}
                   </div>
-                )}
+                </div>
               </Card>
             );
           })
