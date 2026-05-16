@@ -7,12 +7,54 @@ from ..config.cruzbuy_config import UNNECESSARY_COLUMNS
 RAW_DIR = os.path.join(os.path.dirname(__file__), "..", "data", "raw")
 CLEAN_DIR = os.path.join(os.path.dirname(__file__), "..", "data", "clean")
 
+# For filtering out non-items in the Item Description column
+MISSING_ITEM_VALUES = {"", "N/A", "NA", "NAN", "NONE", "NULL", "<NA>"}
+NON_ITEM_DESCRIPTIONS = {
+    "Carbon Dioxide Bone Dry Gr. 3.0 Size 200 Cga320",
+    "Co2 Dry Ice Nuggets",
+    "Custom Dna Tube",
+    "Desktop Dry Ice Box 500 Nom",
+    "Ewaste Fees",
+    "Freight",
+    "Freight Estimate",
+    "Gratuity",
+    "Materials In Support Of Labor",
+    "Nitrogen Ind Liq 230Lt 22Psi",
+    "Nitrogen Liquid Lc240 22 Psi",
+    "Nitrogen Liq 99.998% Lc230 22Psi",
+    "Nitrogen Uhp Gr 5.0 Size 300",
+    "Placeholder",
+    "Placeholder - Do Not Close",
+    "Placeholder- Do Not Close",
+    "Placeholder-Do Not Close",
+    "Shipping",
+    "Shipping And Handling",
+    "Steelcase Tariff Surcharge, Steelcase Tariff Surcharge",
+}
+NON_ITEM_DESCRIPTION_PATTERNS = [
+    r"\bdo not close\b",
+    r"\bdry ice\b",
+    r"\bdealer fee\b",
+    r"\bewaste fee",
+    r"\bfees?\b",
+    r"\bfreight\b",
+    r"\bgratuity\b",
+    r"\bplaceholder\b",
+    r"\bshipping(?: and handling)?\b",
+    r"\bsoftware recharge\b",
+    r"\bsubscription\b",
+    r"\bsurcharge\b",
+    r"\btariff\b",
+]
+
 def extract_year_from_filename(file_path):
     filename = os.path.basename(file_path)
     match = re.search(r"(19\d{2}|20\d{2})", filename)
     if match:
         return int(match.group(1))
     return None
+
+
 # ------------------------------- STEP 1: LOAD -------------------------------
 # Read the dataset file and load into a Pandas dataframe
 def load_cruzbuy():
@@ -49,6 +91,7 @@ def clean_cruzbuy(df):
     df = clean_columns(df)
     df = clean_numbers(df)
     df = clean_categories(df)
+    df = clean_non_items(df)
     df = finalize_dataframe(df)
     return df
 
@@ -135,17 +178,50 @@ def clean_categories(df):
 
     if "Category" in df.columns:
         df.loc[df["Category"] == old_name, "Category"] = new_name
+        # For missing Category values, change to "No Category" (looks nicer when displayed)
+        df["Category"] = fill_missing_category(df["Category"])
 
     return df
 
 
+# STEP 2.4 - CLEAN NON-ITEMS
+# ---------------------------
+def clean_non_items(df):
+    if "Item Description" not in df.columns:
+        return df
+
+    item_description = normalize_whitespace(df["Item Description"])
+    item_upper = item_description.str.upper()
+
+    # Filter out missing item descriptions
+    has_item_description = item_description.notna() & ~item_upper.isin(MISSING_ITEM_VALUES)
+    df = df[has_item_description].copy()
+
+    # Filter out non-item descriptions based on exact matches and regex patterns
+    item_description = normalize_whitespace(df["Item Description"])
+    non_item_mask = item_description.isin(NON_ITEM_DESCRIPTIONS)
+
+    for pattern in NON_ITEM_DESCRIPTION_PATTERNS:
+        non_item_mask |= item_description.str.contains(pattern, case=False, regex=True, na=False)
+
+    return df[~non_item_mask].copy()
+
+
+# HELPER FUNCTIONS
+# -----------------
 def normalize_whitespace(series):
     return (
         series
-        .astype(str)
+        .astype("string")
         .str.replace(r"\s+", " ", regex=True)
         .str.strip()
     )
+
+def fill_missing_category(series):
+    category = normalize_whitespace(series)
+    category_upper = category.str.upper()
+    return category.mask(category.isna() | category_upper.isin(MISSING_ITEM_VALUES), "No Category")
+
 # ----------------------------------------------------------------------------
 
 

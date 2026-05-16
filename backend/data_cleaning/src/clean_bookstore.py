@@ -6,6 +6,9 @@ import pandas as pd
 RAW_DIR = os.path.join(os.path.dirname(__file__), "..", "data", "raw")
 CLEAN_DIR = os.path.join(os.path.dirname(__file__), "..", "data", "clean")
 
+# For filtering out non-items in the Item Description column
+MISSING_ITEM_VALUES = {"", "N/A", "NA", "NAN", "NONE", "NULL", "<NA>"}
+
 def extract_year_from_filename(file_path):
     filename = os.path.basename(file_path)
     match = re.search(r"(19\d{2}|20\d{2})", filename)
@@ -48,6 +51,7 @@ def clean_bookstore(df):
     df = clean_columns(df)
     df = clean_numbers(df)
     df = clean_categories(df)
+    df = clean_non_items(df)
     df = finalize_dataframe(df)
     return df
 
@@ -107,16 +111,41 @@ def clean_categories(df):
                 normalize_whitespace(df[col])
                 .str.title()
         ) 
+            
+     # For missing Category values, change to "No Category" (looks nicer when displayed)
+    if "Category" in df.columns:
+        df["Category"] = fill_missing_category(df["Category"])
     
     return df
 
+
+# STEP 2.4 - CLEAN NON-ITEMS
+# ---------------------------
+def clean_non_items(df):
+    if "Item Description" not in df.columns:
+        return df
+
+    item_description = normalize_whitespace(df["Item Description"])
+    item_upper = item_description.str.upper()
+    has_item_description = item_description.notna() & ~item_upper.isin(MISSING_ITEM_VALUES)
+
+    return df[has_item_description].copy()
+
+
+# HELPER FUNCTIONS
+# -----------------
 def normalize_whitespace(series):
     return (
         series
-        .astype(str)
+        .astype("string")
         .str.replace(r"\s+", " ", regex=True)
         .str.strip()
     )
+
+def fill_missing_category(series):
+    category = normalize_whitespace(series)
+    category_upper = category.str.upper()
+    return category.mask(category.isna() | category_upper.isin(MISSING_ITEM_VALUES), "No Category")
 
 # ----------------------------------------------------------------------------
 

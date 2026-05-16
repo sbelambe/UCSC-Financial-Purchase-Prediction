@@ -27,12 +27,12 @@ def run_data_cleaning(base_dir: Optional[str] = None) -> Dict[str, Any]:
 
     # vercel prod: route to /tmp
     if base_dir:
-        output_dir = os.path.join(base_dir, "data_cleaning", "data", "cleaned")
+        output_dir = os.path.join(base_dir, "data_cleaning", "data", "clean")
 
     # local dev: route to /data
     else:
         current_dir = os.path.dirname(os.path.abspath(__file__))
-        output_dir = os.path.join(current_dir, "..", "data", "cleaned")
+        output_dir = os.path.join(current_dir, "..", "data", "clean")
 
     # ensure the directory actually exists before Pandas writes to it
     os.makedirs(output_dir, exist_ok=True)

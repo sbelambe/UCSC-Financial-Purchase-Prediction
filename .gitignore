@@ -13,6 +13,8 @@ __pycache_/
 .env
 .venv/
 venv/
+.pip-cache/
+.tmp/
 
 .DS_Store
 .vscode/

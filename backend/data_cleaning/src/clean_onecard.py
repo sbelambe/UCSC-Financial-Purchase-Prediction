@@ -6,9 +6,42 @@ from ..config.onecard_config import STATE_MAP, UNNECESSARY_COLUMNS, MERCHANT_MAP
 
 RAW_DIR = os.path.join(os.path.dirname(__file__), "..", "data", "raw")
 CLEAN_DIR = os.path.join(os.path.dirname(__file__), "..", "data", "clean")
+
 # Regexes used in cleaning Merchant City
 PHONE_PATTERN = re.compile(r"\d{3}[\-\s\.]?\d{3}[\-\s\.]?\d{4}")
 URL_PATTERN = re.compile(r"(http|www|\.com|\.net|\.org)", re.IGNORECASE)
+
+# For filtering out non-items in the Item Description column
+MISSING_ITEM_VALUES = {"", "N/A", "NA", "NAN", "NONE", "NULL", "<NA>"}
+NON_ITEM_DESCRIPTIONS = {
+    "Order Summary",
+    "Business Services",
+    "Claude Pro",
+    "Financial Services",
+    "Medical Lab",
+    "Payment On Account",
+    "Carryover Balance: Accrued",
+    "Miscellaneous",
+    "Misc/Specialty Retail",
+    "Product",
+    "Utility Bill",
+}
+NON_ITEM_DESCRIPTION_PATTERNS = [
+    r"\bsubscription\b",
+    r"\bsubscriptio",
+    r"\begift\b",
+    r"\bgift card\b",
+    r"\bplan start\b",
+    r"\bmonthly plan\b",
+    r"\bannual plan\b",
+    r"\bperformance month to month\b",
+    r"\bfacebook ads\b",
+    r"\bweb hosting\b",
+    r"\bstreaming\b",
+    r"\bcomcast\b",
+    r"\bdomain\b",
+    r"\bfedex",
+]
 
 def extract_year_from_filename(file_path):
     filename = os.path.basename(file_path)
@@ -52,6 +85,7 @@ def clean_onecard(df):
     df = clean_columns(df)
     df = clean_numbers(df)
     df = clean_categories(df)
+    df = clean_non_items(df)
     df = finalize_dataframe(df)
     return df
 
@@ -115,11 +149,10 @@ def clean_numbers(df):
         lambda price: "Refund" if price < 0 else "Purchase"
     )
 
-    # For Quantity, should be numeric and >= 0
-    # For necessity, keep the 0 quantities for this dataset
+    # For Quantity, should be numeric and > 0
     if "Quantity" in df.columns:
         df["Quantity"] = pd.to_numeric(df["Quantity"], errors="coerce")
-        df = df[df["Quantity"] >= 0]
+        df = df[df["Quantity"] > 0]
 
     # Create a new column called Total Price
     df["Total Price"] = df["Subtotal"] + df["Sales Tax"]
@@ -190,8 +223,38 @@ def clean_categories(df):
     if "Merchant City" in df.columns:
         df["Merchant City"] = df["Merchant City"].apply(clean_merchant_city)
 
+    # For missing Category values, change to "No Category" (looks nicer when displayed)
+    if "Category" in df.columns:
+        df["Category"] = fill_missing_category(df["Category"])
+
     return df
 
+
+# STEP 2.4 - CLEAN NON-ITEMS
+# ---------------------------
+def clean_non_items(df):
+    if "Item Description" not in df.columns:
+        return df
+
+    item_description = normalize_whitespace(df["Item Description"])
+    item_upper = item_description.str.upper()
+
+    # Filter out missing item descriptions
+    has_item_description = item_description.notna() & ~item_upper.isin(MISSING_ITEM_VALUES)
+    df = df[has_item_description].copy()
+
+    # Filter out non-item descriptions based on exact matches and regex patterns
+    item_description = normalize_whitespace(df["Item Description"])
+    non_item_mask = item_description.isin(NON_ITEM_DESCRIPTIONS)
+
+    for pattern in NON_ITEM_DESCRIPTION_PATTERNS:
+        non_item_mask |= item_description.str.contains(pattern, case=False, regex=True, na=False)
+
+    return df[~non_item_mask].copy()
+
+
+# HELPER FUNCTIONS
+# -----------------
 def normalize_merchant_name(value):
     if pd.isna(value):
         return pd.NA
@@ -200,6 +263,7 @@ def normalize_merchant_name(value):
     upper_value = value.upper()
 
     return MERCHANT_MAP.get(upper_value, value)
+
 
 def normalize_state(value):        
     if pd.isna(value):
@@ -210,13 +274,21 @@ def normalize_state(value):
     # Convert initials to full name if known
     return STATE_MAP.get(value, value.title())
 
+
 def normalize_whitespace(series):
     return (
         series
-        .astype(str)
+        .astype("string")
         .str.replace(r"\s+", " ", regex=True)
         .str.strip()
     )
+
+
+def fill_missing_category(series):
+    category = normalize_whitespace(series)
+    category_upper = category.str.upper()
+    return category.mask(category.isna() | category_upper.isin(MISSING_ITEM_VALUES), "No Category")
+
 
 def clean_merchant_city(value):
     if pd.isna(value):
@@ -233,6 +305,7 @@ def clean_merchant_city(value):
         return value.lower()
 
     return value
+
 # ----------------------------------------------------------------------------
 
 
@@ -243,24 +316,12 @@ def finalize_dataframe(df):
     if "Transaction Date" in df.columns:
         df = df.sort_values(by="Transaction Date")
 
-    # Add dollar signs back to price categories
-    # price_cols = ["Subtotal", "Sales Tax", "Total Price"]
-    # df = format_currency(df, price_cols)
-
     # Create a new column called Merchant Type, labels a row as "Campus" if
     # the purchase comes from the campus store, else "External"
     df["Merchant Type"] = df["Merchant Name"].apply(
         lambda x: "Campus" if "Ucsc Bay Tree Bkstore" in str(x) else "External"
     )
 
-    return df
-
-def format_currency(df, cols):
-    for col in cols:
-        if col in df.columns:
-            df[col] = df[col].apply(
-                lambda x: f"${x:,.2f}" if pd.notna(x) else x
-            )
     return df
 # ----------------------------------------------------------------------------
 

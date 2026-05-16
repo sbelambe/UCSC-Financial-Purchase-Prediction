@@ -7,6 +7,9 @@ from ..config.amazon_config import STATE_MAP, UNNECESSARY_COLUMNS
 RAW_DIR = os.path.join(os.path.dirname(__file__), "..", "data", "raw")
 CLEAN_DIR = os.path.join(os.path.dirname(__file__), "..", "data", "clean")
 
+# For filtering out non-items in the Item Description column
+MISSING_ITEM_VALUES = {"", "N/A", "NA", "NAN", "NONE", "NULL", "<NA>"}
+
 def extract_year_from_filename(file_path):
     filename = os.path.basename(file_path)
     match = re.search(r"(19\d{2}|20\d{2})", filename)
@@ -166,9 +169,15 @@ def clean_categories(df):
             .replace(amazon_variants)
         )
 
+    # For missing Category values, change to "No Category" (looks nicer when displayed)
+    if "Category" in df.columns:
+        df["Category"] = fill_missing_category(df["Category"])
+
     return df
 
 
+# HELPER FUNCTIONS
+# -----------------
 def normalize_state(value):        
     if pd.isna(value):
         return pd.NA
@@ -181,10 +190,16 @@ def normalize_state(value):
 def normalize_whitespace(series):
     return (
         series
-        .astype(str)
+        .astype("string")
         .str.replace(r"\s+", " ", regex=True)
         .str.strip()
     )
+
+def fill_missing_category(series):
+    category = normalize_whitespace(series)
+    category_upper = category.str.upper()
+    return category.mask(category.isna() | category_upper.isin(MISSING_ITEM_VALUES), "No Category")
+
 # ----------------------------------------------------------------------------
 
 
@@ -218,6 +233,3 @@ def save_clean_data(df):
     os.makedirs(CLEAN_DIR, exist_ok=True)
     df.to_csv(output_path, index=False)
 # ----------------------------------------------------------------------------
-
-# Future Ideas:
-# - Clean item description column 
