@@ -25,13 +25,6 @@ LOCAL_CLEANED_FILENAMES = {
     "bookstore": "bookstore_clean.csv",
 }
 
-HARDCODED_STORAGE_PATHS = {
-    "amazon": "clean/amazon/amazon_clean_20260305_050239.csv",
-    "bookstore": "clean/bookstore/bookstore_clean_20260305_050239.csv",
-    "cruzbuy": "clean/cruzbuy/cruzbuy_clean_20260305_050239.csv",
-    "onecard": "clean/onecard/onecard_clean_20260305_050239.csv",
-}
-
 SEARCH_FIELD_MAP = {
     "all": None,
     "item": ["Item Name", "Item Description"],
@@ -48,12 +41,6 @@ def _load_dataset_frame(dataset: str) -> pd.DataFrame:
     try:
         db, bucket = _get_firebase_clients()
 
-        storage_path = HARDCODED_STORAGE_PATHS.get(dataset)
-        if storage_path:
-            blob = bucket.blob(storage_path)
-            if blob.exists():
-                print(f"[INFO] Loaded dataset '{dataset}' directly from hardcoded storage path in Firebase.")   
-                return pd.read_csv(io.BytesIO(blob.download_as_bytes()))
         snapshot = db.collection("uploads").document(upload_id).get()
         if snapshot.exists:
             payload = snapshot.to_dict() or {}

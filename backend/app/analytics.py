@@ -3,7 +3,6 @@
 # structure
 
 from .firebase import db
-from google.cloud.firestore import FieldFilter, Query
 from datetime import datetime
 from collections import defaultdict
 from typing import Dict, Any, Optional, List
@@ -101,15 +100,7 @@ def _dataset_spend_summary(upload_id: str, time_period: str) -> List[Dict[str, A
 
 
 def _latest_upload_id_for_dataset(dataset: str) -> Optional[str]:
-    docs = (
-        db.collection("uploads")
-        .where(filter=FieldFilter("dataset", "==", dataset))
-        .order_by("createdAt", direction=Query.DESCENDING)
-        .limit(1)
-        .stream()
-    )
-    latest = next(docs, None)
-    return latest.id if latest else None
+    return DEFAULT_UPLOAD_IDS.get(dataset)
 
 
 def get_spend_over_time(
@@ -193,21 +184,11 @@ def get_item_freq(user_id: str, limit: int = 20):
         
         # query for the absolute newest document per dataset
         for ds in datasets:
-            latest_upload_query = db.collection("uploads") \
-                .where(filter=FieldFilter("dataset", "==", ds)) \
-                .order_by("createdAt", direction=Query.DESCENDING) \
-                .limit(1) \
-                .stream()
-                
-            latest_doc = next(latest_upload_query, None)
-            
-            if not latest_doc:
-                print(f"No recent uploads found for dataset: {ds}")
+            upload_id = DEFAULT_UPLOAD_IDS.get(ds)
+            if not upload_id:
+                print(f"No upload_id mapping for dataset: {ds}")
                 continue
-                
-            upload_id = latest_doc.id
-            
-            # fetch only the summary belonging to this specific latest upload
+
             summary_doc = db.collection("uploads").document(upload_id) \
                 .collection("summaries").document("top_items_detailed").get()
                 

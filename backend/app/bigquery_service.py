@@ -4,7 +4,6 @@ from typing import Any, Dict, List, Optional
 from dotenv import load_dotenv
 from google.cloud import bigquery
 from google.oauth2 import service_account
-from google.cloud.firestore import FieldFilter, Query
 
 from .data_config import CANONICAL_COLUMN_ORDER, DATASET_COLUMN_CONFIG, dataset_schema
 from app.firebase import bucket, db
@@ -25,12 +24,12 @@ DATASET_ALIASES = {
     "overall": "overall",
 }
 
-# To be changed later when there are less storage paths in Storage
-HARDCODED_STORAGE_PATHS = {
-    "amazon": "clean/amazon/amazon_clean_20260305_050239.csv",
-    "bookstore": "clean/bookstore/bookstore_clean_20260305_050239.csv",
-    "cruzbuy": "clean/cruzbuy/cruzbuy_clean_20260305_050239.csv",
-    "onecard": "clean/onecard/onecard_clean_20260305_050239.csv",
+# These IDs are stable per dataset and are reused for the latest upload metadata.
+UPLOAD_DOC_IDS = {
+    "amazon": "amazon",
+    "cruzbuy": "cruzbuy",
+    "onecard": "onecard",
+    "bookstore": "bookstore",
 }
 
 SEARCH_TOKEN_PATTERN = re.compile(r'(\w+):"([^"]+)"|(\w+):(\S+)')
@@ -95,26 +94,16 @@ def _amazon_gift_card_condition() -> str:
 
 def _latest_upload_metadata(dataset: str) -> Optional[Dict[str, Any]]:
     """Return the storage metadata for the dataset CSV BigQuery should read."""
-    if dataset in HARDCODED_STORAGE_PATHS:
-        return {
-            "upload_id": f"hardcoded-{dataset}",
-            "dataset": dataset,
-            "storagePath": HARDCODED_STORAGE_PATHS[dataset],
-        }
-
-    docs = (
-        db.collection("uploads")
-        .where(filter=FieldFilter("dataset", "==", dataset))
-        .order_by("createdAt", direction=Query.DESCENDING)
-        .limit(1)
-        .stream()
-    )
-    latest = next(docs, None)
-    if not latest:
+    upload_id = UPLOAD_DOC_IDS.get(dataset)
+    if not upload_id:
         return None
 
-    payload = latest.to_dict()
-    payload["upload_id"] = latest.id
+    doc = db.collection("uploads").document(upload_id).get()
+    if not doc.exists:
+        return None
+
+    payload = doc.to_dict() or {}
+    payload["upload_id"] = upload_id
     return payload
 
 
