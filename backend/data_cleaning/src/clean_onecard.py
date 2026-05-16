@@ -2,7 +2,13 @@ import os
 import pandas as pd
 import re
 import glob
-from ..config.onecard_config import STATE_MAP, UNNECESSARY_COLUMNS, MERCHANT_MAP
+from ..config.onecard_config import (
+    MERCHANT_MAP,
+    NON_ITEM_DESCRIPTION_PATTERNS,
+    NON_ITEM_DESCRIPTIONS,
+    STATE_MAP,
+    UNNECESSARY_COLUMNS,
+)
 
 RAW_DIR = os.path.join(os.path.dirname(__file__), "..", "data", "raw")
 CLEAN_DIR = os.path.join(os.path.dirname(__file__), "..", "data", "clean")
@@ -13,35 +19,6 @@ URL_PATTERN = re.compile(r"(http|www|\.com|\.net|\.org)", re.IGNORECASE)
 
 # For filtering out non-items in the Item Description column
 MISSING_ITEM_VALUES = {"", "N/A", "NA", "NAN", "NONE", "NULL", "<NA>"}
-NON_ITEM_DESCRIPTIONS = {
-    "Order Summary",
-    "Business Services",
-    "Claude Pro",
-    "Financial Services",
-    "Medical Lab",
-    "Payment On Account",
-    "Carryover Balance: Accrued",
-    "Miscellaneous",
-    "Misc/Specialty Retail",
-    "Product",
-    "Utility Bill",
-}
-NON_ITEM_DESCRIPTION_PATTERNS = [
-    r"\bsubscription\b",
-    r"\bsubscriptio",
-    r"\begift\b",
-    r"\bgift card\b",
-    r"\bplan start\b",
-    r"\bmonthly plan\b",
-    r"\bannual plan\b",
-    r"\bperformance month to month\b",
-    r"\bfacebook ads\b",
-    r"\bweb hosting\b",
-    r"\bstreaming\b",
-    r"\bcomcast\b",
-    r"\bdomain\b",
-    r"\bfedex",
-]
 
 def extract_year_from_filename(file_path):
     filename = os.path.basename(file_path)
@@ -223,10 +200,6 @@ def clean_categories(df):
     if "Merchant City" in df.columns:
         df["Merchant City"] = df["Merchant City"].apply(clean_merchant_city)
 
-    # For missing Category values, change to "No Category" (looks nicer when displayed)
-    if "Category" in df.columns:
-        df["Category"] = fill_missing_category(df["Category"])
-
     return df
 
 
@@ -283,13 +256,6 @@ def normalize_whitespace(series):
         .str.strip()
     )
 
-
-def fill_missing_category(series):
-    category = normalize_whitespace(series)
-    category_upper = category.str.upper()
-    return category.mask(category.isna() | category_upper.isin(MISSING_ITEM_VALUES), "No Category")
-
-
 def clean_merchant_city(value):
     if pd.isna(value):
         return pd.NA
@@ -333,3 +299,8 @@ def save_clean_data(df):
     os.makedirs(CLEAN_DIR, exist_ok=True)
     df.to_csv(output_path, index=False)
 # ----------------------------------------------------------------------------
+
+# Note: the removed item descriptions are based on high-frequency items from the
+# 2025 dataset and may not catch high frequency non-items in future years. This
+# data cleaning script may need to be updated in the future if new non-item 
+# descriptions are noticed on the website/in the data.

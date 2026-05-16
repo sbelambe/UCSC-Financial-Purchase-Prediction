@@ -5,6 +5,7 @@ data_cleaning/clean/*
 *.csv
 frontend/src/data/*
 /frontend/build/
+backend/data_cleaning/src/main.py
 
 __pycache_/
 *.pyc

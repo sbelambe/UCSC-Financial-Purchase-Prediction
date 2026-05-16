@@ -2,50 +2,17 @@ import os
 import re
 import glob
 import pandas as pd
-from ..config.cruzbuy_config import UNNECESSARY_COLUMNS
+from ..config.cruzbuy_config import (
+    NON_ITEM_DESCRIPTION_PATTERNS,
+    NON_ITEM_DESCRIPTIONS,
+    UNNECESSARY_COLUMNS,
+)
 
 RAW_DIR = os.path.join(os.path.dirname(__file__), "..", "data", "raw")
 CLEAN_DIR = os.path.join(os.path.dirname(__file__), "..", "data", "clean")
 
 # For filtering out non-items in the Item Description column
 MISSING_ITEM_VALUES = {"", "N/A", "NA", "NAN", "NONE", "NULL", "<NA>"}
-NON_ITEM_DESCRIPTIONS = {
-    "Carbon Dioxide Bone Dry Gr. 3.0 Size 200 Cga320",
-    "Co2 Dry Ice Nuggets",
-    "Custom Dna Tube",
-    "Desktop Dry Ice Box 500 Nom",
-    "Ewaste Fees",
-    "Freight",
-    "Freight Estimate",
-    "Gratuity",
-    "Materials In Support Of Labor",
-    "Nitrogen Ind Liq 230Lt 22Psi",
-    "Nitrogen Liquid Lc240 22 Psi",
-    "Nitrogen Liq 99.998% Lc230 22Psi",
-    "Nitrogen Uhp Gr 5.0 Size 300",
-    "Placeholder",
-    "Placeholder - Do Not Close",
-    "Placeholder- Do Not Close",
-    "Placeholder-Do Not Close",
-    "Shipping",
-    "Shipping And Handling",
-    "Steelcase Tariff Surcharge, Steelcase Tariff Surcharge",
-}
-NON_ITEM_DESCRIPTION_PATTERNS = [
-    r"\bdo not close\b",
-    r"\bdry ice\b",
-    r"\bdealer fee\b",
-    r"\bewaste fee",
-    r"\bfees?\b",
-    r"\bfreight\b",
-    r"\bgratuity\b",
-    r"\bplaceholder\b",
-    r"\bshipping(?: and handling)?\b",
-    r"\bsoftware recharge\b",
-    r"\bsubscription\b",
-    r"\bsurcharge\b",
-    r"\btariff\b",
-]
 
 def extract_year_from_filename(file_path):
     filename = os.path.basename(file_path)
@@ -178,8 +145,6 @@ def clean_categories(df):
 
     if "Category" in df.columns:
         df.loc[df["Category"] == old_name, "Category"] = new_name
-        # For missing Category values, change to "No Category" (looks nicer when displayed)
-        df["Category"] = fill_missing_category(df["Category"])
 
     return df
 
@@ -216,11 +181,6 @@ def normalize_whitespace(series):
         .str.replace(r"\s+", " ", regex=True)
         .str.strip()
     )
-
-def fill_missing_category(series):
-    category = normalize_whitespace(series)
-    category_upper = category.str.upper()
-    return category.mask(category.isna() | category_upper.isin(MISSING_ITEM_VALUES), "No Category")
 
 # ----------------------------------------------------------------------------
 
@@ -260,3 +220,8 @@ def save_clean_data(df):
     df.to_csv(output_path, index=False)
 
 # ----------------------------------------------------------------------------
+
+# Note: the removed item descriptions are based on high-frequency items from the
+# 2025 dataset and may not catch high frequency non-items in future years. This
+# data cleaning script may need to be updated in the future if new non-item 
+# descriptions are noticed on the website/in the data.

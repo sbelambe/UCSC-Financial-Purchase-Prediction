@@ -169,10 +169,6 @@ def clean_categories(df):
             .replace(amazon_variants)
         )
 
-    # For missing Category values, change to "No Category" (looks nicer when displayed)
-    if "Category" in df.columns:
-        df["Category"] = fill_missing_category(df["Category"])
-
     return df
 
 
@@ -194,11 +190,6 @@ def normalize_whitespace(series):
         .str.replace(r"\s+", " ", regex=True)
         .str.strip()
     )
-
-def fill_missing_category(series):
-    category = normalize_whitespace(series)
-    category_upper = category.str.upper()
-    return category.mask(category.isna() | category_upper.isin(MISSING_ITEM_VALUES), "No Category")
 
 # ----------------------------------------------------------------------------
 

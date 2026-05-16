@@ -110,11 +110,7 @@ def clean_categories(df):
             df[col] = (
                 normalize_whitespace(df[col])
                 .str.title()
-        ) 
-            
-     # For missing Category values, change to "No Category" (looks nicer when displayed)
-    if "Category" in df.columns:
-        df["Category"] = fill_missing_category(df["Category"])
+        )
     
     return df
 
