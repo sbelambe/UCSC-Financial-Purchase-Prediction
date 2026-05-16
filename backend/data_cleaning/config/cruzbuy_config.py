@@ -110,4 +110,5 @@ NON_ITEM_DESCRIPTION_PATTERNS = [
     r"\bpallet\b",
     r"\bpackaging\b",
     r"\bcrate\b"
+    r"\bcarbon dioxide\b",
 ]

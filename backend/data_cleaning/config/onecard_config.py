@@ -268,6 +268,15 @@ NON_ITEM_DESCRIPTIONS = {
     "Professional Services",
     "Consulting Services",
     "Installation",
+    "University And Colleges",
+    "Website",
+    "Qr",
+    "Plus",
+    "Durable Goods",
+    "Commercial Signage",
+    "Charity Organizations",
+    "Housewares",
+    "Priority",
     # Lower-frequency known non-item entries
     "2024.2 Essentials Scheduli",
     "Telecom Surcharge",
@@ -282,6 +291,7 @@ NON_ITEM_DESCRIPTION_PATTERNS = [
     r"\bamusement parks\b",
     r"\bamazon\b",
     r"\bannual plan\b",
+    r"\bbest buy\b",
     r"\bbuilding project\b",
     r"\bcomcast\b",
     r"\bdna\b",
@@ -295,6 +305,7 @@ NON_ITEM_DESCRIPTION_PATTERNS = [
     r"\bhousehold appliance\b",
     r"\bplan start\b",
     r"\bmonthly\b",
+    r"\b_monthly\b",
     r"\bnote taking\b",
     r"\bperformance month to month\b",
     r"\bpersonal care\b",
@@ -302,9 +313,9 @@ NON_ITEM_DESCRIPTION_PATTERNS = [
     r"\bsubscriptio",
     r"\bsuperhuman\b",
     r"\bweb hosting\b",
+    r"\wholesale distributor\b",
     r"\bwix",
     r"\bstreaming\b",
-    r"\buniverity and colleges\b",
     r"\b(service|administrative|convenience|processing|transaction)\s*(fee|charge|surcharge)\b",
     r"\bshipping(?: and handling)?\b",
     r"\bdelivery fee\b",
@@ -327,6 +338,7 @@ NON_ITEM_DESCRIPTION_PATTERNS = [
     r"\bopenai\b",
     r"\bchatgpt\b",
     r"\bclaude\b",
+    r"\bcloud\b",
     r"\bnotion\b",
     r"\bcanva\b",
     r"\bzoom\b",
@@ -335,8 +347,10 @@ NON_ITEM_DESCRIPTION_PATTERNS = [
     r"\bgithub\b",
     r"\baws\b",
     r"\bazure\b"
+    r"\busps\b",
+    r"\bservices\b",
     # Remove purely numeric item descriptions (just digits/spaces/hyphens)
     r"^[\d\s\-]+$",
-    # Remove items starting with long numeric merchant codes (10+ consecutive digits)
-    r"^\d{10,}",
+    # Remove items starting with long numeric merchant codes (8+ consecutive digits)
+    r"^\d{8,}",
 ]
