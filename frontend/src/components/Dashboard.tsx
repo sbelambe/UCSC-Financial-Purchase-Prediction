@@ -10,6 +10,7 @@ import { FilterBar } from './FilterBar';
 import TopItemsChart from './TopItemsChart';
 import HighImpactScatterPlot from './HighImpactScatterPlot';
 import TransactionsOverTimeChart from './TransactionsOverTimeChart';
+import ItemSpendTrendChart from './ItemSpendTrendChart';
 import { TopItemsTable } from './TopItemsTable';
 import { ProjectionUploader } from './ProjectionUploader';
 import { InventoryInsights } from './InventoryInsights';
@@ -493,6 +494,17 @@ export function Dashboard() {
           metricLabel={activeSchema?.metric_label}
           metricType={activeSchema?.metric_type}
           title={`${activeSchema?.metric_label || 'Spend Over Time'} (${activeTab}, ${selectedYear}, ${selectedQuarter})`}
+        />
+      ),
+    },
+    {
+      title: 'Item Spend Trends',
+      subtitle: 'Search for an item keyword and track matching purchases over time.',
+      content: (
+        <ItemSpendTrendChart
+          activeDatasetKey={activeDatasetKey}
+          selectedYear={selectedYear}
+          selectedQuarter={selectedQuarter}
         />
       ),
     },

@@ -3,7 +3,11 @@ from typing import Optional
 from app.analytics import get_item_freq, get_spend_over_time
 from app.analytics_bookstore import get_campus_store_item_insights
 from app.data_config import dataset_schema
-from app.bigquery_service import query_spend_over_time_from_bigquery, query_top_items_from_bigquery
+from app.bigquery_service import (
+    query_item_spend_over_time_from_bigquery,
+    query_spend_over_time_from_bigquery,
+    query_top_items_from_bigquery,
+)
 
 router = APIRouter(tags=["analytics"])
 
@@ -25,6 +29,7 @@ def get_top_items_bigquery(
     min_spend: float = 0,
     limit: int = 20,
     sort_mode: str = "frequency",
+    group_by: str = "item",
     category_filter: str = "",
 ):
     try:
@@ -37,6 +42,7 @@ def get_top_items_bigquery(
             min_spend=min_spend,
             limit=limit,
             sort_mode=sort_mode,
+            group_by=group_by,
             category_originals=category_originals,
         )
         return {"status": "success", "data": data}
@@ -93,6 +99,28 @@ def spend_over_time_bigquery(
             time_period=time_period,
             selected_year=selected_year,
             selected_quarter=selected_quarter,
+        )
+        return {"status": "success", "data": data}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/api/analytics/item-spend-over-time")
+def item_spend_over_time_bigquery(
+    dataset: str = "overall",
+    query: str = "",
+    time_period: str = "month",
+    selected_year: str = "All Time",
+    selected_quarter: str = "All Quarters",
+    limit: int = 10,
+):
+    try:
+        data = query_item_spend_over_time_from_bigquery(
+            dataset=dataset,
+            query=query,
+            time_period=time_period,
+            selected_year=selected_year,
+            selected_quarter=selected_quarter,
+            limit=limit,
         )
         return {"status": "success", "data": data}
     except Exception as e:
