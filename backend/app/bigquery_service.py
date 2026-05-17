@@ -1077,6 +1077,252 @@ def query_spend_over_time_from_bigquery(
         "warnings": [],
     }
 
+def query_item_spend_over_time_from_bigquery(
+    *,
+    dataset: str = "overall",
+    query: str = "",
+    time_period: str = "month",
+    selected_year: str = "All Time",
+    selected_quarter: str = "All Quarters",
+    limit: int = 10,
+) -> Dict[str, Any]:
+    """Aggregate spend/quantity over time for rows matching an item keyword."""
+    normalized_dataset = _normalize_dataset(dataset)
+    item_query = (query or "").strip()
+    chosen_time_period = (time_period or "month").strip().lower()
+    if chosen_time_period not in {"day", "week", "month", "year"}:
+        raise ValueError("time_period must be one of: day, week, month, year")
+    if not item_query:
+        return {
+            "query": item_query,
+            "dataset": normalized_dataset,
+            "time_period": chosen_time_period,
+            "selected_year": selected_year,
+            "selected_quarter": selected_quarter,
+            "schema": dataset_schema(normalized_dataset),
+            "storage_paths": {},
+            "series": [],
+            "matched_items": [],
+            "summary": {
+                "total_spend": 0,
+                "purchase_count": 0,
+                "total_quantity": 0,
+                "average_period_spend": 0,
+            },
+            "warnings": [],
+        }
+
+    selected_quarter = _normalized_quarter(selected_quarter)
+    safe_limit = max(1, min(int(limit or 10), 25))
+    datasets = (
+        ["amazon", "cruzbuy", "onecard", "bookstore"]
+        if normalized_dataset == "overall"
+        else [normalized_dataset]
+    )
+
+    table_definitions: Dict[str, bigquery.ExternalConfig] = {}
+    source_queries: List[str] = []
+    storage_paths: Dict[str, str] = {}
+
+    for current_dataset in datasets:
+        latest_upload = _latest_upload_metadata(current_dataset)
+        if not latest_upload or not latest_upload.get("storagePath"):
+            continue
+
+        table_name = f"{current_dataset}_item_trend_ext"
+        storage_paths[current_dataset] = latest_upload["storagePath"]
+        table_definitions[table_name] = _build_external_config(
+            _storage_uri(latest_upload["storagePath"])
+        )
+        source_queries.append(_source_select_sql(table_name, current_dataset))
+
+    if not source_queries:
+        return {
+            "query": item_query,
+            "dataset": normalized_dataset,
+            "time_period": chosen_time_period,
+            "selected_year": selected_year,
+            "selected_quarter": selected_quarter,
+            "schema": dataset_schema(normalized_dataset),
+            "storage_paths": storage_paths,
+            "series": [],
+            "matched_items": [],
+            "summary": {
+                "total_spend": 0,
+                "purchase_count": 0,
+                "total_quantity": 0,
+                "average_period_spend": 0,
+            },
+            "warnings": ["No uploaded CSV files with storage paths were found for the selected dataset."],
+        }
+
+    period_expression = {
+        "day": "FORMAT_DATE('%Y-%m-%d', parsed_transaction_date)",
+        "week": "FORMAT_DATE('%G-W%V', parsed_transaction_date)",
+        "month": "FORMAT_DATE('%Y-%m', parsed_transaction_date)",
+        "year": "FORMAT_DATE('%Y', parsed_transaction_date)",
+    }[chosen_time_period]
+
+    sql = f"""
+        WITH source_data AS (
+          {' UNION ALL '.join(source_queries)}
+        ),
+        filtered AS (
+          SELECT
+            dataset,
+            clean_item_name,
+            item_name,
+            item_description,
+            category,
+            amount,
+            item_quantity,
+            parsed_transaction_date,
+            transaction_year,
+            transaction_quarter
+          FROM source_data
+          WHERE clean_item_name IS NOT NULL
+            AND clean_item_name != ''
+            AND parsed_transaction_date IS NOT NULL
+            AND amount IS NOT NULL
+            AND (
+              LOWER(clean_item_name) LIKE CONCAT('%', LOWER(@item_query), '%')
+              OR LOWER(COALESCE(item_name, '')) LIKE CONCAT('%', LOWER(@item_query), '%')
+              OR LOWER(COALESCE(item_description, '')) LIKE CONCAT('%', LOWER(@item_query), '%')
+              OR LOWER(COALESCE(category, '')) LIKE CONCAT('%', LOWER(@item_query), '%')
+            )
+            AND (@selected_year = 'All Time' OR transaction_year = @selected_year)
+            AND (@selected_quarter = 'All Quarters' OR transaction_quarter = @selected_quarter)
+        ),
+        series_rollup AS (
+          SELECT
+            {period_expression} AS period,
+            ROUND(SUM(IFNULL(amount, 0)), 2) AS total_spend,
+            ROUND(SUM(IFNULL(item_quantity, 0)), 2) AS quantity,
+            COUNT(*) AS purchase_count
+          FROM filtered
+          GROUP BY period
+        ),
+        matched_rollup AS (
+          SELECT
+            dataset,
+            clean_item_name AS item_name,
+            ROUND(SUM(IFNULL(amount, 0)), 2) AS total_spend,
+            ROUND(SUM(IFNULL(item_quantity, 0)), 2) AS quantity,
+            COUNT(*) AS purchase_count
+          FROM filtered
+          GROUP BY dataset, item_name
+          ORDER BY total_spend DESC, purchase_count DESC, item_name
+          LIMIT @limit
+        ),
+        summary AS (
+          SELECT
+            ROUND(SUM(IFNULL(amount, 0)), 2) AS total_spend,
+            ROUND(SUM(IFNULL(item_quantity, 0)), 2) AS total_quantity,
+            COUNT(*) AS purchase_count
+          FROM filtered
+        )
+        SELECT
+          'series' AS row_type,
+          CAST(NULL AS STRING) AS dataset,
+          CAST(NULL AS STRING) AS item_name,
+          period,
+          total_spend,
+          quantity,
+          purchase_count,
+          CAST(NULL AS FLOAT64) AS total_quantity
+        FROM series_rollup
+        UNION ALL
+        SELECT
+          'matched_item' AS row_type,
+          dataset,
+          item_name,
+          CAST(NULL AS STRING) AS period,
+          total_spend,
+          quantity,
+          purchase_count,
+          CAST(NULL AS FLOAT64) AS total_quantity
+        FROM matched_rollup
+        UNION ALL
+        SELECT
+          'summary' AS row_type,
+          CAST(NULL AS STRING) AS dataset,
+          CAST(NULL AS STRING) AS item_name,
+          CAST(NULL AS STRING) AS period,
+          total_spend,
+          CAST(NULL AS FLOAT64) AS quantity,
+          purchase_count,
+          total_quantity
+        FROM summary
+        ORDER BY row_type, period, total_spend DESC
+    """
+
+    client = _bigquery_client()
+    job_config = bigquery.QueryJobConfig(
+        table_definitions=table_definitions,
+        query_parameters=[
+            bigquery.ScalarQueryParameter("item_query", "STRING", item_query),
+            bigquery.ScalarQueryParameter("selected_year", "STRING", selected_year),
+            bigquery.ScalarQueryParameter("selected_quarter", "STRING", selected_quarter),
+            bigquery.ScalarQueryParameter("limit", "INT64", safe_limit),
+        ],
+    )
+    results = client.query(sql, job_config=job_config).result()
+
+    series: List[Dict[str, Any]] = []
+    matched_items: List[Dict[str, Any]] = []
+    summary = {
+        "total_spend": 0.0,
+        "purchase_count": 0,
+        "total_quantity": 0.0,
+        "average_period_spend": 0.0,
+    }
+
+    for row in results:
+        row_type = row.get("row_type")
+        if row_type == "series":
+            series.append(
+                {
+                    "period": row.get("period", ""),
+                    "total_spend": round(float(row.get("total_spend") or 0), 2),
+                    "quantity": round(float(row.get("quantity") or 0), 2),
+                    "purchase_count": int(row.get("purchase_count") or 0),
+                }
+            )
+        elif row_type == "matched_item":
+            matched_items.append(
+                {
+                    "dataset": row.get("dataset", ""),
+                    "item_name": row.get("item_name", ""),
+                    "total_spend": round(float(row.get("total_spend") or 0), 2),
+                    "quantity": round(float(row.get("quantity") or 0), 2),
+                    "purchase_count": int(row.get("purchase_count") or 0),
+                }
+            )
+        elif row_type == "summary":
+            summary = {
+                "total_spend": round(float(row.get("total_spend") or 0), 2),
+                "purchase_count": int(row.get("purchase_count") or 0),
+                "total_quantity": round(float(row.get("total_quantity") or 0), 2),
+                "average_period_spend": 0.0,
+            }
+
+    if series:
+        summary["average_period_spend"] = round(summary["total_spend"] / len(series), 2)
+
+    return {
+        "query": item_query,
+        "dataset": normalized_dataset,
+        "time_period": chosen_time_period,
+        "selected_year": selected_year,
+        "selected_quarter": selected_quarter,
+        "schema": dataset_schema(normalized_dataset),
+        "storage_paths": storage_paths,
+        "series": sorted(series, key=lambda point: point["period"]),
+        "matched_items": matched_items,
+        "summary": summary,
+        "warnings": [],
+    }
+
 
 @lru_cache(maxsize=5)
 def fetch_amazon_bookstore_recommendations():
