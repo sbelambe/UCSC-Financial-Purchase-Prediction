@@ -9,9 +9,10 @@ import { TooltipProvider } from './components/ui/tooltip';
 import ProtectedRoute from './components/ProtectedRoute';
 import Login from './pages/Login';
 import DatasetExplorer from './pages/DatasetExplorer';
+import Reports from './pages/Reports';
 
 type AuthenticatedLayoutProps = {
-  currentView: 'dashboard' | 'dataset-explorer';
+  currentView: 'dashboard' | 'dataset-explorer' | 'reports';
   children: ReactNode;
 };
 
@@ -93,6 +94,14 @@ function DatasetExplorerPage() {
   );
 }
 
+function ReportsPage() {
+  return (
+    <AuthenticatedLayout currentView="reports">
+      <Reports />
+    </AuthenticatedLayout>
+  );
+}
+
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
@@ -105,6 +114,7 @@ export default function App() {
               <Route element={<ProtectedRoute />}>
                 <Route path="/dashboard" element={<DashboardPage />} />
                 <Route path="/dataset-explorer" element={<DatasetExplorerPage />} />
+                <Route path="/reports" element={<ReportsPage />} />
                 <Route path="/" element={<Navigate to="/dashboard" replace />} />
               </Route>
             </Routes>

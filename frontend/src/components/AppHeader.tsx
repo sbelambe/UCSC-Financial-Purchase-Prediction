@@ -1,9 +1,9 @@
-import { HelpCircle, LogOut, RefreshCw, TableProperties } from 'lucide-react';
+import { FileText, HelpCircle, LogOut, RefreshCw, TableProperties } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 type AppHeaderProps = {
-  currentView: 'dashboard' | 'dataset-explorer';
+  currentView: 'dashboard' | 'dataset-explorer' | 'reports';
   isRefreshing: boolean;
   refreshMsg: string | null;
   onRefresh: () => Promise<void>;
@@ -60,6 +60,19 @@ export function AppHeader({ currentView, isRefreshing, refreshMsg, onRefresh }: 
           >
             <TableProperties size={18} />
             <span>Dataset Explorer</span>
+          </button>
+
+          <button
+            onClick={() => navigate('/reports')}
+            className={navButtonClass}
+            style={
+              currentView === 'reports'
+                ? { borderColor: '#003c6c', backgroundColor: '#003c6c', color: 'white' }
+                : { borderColor: '#003c6c', color: '#003c6c' }
+            }
+          >
+            <FileText size={18} />
+            <span>Reports</span>
           </button>
 
           <button

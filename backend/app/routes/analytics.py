@@ -5,6 +5,7 @@ from app.analytics_bookstore import get_campus_store_item_insights
 from app.data_config import dataset_schema
 from app.bigquery_service import (
     query_item_spend_over_time_from_bigquery,
+    query_period_summary_from_bigquery,
     query_spend_over_time_from_bigquery,
     query_top_items_from_bigquery,
 )
@@ -103,6 +104,25 @@ def spend_over_time_bigquery(
         return {"status": "success", "data": data}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/api/analytics/period-summary")
+def period_summary_bigquery(
+    dataset: str = "overall",
+    period: str = "month",
+    date: str = "",
+    limit: int = 5,
+):
+    try:
+        data = query_period_summary_from_bigquery(
+            dataset=dataset,
+            period=period,
+            date=date,
+            limit=limit,
+        )
+        return {"status": "success", "data": data}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 @router.get("/api/analytics/item-spend-over-time")
 def item_spend_over_time_bigquery(

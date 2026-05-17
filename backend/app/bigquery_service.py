@@ -1077,6 +1077,226 @@ def query_spend_over_time_from_bigquery(
         "warnings": [],
     }
 
+
+def query_period_summary_from_bigquery(
+    *,
+    dataset: str = "overall",
+    period: str = "month",
+    date: str = "",
+    limit: int = 5,
+) -> Dict[str, Any]:
+    """Return a compact weekly or monthly spending report for one selected period."""
+    normalized_dataset = _normalize_dataset(dataset)
+    chosen_period = (period or "month").strip().lower()
+    if chosen_period not in {"week", "month"}:
+        raise ValueError("period must be one of: week, month")
+
+    safe_limit = max(1, min(int(limit or 5), 25))
+    period_key = (date or "").strip()
+    if period_key and chosen_period == "month" and not re.fullmatch(r"\d{4}-\d{2}", period_key):
+        raise ValueError("date must use YYYY-MM for monthly summaries")
+    if period_key and chosen_period == "week" and not re.fullmatch(r"\d{4}-W\d{2}", period_key):
+        raise ValueError("date must use YYYY-Www for weekly summaries")
+
+    datasets = (
+        ["amazon", "cruzbuy", "onecard", "bookstore"]
+        if normalized_dataset == "overall"
+        else [normalized_dataset]
+    )
+
+    table_definitions: Dict[str, bigquery.ExternalConfig] = {}
+    source_queries: List[str] = []
+    storage_paths: Dict[str, str] = {}
+
+    for current_dataset in datasets:
+        latest_upload = _latest_upload_metadata(current_dataset)
+        if not latest_upload or not latest_upload.get("storagePath"):
+            continue
+
+        table_name = f"{current_dataset}_summary_ext"
+        storage_paths[current_dataset] = latest_upload["storagePath"]
+        table_definitions[table_name] = _build_external_config(
+            _storage_uri(latest_upload["storagePath"])
+        )
+        source_queries.append(_source_select_sql(table_name, current_dataset))
+
+    if not source_queries:
+        return {
+            "dataset": normalized_dataset,
+            "period": chosen_period,
+            "period_key": period_key,
+            "period_label": period_key,
+            "schema": dataset_schema(normalized_dataset),
+            "summary": {
+                "total_spend": 0,
+                "transaction_count": 0,
+                "top_item": None,
+                "top_merchant": None,
+                "top_category": None,
+            },
+            "top_items": [],
+            "top_merchants": [],
+            "top_categories": [],
+            "storage_paths": storage_paths,
+            "warnings": ["No uploaded CSV files with storage paths were found for the selected dataset."],
+        }
+
+    period_expression = {
+        "week": "FORMAT_DATE('%G-W%V', parsed_transaction_date)",
+        "month": "FORMAT_DATE('%Y-%m', parsed_transaction_date)",
+    }[chosen_period]
+
+    sql = f"""
+        WITH source_data AS (
+          {' UNION ALL '.join(source_queries)}
+        ),
+        periodized AS (
+          SELECT
+            dataset,
+            clean_item_name,
+            IFNULL(NULLIF(merchant_name, ''), IFNULL(NULLIF(vendor_name, ''), 'Unknown')) AS merchant_name,
+            IFNULL(NULLIF(category, ''), 'Uncategorized') AS category,
+            amount,
+            {period_expression} AS period_key
+          FROM source_data
+          WHERE parsed_transaction_date IS NOT NULL
+            AND amount IS NOT NULL
+        ),
+        selected_period AS (
+          SELECT COALESCE(NULLIF(@period_key, ''), (SELECT MAX(period_key) FROM periodized)) AS period_key
+        ),
+        filtered AS (
+          SELECT p.*
+          FROM periodized p
+          CROSS JOIN selected_period sp
+          WHERE p.period_key = sp.period_key
+        ),
+        summary AS (
+          SELECT
+            ROUND(SUM(IFNULL(amount, 0)), 2) AS total_spend,
+            COUNT(*) AS transaction_count
+          FROM filtered
+        ),
+        item_rollup AS (
+          SELECT
+            clean_item_name AS name,
+            COUNT(*) AS count,
+            ROUND(SUM(IFNULL(amount, 0)), 2) AS total_spent
+          FROM filtered
+          GROUP BY clean_item_name
+        ),
+        merchant_rollup AS (
+          SELECT
+            merchant_name AS name,
+            COUNT(*) AS count,
+            ROUND(SUM(IFNULL(amount, 0)), 2) AS total_spent
+          FROM filtered
+          GROUP BY merchant_name
+        ),
+        category_rollup AS (
+          SELECT
+            category AS name,
+            COUNT(*) AS count,
+            ROUND(SUM(IFNULL(amount, 0)), 2) AS total_spent
+          FROM filtered
+          GROUP BY category
+        ),
+        ranked_rows AS (
+          SELECT 'item' AS row_type, name, count, total_spent
+          FROM item_rollup
+          ORDER BY total_spent DESC, count DESC, name
+          LIMIT @limit
+        ),
+        ranked_merchants AS (
+          SELECT 'merchant' AS row_type, name, count, total_spent
+          FROM merchant_rollup
+          ORDER BY total_spent DESC, count DESC, name
+          LIMIT @limit
+        ),
+        ranked_categories AS (
+          SELECT 'category' AS row_type, name, count, total_spent
+          FROM category_rollup
+          ORDER BY total_spent DESC, count DESC, name
+          LIMIT @limit
+        )
+        SELECT
+          'summary' AS row_type,
+          (SELECT period_key FROM selected_period) AS period_key,
+          CAST(NULL AS STRING) AS name,
+          CAST((SELECT transaction_count FROM summary) AS INT64) AS count,
+          CAST((SELECT total_spend FROM summary) AS FLOAT64) AS total_spent
+        UNION ALL
+        SELECT row_type, (SELECT period_key FROM selected_period), name, count, total_spent
+        FROM ranked_rows
+        UNION ALL
+        SELECT row_type, (SELECT period_key FROM selected_period), name, count, total_spent
+        FROM ranked_merchants
+        UNION ALL
+        SELECT row_type, (SELECT period_key FROM selected_period), name, count, total_spent
+        FROM ranked_categories
+    """
+
+    client = _bigquery_client()
+    job_config = bigquery.QueryJobConfig(
+        table_definitions=table_definitions,
+        query_parameters=[
+            bigquery.ScalarQueryParameter("period_key", "STRING", period_key),
+            bigquery.ScalarQueryParameter("limit", "INT64", safe_limit),
+        ],
+    )
+    results = client.query(sql, job_config=job_config).result()
+
+    selected_period_key = period_key
+    summary = {
+        "total_spend": 0,
+        "transaction_count": 0,
+        "top_item": None,
+        "top_merchant": None,
+        "top_category": None,
+    }
+    top_items: List[Dict[str, Any]] = []
+    top_merchants: List[Dict[str, Any]] = []
+    top_categories: List[Dict[str, Any]] = []
+
+    for row in results:
+        selected_period_key = row.get("period_key") or selected_period_key
+        row_type = row.get("row_type")
+        if row_type == "summary":
+            summary["total_spend"] = round(float(row.get("total_spent") or 0), 2)
+            summary["transaction_count"] = int(row.get("count") or 0)
+            continue
+
+        entry = {
+            "name": row.get("name") or "Unknown",
+            "count": int(row.get("count") or 0),
+            "total_spent": round(float(row.get("total_spent") or 0), 2),
+        }
+        if row_type == "item":
+            top_items.append(entry)
+        elif row_type == "merchant":
+            top_merchants.append(entry)
+        elif row_type == "category":
+            top_categories.append(entry)
+
+    summary["top_item"] = top_items[0] if top_items else None
+    summary["top_merchant"] = top_merchants[0] if top_merchants else None
+    summary["top_category"] = top_categories[0] if top_categories else None
+
+    return {
+        "dataset": normalized_dataset,
+        "period": chosen_period,
+        "period_key": selected_period_key,
+        "period_label": selected_period_key,
+        "schema": dataset_schema(normalized_dataset),
+        "summary": summary,
+        "top_items": top_items,
+        "top_merchants": top_merchants,
+        "top_categories": top_categories,
+        "storage_paths": storage_paths,
+        "warnings": [],
+    }
+
+
 def query_item_spend_over_time_from_bigquery(
     *,
     dataset: str = "overall",
