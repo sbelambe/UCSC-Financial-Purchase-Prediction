@@ -458,9 +458,32 @@ export function Dashboard() {
   );
   const displayedPatternData = selectedPatternDimension === 'item' ? chartTopItems.slice(0, 5) : topPatterns;
   const displayedPatternError = selectedPatternDimension === 'item' ? topItemsError : topPatternsError;
+  const patternDimensionControls = (
+    <div className="inline-flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 p-1">
+      {availablePatternDimensions.map((dimension) => {
+        const isActive = selectedPatternDimension === dimension;
+        return (
+          <button
+            key={dimension}
+            type="button"
+            onClick={() => setSelectedPatternDimension(dimension)}
+            className={`rounded-lg px-3 py-1.5 text-sm font-semibold transition-colors ${
+              isActive
+                ? 'bg-white text-slate-900 shadow-sm'
+                : 'text-slate-600 hover:bg-white/70 hover:text-slate-900'
+            }`}
+          >
+            {patternDimensionLabel(dimension)}
+          </button>
+        );
+      })}
+    </div>
+  );
   const chartSlides = [
     {
-      title: 'Top Items Overview',
+      title: 'Top Purchase Patterns',
+      subtitle: 'View the leading items, merchants, or categories for the active dataset.',
+      headerActions: patternDimensionControls,
       content: (
         <TopItemsChart
           data={displayedPatternData}
@@ -476,6 +499,7 @@ export function Dashboard() {
     {
       title: 'High Impact Items',
       subtitle: 'Compare high-frequency and high-spend purchases.',
+      headerActions: null,
       content: (
         <HighImpactScatterPlot
           data={chartTopItems.slice(0, selectedLimit)}
@@ -487,6 +511,7 @@ export function Dashboard() {
     {
       title: 'Total Spend Over Time',
       subtitle: 'Track spending trends across the selected time period.',
+      headerActions: null,
       content: (
         <TransactionsOverTimeChart
           data={spendSeries}
@@ -500,6 +525,7 @@ export function Dashboard() {
     {
       title: 'Item Spend Trends',
       subtitle: 'Search for an item keyword and track matching purchases over time.',
+      headerActions: null,
       content: (
         <ItemSpendTrendChart
           activeDatasetKey={activeDatasetKey}
@@ -669,60 +695,39 @@ export function Dashboard() {
           <div className="flex flex-1 items-center justify-center">Loading...</div>
         ) : (
           <div className="space-y-8 flex-1">
-            <ProjectionUploader
-              onProjectionSuccess={(dataset, data, time_data) => setProjectedData({ dataset, data, time_data })}
-              onClearProjection={() => setProjectedData(null)}
-              hasActiveProjection={projectedData !== null}
-            />
-
             <div className="space-y-4">
-              <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+              <div>
+                <h2 className="text-xl font-bold text-slate-900">Purchase Analytics Graphs</h2>
+                <p className="text-sm text-slate-500">
+                  Explore purchase patterns, high-impact items, and overall or per-item spending trends for the active dataset.
+                </p>
+              </div>
+
+              <ProjectionUploader
+                onProjectionSuccess={(dataset, data, time_data) => setProjectedData({ dataset, data, time_data })}
+                onClearProjection={() => setProjectedData(null)}
+                hasActiveProjection={projectedData !== null}
+              />
+            </div>
+
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+              <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                 <div>
-                  <h2 className="text-xl font-bold text-slate-900">Top Purchase Patterns</h2>
-                  <p className="text-sm text-slate-500">
-                    View the leading items, merchants, or categories for the active dataset.
-                  </p>
-                  {activeDatasetKey === 'overall' && selectedPatternDimension === 'merchant' && (
+                  <h2 className="text-xl font-bold text-slate-900">{activeSlide.title}</h2>
+                  <p className="text-sm text-slate-500">{activeSlide.subtitle}</p>
+                  {activeChartSlide === 0 && activeDatasetKey === 'overall' && selectedPatternDimension === 'merchant' && (
                     <p className="mt-1 text-xs text-slate-500">
                       Merchant rankings exclude datasets without merchant fields.
                     </p>
                   )}
                 </div>
-                <div className="inline-flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 p-1">
-                  {availablePatternDimensions.map((dimension) => {
-                    const isActive = selectedPatternDimension === dimension;
-                    return (
-                      <button
-                        key={dimension}
-                        type="button"
-                        onClick={() => setSelectedPatternDimension(dimension)}
-                        className={`rounded-lg px-3 py-1.5 text-sm font-semibold transition-colors ${
-                          isActive
-                            ? 'bg-white text-slate-900 shadow-sm'
-                            : 'text-slate-600 hover:bg-white/70 hover:text-slate-900'
-                        }`}
-                      >
-                        {patternDimensionLabel(dimension)}
-                      </button>
-                    );
-                  })}
-                </div>
+                {activeSlide.headerActions}
               </div>
-
-              {displayedPatternError && (
-                <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+               {activeChartSlide === 0 && displayedPatternError && (
+                <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
                   {displayedPatternError}
                 </div>
               )}
-            </div>
-
-            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-              <div className="mb-4 flex items-center justify-between gap-4">
-                <div>
-                  <h2 className="text-xl font-bold text-slate-900">{activeSlide.title}</h2>
-                  <p className="text-sm text-slate-500">{activeSlide.subtitle}</p>
-                </div>
-              </div>
 
               <div className="min-h-[470px] w-full flex justify-center">
                 <div className="relative w-full min-h-[470px] flex items-center justify-center">
