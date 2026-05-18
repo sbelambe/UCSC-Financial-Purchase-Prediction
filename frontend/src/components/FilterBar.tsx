@@ -1,5 +1,5 @@
 // Renders the filter bar at the top of the dashboard
-import { Search } from 'lucide-react';
+import { Search, Zap } from 'lucide-react';
 import React from 'react';
 import { BROAD_CATEGORIES } from '../lib/categoryMapping';
 
@@ -16,6 +16,7 @@ interface FilterBarProps {
   minSpend: number;
   selectedLimit: number;
   selectedSortMode: 'frequency' | 'cost';
+  highImpactOnly: boolean;
   isLiveMode?: boolean;
   onYearChange: (year: string) => void;
   onQuarterChange: (quarter: QuarterName) => void;
@@ -24,6 +25,7 @@ interface FilterBarProps {
   onMinSpendChange: (minSpend: number) => void;
   onLimitChange: (limit: number) => void;
   onSortModeChange: (sortMode: 'frequency' | 'cost') => void;
+  onHighImpactChange: (highImpactOnly: boolean) => void;
 }
 
 // The FilterBar component renders dropdowns for year and category filters,
@@ -37,6 +39,7 @@ export function FilterBar({
   minSpend,
   selectedLimit,
   selectedSortMode,
+  highImpactOnly,
   isLiveMode = false,
   onYearChange,
   onQuarterChange,
@@ -45,6 +48,7 @@ export function FilterBar({
   onMinSpendChange,
   onLimitChange,
   onSortModeChange,
+  onHighImpactChange,
 }: FilterBarProps) {
   // Added 'All Time' so the dashboard doesn't default to an empty view
   const years = ['All Time', ...Array.from(new Set(availableYears))];
@@ -157,6 +161,20 @@ export function FilterBar({
           </select>
         </div>
 
+        {/* High-Impact Filter Toggle */}
+        <button
+          onClick={() => onHighImpactChange(!highImpactOnly)}
+          className={`flex items-center gap-2 px-3 py-2 rounded-lg border-2 transition-all text-sm font-medium ${
+            highImpactOnly
+              ? 'bg-purple-100 border-purple-400 text-purple-700'
+              : 'bg-white border-gray-300 text-gray-600 hover:border-purple-300'
+          }`}
+          title="Show only high-spend and frequently purchased items"
+        >
+          <Zap size={16} />
+          High-Impact
+        </button>
+        
         {/* Search Bar */}
         <div className="flex-1 relative">
           <Search

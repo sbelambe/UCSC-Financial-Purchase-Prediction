@@ -222,6 +222,7 @@ export function Dashboard() {
   const [minSpend, setMinSpend] = useState<number>(0);
   const [selectedLimit, setSelectedLimit] = useState<number>(20);
   const [selectedSortMode, setSelectedSortMode] = useState<'frequency' | 'cost'>('frequency');
+  const [highImpactOnly, setHighImpactOnly] = useState<boolean>(false);
   const [activeChartSlide, setActiveChartSlide] = useState(0);
   const [insightsData, setInsightsData] = useState<{amazon: any[], bookstore: any[]}>({ amazon: [], bookstore: [] });
   const [projectedData, setProjectedData] = useState<{
@@ -292,6 +293,7 @@ export function Dashboard() {
       min_spend: String(minSpend || 0),
       limit: String(selectedLimit),
       sort_mode: selectedSortMode,
+      high_impact_only: String(highImpactOnly),
     });
     if (selectedCategory !== 'all') {
       const originals = getOriginalCategoriesForBroad(selectedCategory);
@@ -342,7 +344,7 @@ export function Dashboard() {
         setTopItemsError(error instanceof Error ? error.message : 'Failed to load BigQuery top items.');
         setIsLoadingTopItems(false);
       });
-    }, [activeDatasetKey, selectedYear, selectedQuarter, deferredSearchQuery, minSpend, selectedLimit, selectedSortMode, selectedCategory, projectedData]);
+    }, [activeDatasetKey, selectedYear, selectedQuarter, deferredSearchQuery, minSpend, selectedLimit, selectedSortMode, selectedCategory, highImpactOnly, projectedData]);
 
   // 2. BIGQUERY SPEND SERIES
   useEffect(() => {
@@ -637,6 +639,7 @@ export function Dashboard() {
         minSpend={minSpend}
         selectedLimit={selectedLimit}
         selectedSortMode={selectedSortMode}
+        highImpactOnly={highImpactOnly}
         availableYears={availableYears}
         isLiveMode
         onYearChange={setSelectedYear}
@@ -646,6 +649,7 @@ export function Dashboard() {
         onMinSpendChange={setMinSpend}
         onLimitChange={setSelectedLimit}
         onSortModeChange={setSelectedSortMode}
+        onHighImpactChange={setHighImpactOnly}
       />
       </div>
 
