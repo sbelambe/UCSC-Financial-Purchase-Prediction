@@ -451,6 +451,54 @@ def _serialize_vendors(vendors: Any) -> List[Dict[str, Any]]:
         )
     return serialized
 
+def _calculate_high_impact_scores(items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """
+    Calculate and assign high-impact metrics to items.
+    
+    Metrics:
+    - is_high_spend: Top 25% of items by total_spent (spend >= 75th percentile)
+    - is_frequent: Top 25% of items by count/frequency (count >= 75th percentile)
+    - is_high_impact: Composite score >= 70th percentile
+      (60% of spend percentile + 40% of frequency percentile)
+    - impact_score: Composite score (0-100)
+    """
+    if not items:
+        return items
+    
+    from numpy import percentile as np_percentile
+    
+    # Extract values for percentile calculations
+    counts = [item.get("count", 0) for item in items]
+    spends = [item.get("total_spent", 0) for item in items]
+    
+    # Calculate 75th percentile thresholds
+    count_75th = float(np_percentile(counts, 75)) if counts else 0
+    spend_75th = float(np_percentile(spends, 75)) if spends else 0
+    
+    # Calculate percentile ranks for each item
+    max_count = max(counts) if counts else 1
+    max_spend = max(spends) if spends else 1
+    
+    for item in items:
+        count = float(item.get("count", 0))
+        spend = float(item.get("total_spent", 0))
+        
+        # Determine if high-spend or frequent - convert numpy bools to Python bools
+        item["is_high_spend"] = bool(spend >= spend_75th) if spend_75th > 0 else False
+        item["is_frequent"] = bool(count >= count_75th) if count_75th > 0 else False
+        
+        # Calculate composite impact score (0-100)
+        # 60% weight on spend, 40% weight on frequency
+        spend_percentile = (spend / max_spend * 100) if max_spend > 0 else 0
+        frequency_percentile = (count / max_count * 100) if max_count > 0 else 0
+        
+        impact_score = (spend_percentile * 0.6) + (frequency_percentile * 0.4)
+        item["impact_score"] = round(float(impact_score), 2)
+        
+        # Determine if high-impact (composite score >= 70th percentile)
+        item["is_high_impact"] = bool(item["is_high_spend"] or item["is_frequent"])
+    
+    return items
 
 def _representative_text_field(alias: str) -> str:
     """Build SQL that picks one representative non-null text value per grouped item."""
@@ -528,6 +576,7 @@ def query_top_items_from_bigquery(
     sort_mode: str = "frequency",
     group_by: str = "item",
     category_originals: Optional[List[str]] = None,
+    high_impact_only: bool = False,
 ) -> Dict[str, Any]:
     """Query BigQuery external CSV tables for filtered and ranked top items."""
     normalized_dataset = _normalize_dataset(dataset)
@@ -909,6 +958,13 @@ def query_top_items_from_bigquery(
             }
         )
 
+    # Calculate high-impact metrics for all items
+    items = _calculate_high_impact_scores(items)
+    
+    # Optionally filter for high-impact items only
+    if high_impact_only:
+        items = [item for item in items if item.get("is_high_impact", False)]
+
     return {
         "items": items,
         "dataset": normalized_dataset,
@@ -919,6 +975,7 @@ def query_top_items_from_bigquery(
         "group_by": chosen_group_by,
         "schema": dataset_schema(normalized_dataset),
         "storage_paths": storage_paths,
+        "high_impact_only": high_impact_only,
         "warnings": [],
     }
 

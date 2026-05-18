@@ -40,6 +40,11 @@ export interface TopItem {
   raw_rows?: CondensedDetailRow[];
   projected_count?: number; // Sandbox staging data
   projected_spent?: number; // Sandbox staging data
+  // High-impact metrics
+  is_high_spend?: boolean;
+  is_frequent?: boolean;
+  is_high_impact?: boolean;
+  impact_score?: number;
 }
 
 // SortConfig defines the current sorting state for the main table
@@ -86,6 +91,51 @@ const formatVendors = (rawVendors: VendorStat[] | undefined) => {
       )}
     </div>
   );
+};
+
+/**
+ * Renders impact badges (high-spend, frequent, high-impact) for items
+ * Gold badge for high-spend, Blue badge for frequent, Purple for both
+ */
+const renderImpactBadges = (item: TopItem) => {
+  const badges = [];
+  
+  if (item.is_high_spend && item.is_frequent) {
+    badges.push(
+      <span
+        key="high-impact"
+        className="inline-flex items-center px-2 py-1 rounded-full text-[11px] font-bold bg-purple-100 text-purple-700 ring-1 ring-inset ring-purple-700/20"
+        title="High-impact: High spend and frequently purchased"
+      >
+        High-Impact
+      </span>
+    );
+  } else {
+    if (item.is_high_spend) {
+      badges.push(
+        <span
+          key="high-spend"
+          className="inline-flex items-center px-2 py-1 rounded-full text-[11px] font-bold bg-yellow-100 text-yellow-700 ring-1 ring-inset ring-yellow-700/20"
+          title="High-spend item"
+        >
+          High-Spend
+        </span>
+      );
+    }
+    if (item.is_frequent) {
+      badges.push(
+        <span
+          key="frequent"
+          className="inline-flex items-center px-2 py-1 rounded-full text-[11px] font-bold bg-blue-100 text-blue-700 ring-1 ring-inset ring-blue-700/20"
+          title="Frequently purchased item"
+        >
+          Frequent
+        </span>
+      );
+    }
+  }
+  
+  return badges.length > 0 ? <div className="flex flex-wrap gap-1">{badges}</div> : null;
 };
 
 // Truncates text to a specified max length and adds ellipsis if needed
@@ -441,7 +491,11 @@ export function TopItemsTable({
                 <React.Fragment key={index}>
                   <tr 
                     onClick={() => hasMultipleVendors && setExpandedRow(isExpanded ? null : index)}
-                    className={`group transition-colors odd:bg-white even:bg-slate-50/20 ${hasMultipleVendors ? 'hover:bg-slate-100 cursor-pointer' : ''}`}
+                    className={`group transition-colors ${
+                      item.is_high_impact 
+                        ? 'bg-amber-50 hover:bg-amber-100/60' 
+                        : 'odd:bg-white even:bg-slate-50/20 hover:bg-slate-100'
+                    } ${hasMultipleVendors ? 'cursor-pointer' : ''}`}
                   >
                     <td className="p-4 text-gray-400 font-mono text-xs text-left">
                       <span className={`mr-2 inline-block w-3 ${hasMultipleVendors ? 'text-blue-500' : ''}`}>
@@ -452,6 +506,10 @@ export function TopItemsTable({
 
                     <td className="p-4 font-semibold text-slate-900 truncate" title={item.clean_item_name}>
                       {truncateText(item.clean_item_name)}
+                      <div className="space-y-2">
+                        <div>{truncateText(item.clean_item_name)}</div>
+                        {renderImpactBadges(item)}
+                      </div>
                     </td>
 
                     {/* FREQUENCY CELL */}

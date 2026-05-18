@@ -32,6 +32,7 @@ def get_top_items_bigquery(
     sort_mode: str = "frequency",
     group_by: str = "item",
     category_filter: str = "",
+    high_impact_only: bool = False,
 ):
     try:
         category_originals = [c.strip() for c in category_filter.split("|") if c.strip()] if category_filter else []
@@ -45,6 +46,7 @@ def get_top_items_bigquery(
             sort_mode=sort_mode,
             group_by=group_by,
             category_originals=category_originals,
+            high_impact_only=high_impact_only,
         )
         return {"status": "success", "data": data}
     except Exception as e:
