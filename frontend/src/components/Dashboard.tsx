@@ -12,8 +12,8 @@ import HighImpactScatterPlot from './HighImpactScatterPlot';
 import TransactionsOverTimeChart from './TransactionsOverTimeChart';
 import ItemSpendTrendChart from './ItemSpendTrendChart';
 import { TopItemsTable } from './TopItemsTable';
-import { ProjectionUploader } from './ProjectionUploader';
-import { InventoryInsights } from './InventoryInsights';
+import { InventoryInsights, type InsightRow } from './InventoryInsights';
+import { PurchasePlan } from './PurchasePlan';
 import { FALLBACK_DATASET_SCHEMAS, type DatasetSchema } from '../lib/datasetConfig';
 import { getOriginalCategoriesForBroad } from '../lib/categoryMapping';
 
@@ -94,49 +94,6 @@ const availableYearsFromSeries = (points: SpendPoint[]): string[] =>
 
 const filterSeriesByYear = (points: SpendPoint[], year: string): SpendPoint[] => {
   return points.filter((p) => String(p.period).startsWith(`${year}-`));
-};
-
-const mergeProjectedTopItems = (
-  baseItems: any[],
-  projection: { dataset: string; data: any[] } | null,
-  activeDatasetKey: string
-) => {
-  if (!projection) return baseItems;
-  if (!(activeDatasetKey === 'overall' || activeDatasetKey === projection.dataset)) {
-    return baseItems;
-  }
-
-  return [
-    ...baseItems,
-    ...projection.data.map((item: any) => ({
-      ...item,
-      projected_count: item.count,
-      projected_spent: item.total_spent,
-    })),
-  ];
-};
-
-const mergeProjectedSpendSeries = (
-  baseSeries: SpendPoint[],
-  projection: { dataset: string; time_data: { period: string; pending_spend: number }[] } | null,
-  activeDatasetKey: string
-) => {
-  if (!projection) return baseSeries;
-  if (!(activeDatasetKey === 'overall' || activeDatasetKey === projection.dataset)) {
-    return baseSeries;
-  }
-
-  const merged = [...baseSeries];
-  projection.time_data.forEach((pendingMonth) => {
-    const existingMonthIndex = merged.findIndex((s) => s.period === pendingMonth.period);
-    if (existingMonthIndex >= 0) {
-      merged[existingMonthIndex].pending_spend = pendingMonth.pending_spend;
-    } else {
-      merged.push({ period: pendingMonth.period, spend: 0, pending_spend: pendingMonth.pending_spend });
-    }
-  });
-
-  return merged.sort((a, b) => a.period.localeCompare(b.period));
 };
 
 const EXCLUDED_CONDENSED_GROUPS = new Set([
@@ -225,11 +182,16 @@ export function Dashboard() {
   const [highImpactOnly, setHighImpactOnly] = useState<boolean>(false);
   const [activeChartSlide, setActiveChartSlide] = useState(0);
   const [insightsData, setInsightsData] = useState<{amazon: any[], bookstore: any[]}>({ amazon: [], bookstore: [] });
-  const [projectedData, setProjectedData] = useState<{
+  const [purchasePlan, setPurchasePlan] = useState<{
+    item: InsightRow;
     dataset: string;
-    data: any[];
-    time_data: { period: string; pending_spend: number }[];
-  } | null>(null);
+    unitPrice: number | null;
+    recommendedQty: number;
+  }[]>([]);
+  const planCategories = useMemo(
+    () => new Set(purchasePlan.map((p) => p.item.category)),
+    [purchasePlan]
+  );
   const deferredSearchQuery = useDeferredValue(searchQuery);
   const topItemsCacheRef = useRef<Record<string, { items: any[]; schema?: DatasetSchema | null; warnings?: string[] }>>({});
   const topPatternsCacheRef = useRef<Record<string, { items: any[]; warnings?: string[] }>>({});
@@ -304,7 +266,7 @@ export function Dashboard() {
     const cacheKey = params.toString();
     const cachedTopItems = topItemsCacheRef.current[cacheKey];
     if (cachedTopItems) {
-      setTopItems(mergeProjectedTopItems(cachedTopItems.items || [], projectedData, activeDatasetKey));
+      setTopItems(cachedTopItems.items || []);
       if (cachedTopItems.schema) {
         setActiveSchema(cachedTopItems.schema);
       }
@@ -329,7 +291,7 @@ export function Dashboard() {
           schema: res.data?.schema || null,
           warnings: res.data?.warnings || [],
         };
-        setTopItems(mergeProjectedTopItems(res.data?.items || [], projectedData, activeDatasetKey));
+        setTopItems(res.data?.items || []);
         if (res.data?.schema) {
           setActiveSchema(res.data.schema);
         }
@@ -344,7 +306,7 @@ export function Dashboard() {
         setTopItemsError(error instanceof Error ? error.message : 'Failed to load BigQuery top items.');
         setIsLoadingTopItems(false);
       });
-    }, [activeDatasetKey, selectedYear, selectedQuarter, deferredSearchQuery, minSpend, selectedLimit, selectedSortMode, selectedCategory, highImpactOnly, projectedData]);
+    }, [activeDatasetKey, selectedYear, selectedQuarter, deferredSearchQuery, minSpend, selectedLimit, selectedSortMode, selectedCategory, highImpactOnly]);
 
   // 2. BIGQUERY SPEND SERIES
   useEffect(() => {
@@ -367,13 +329,7 @@ export function Dashboard() {
         onecard: cachedSpendSeries.datasets?.onecard || [],
         bookstore: cachedSpendSeries.datasets?.bookstore || [],
       };
-      setRawSpendSeries(
-        mergeProjectedSpendSeries(
-          [...(cachedSeriesByKey[seriesKey] || cachedSeriesByKey.combined || [])],
-          projectedData,
-          activeDatasetKey
-        )
-      );
+      setRawSpendSeries([...(cachedSeriesByKey[seriesKey] || cachedSeriesByKey.combined || [])]);
       setIsLoadingSpend(false);
       return;
     }
@@ -399,13 +355,7 @@ export function Dashboard() {
           onecard: res.data?.datasets?.onecard || [],
           bookstore: res.data?.datasets?.bookstore || [],
         };
-        setRawSpendSeries(
-          mergeProjectedSpendSeries(
-            [...(liveSeriesByKey[seriesKey] || liveSeriesByKey.combined || [])],
-            projectedData,
-            activeDatasetKey
-          )
-        );
+        setRawSpendSeries([...(liveSeriesByKey[seriesKey] || liveSeriesByKey.combined || [])]);
         setIsLoadingSpend(false);
       })
       .catch((error) => {
@@ -413,7 +363,7 @@ export function Dashboard() {
         setRawSpendSeries([]);
         setIsLoadingSpend(false);
       });
-  }, [activeTab, activeDatasetKey, projectedData, selectedYear, selectedQuarter]);
+  }, [activeTab, activeDatasetKey, selectedYear, selectedQuarter]);
 
 
   // 4. UPDATE AVAILABLE YEARS FOR CHART
@@ -622,6 +572,23 @@ export function Dashboard() {
   }, [activeTab]);
 
 
+  const handleAddToPlan = (item: InsightRow) => {
+    setPurchasePlan((prev) => {
+      if (prev.some((p) => p.item.category === item.category)) return prev;
+      const baseItems = activeDatasetKey === 'amazon' ? insightsData.amazon : insightsData.bookstore;
+      const catLower = item.category.toLowerCase();
+      const match = baseItems.find((ti: any) => {
+        const name = String(ti.clean_item_name || '').toLowerCase();
+        return name.includes(catLower) || catLower.includes(name);
+      });
+      const unitPrice = match && match.count > 0 ? match.total_spent / match.count : null;
+      const recommendedQty = activeDatasetKey === 'bookstore'
+        ? Math.max(0, item.predicted_demand - Math.max(0, item.current_stock))
+        : item.predicted_demand;
+      return [...prev, { item, dataset: activeDatasetKey, unitPrice, recommendedQty }];
+    });
+  };
+
   // The return statement below renders the entire dashboard
   return (
     <div className="w-full min-w-0 space-y-6">
@@ -677,15 +644,9 @@ export function Dashboard() {
               </div>
             )}
 
-            {projectedData && (
-              <div className="rounded-lg border border-purple-200 bg-purple-50 px-4 py-3 text-sm text-purple-800">
-                Projection overlay active for {projectedData.dataset}. BigQuery data is still the base layer.
-              </div>
-            )}
-
             <TopItemsTable
               data={filteredTopItems.slice(0, selectedLimit)}
-              showProjected={projectedData !== null}
+              showProjected={false}
               schema={activeSchema}
               sortMode={selectedSortMode}
             />
@@ -699,21 +660,6 @@ export function Dashboard() {
           <div className="flex flex-1 items-center justify-center">Loading...</div>
         ) : (
           <div className="space-y-8 flex-1">
-            <div className="space-y-4">
-              <div>
-                <h2 className="text-xl font-bold text-slate-900">Purchase Analytics Graphs</h2>
-                <p className="text-sm text-slate-500">
-                  Explore purchase patterns, high-impact items, and overall or per-item spending trends for the active dataset.
-                </p>
-              </div>
-
-              <ProjectionUploader
-                onProjectionSuccess={(dataset, data, time_data) => setProjectedData({ dataset, data, time_data })}
-                onClearProjection={() => setProjectedData(null)}
-                hasActiveProjection={projectedData !== null}
-              />
-            </div>
-
             <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
               <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                 <div>
@@ -779,7 +725,22 @@ export function Dashboard() {
 
             {/* shows inventory insights if amazon or bookstore tabs are selected */}
             {(activeTab === 'Amazon' || activeTab === 'Bookstore') && (
-              <InventoryInsights activeTab={activeTab} />
+              <>
+                <InventoryInsights
+                  activeTab={activeTab}
+                  onAddToPlan={handleAddToPlan}
+                  planCategories={planCategories}
+                />
+                <PurchasePlan
+                  items={purchasePlan.filter((p) => p.dataset === activeDatasetKey)}
+                  onRemove={(category) =>
+                    setPurchasePlan((prev) => prev.filter((p) => p.item.category !== category))
+                  }
+                  onClearAll={() =>
+                    setPurchasePlan((prev) => prev.filter((p) => p.dataset !== activeDatasetKey))
+                  }
+                />
+              </>
             )}
           </div>
         )}

@@ -1,7 +1,5 @@
 // Component for displaying a bar chart of the top 5 most frequently purchased
-// items, with a dropdown to switch between frequency and total spend metrics. 
-// It also includes projected staging data in the tooltip and as a stacked bar 
-// for pending uploads.
+// items, with a dropdown to switch between frequency and total spend metrics.
 import React, { useState, useMemo, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell, Legend } from 'recharts';
 import type { TopItem } from './TopItemsTable';
@@ -36,23 +34,14 @@ const TopItemsChart = ({
     fullName: string;
   };
 
-  // Transform data, sort dynamically based on metric, and log it one last time
   const chartData = useMemo(() => {
-    // Sort the data dynamically based on the selected metric (including projected 
-    // staging)
     const sortedData = [...(data || [])].sort((a, b) => {
       if (metric === 'spend') {
-        const valA = (a.total_spent || 0) + (a.projected_spent || 0);
-        const valB = (b.total_spent || 0) + (b.projected_spent || 0);
-        return valB - valA;
+        return (b.total_spent || 0) - (a.total_spent || 0);
       } else if (metric === 'cost_per_item') {
-        const valA = a.cost_per_item || 0;
-        const valB = b.cost_per_item || 0;
-        return valB - valA;
+        return (b.cost_per_item || 0) - (a.cost_per_item || 0);
       } else {
-        const valA = (a.count || 0) + (a.projected_count || 0);
-        const valB = (b.count || 0) + (b.projected_count || 0);
-        return valB - valA;
+        return (b.count || 0) - (a.count || 0);
       }
     });
 
@@ -67,8 +56,7 @@ const TopItemsChart = ({
       cost_per_item: Number(item.cost_per_item) || 0,
       quantity: Number(item.quantity) || 0,
       fullName: item.clean_item_name,
-      projected_count: item.projected_count ? Number(item.projected_count) : undefined,
-      projected_spent: item.projected_spent ? Number(item.projected_spent) : undefined,
+
       vendors: item.vendors || [],
       row_values: item.row_values,
       is_condensed: item.is_condensed,
@@ -190,21 +178,6 @@ const TopItemsChart = ({
                             Quantity: <span className="font-mono text-slate-600">{new Intl.NumberFormat('en-US').format(d.quantity || 0)}</span>
                           </p>
 
-                          {/* display sandbox preview stats in the tooltip if they exist */}
-                          {((d.projected_count || 0) > 0 || (d.projected_spent || 0) > 0) && (
-                            <div className="mt-2 pt-2 border-t border-gray-100">
-                              {(d.projected_count || 0) > 0 && (
-                                <p className="text-purple-700 text-xs font-semibold">
-                                  Pending Frequency: <span className="font-mono text-purple-600">+{d.projected_count}</span>
-                                </p>
-                              )}
-                              {(d.projected_spent || 0) > 0 && (
-                                <p className="text-purple-700 text-xs font-semibold">
-                                  Pending Cost: <span className="font-mono text-purple-600">+{formatCurrency(d.projected_spent || 0)}</span>
-                                </p>
-                              )}
-                            </div>
-                          )}
                         </div>
                       </div>
                     );
@@ -215,16 +188,14 @@ const TopItemsChart = ({
 
               <Legend wrapperStyle={{ paddingTop: '10px' }} />
 
-              {/* Historical Count Bar */}
-              <Bar 
-                dataKey={metric === 'count' ? "count" : (metric === 'cost_per_item' ? 'cost_per_item' : "total_spent")} 
+              <Bar
+                dataKey={metric === 'count' ? "count" : (metric === 'cost_per_item' ? 'cost_per_item' : "total_spent")}
                 name={
-                  metric === 'count' 
-                    ? "Current Frequency" 
+                  metric === 'count'
+                    ? "Current Frequency"
                     : (metric === 'cost_per_item' ? "Cost Per Item" : metricLabel)
-                } 
-                stackId={metric === 'cost_per_item' ? undefined : "a"}
-                radius={[0, 0, 4, 4]}
+                }
+                radius={[4, 4, 0, 0]}
               >
                 {chartData.map((entry, index) => {
                   const isSelected = selectedItem?.clean_item_name === entry.clean_item_name;
@@ -240,25 +211,6 @@ const TopItemsChart = ({
                   );
                 })}
               </Bar>
-
-              {/* Preview Stacked Bar - only show for count and spend metrics */}
-              {(metric === 'count' || metric === 'spend') && (
-                <Bar 
-                  dataKey={metric === 'count' ? "projected_count" : "projected_spent"} 
-                  name="Pending Upload" 
-                  stackId="a" 
-                  fill="#a855f7" 
-                  radius={[4, 4, 0, 0]} 
-                >
-                  {chartData.map((entry, index) => (
-                    <Cell
-                      key={`pending-cell-${index}`}
-                      cursor={enableDrilldown ? 'pointer' : 'default'}
-                      onClick={() => enableDrilldown && setSelectedItem(entry)}
-                    />
-                  ))}
-                </Bar>
-              )}
 
             </BarChart>
           </div>
