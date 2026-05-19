@@ -39,8 +39,8 @@ export interface InsightRow {
 
 interface Props {
   activeTab: string;
-  onFollowPrediction?: (item: InsightRow, timePeriod: string) => void;
-  acceptedCategories?: Set<string>;
+  onAddToPlan?: (item: InsightRow) => void;
+  planCategories?: Set<string>;
 }
 
 /**
@@ -51,7 +51,7 @@ interface Props {
  * @param {string} props.activeTab - The currently selected tab ('Amazon' or 'Bookstore'), which determines which API endpoint to fetch data from.
  * @returns {JSX.Element} The rendered grid of inventory insights and associated portal modals.
  */
-export function InventoryInsights({ activeTab, onFollowPrediction, acceptedCategories }: Props) {
+export function InventoryInsights({ activeTab, onAddToPlan, planCategories }: Props) {
   const isAmazon = activeTab === 'Amazon';
 
   const [timePeriod, setTimePeriod] = useState<string>('1_quarter');
@@ -316,19 +316,19 @@ export function InventoryInsights({ activeTab, onFollowPrediction, acceptedCateg
                   ) : <span />}
 
                   <div className="flex items-center gap-2">
-                    {onFollowPrediction && (
+                    {onAddToPlan && (
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          onFollowPrediction(item, timePeriod);
+                          onAddToPlan(item);
                         }}
                         className={`text-[10px] font-semibold px-2.5 py-1 rounded-full border transition-colors ${
-                          acceptedCategories?.has(item.category)
-                            ? 'bg-purple-100 border-purple-300 text-purple-700'
+                          planCategories?.has(item.category)
+                            ? 'bg-[#C4EED0] border-[#6BBF8A] text-[#00391C]'
                             : 'bg-[#EBF3FF] border-[#C5D8F6] text-[#1D69C4] hover:bg-[#D0E4FF]'
                         }`}
                       >
-                        {acceptedCategories?.has(item.category) ? 'Accepted ✓' : 'Follow prediction'}
+                        {planCategories?.has(item.category) ? 'Added to Plan ✓' : 'Add to Plan'}
                       </button>
                     )}
                     {!isAmazon && (
