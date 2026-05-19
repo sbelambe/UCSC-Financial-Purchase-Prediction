@@ -38,7 +38,7 @@ export function PurchasePlan({ items, onRemove, onClearAll }: Props) {
   const hasAnyPrice = enriched.some((p) => p.estimatedCost != null);
 
   const handleExport = () => {
-    const header = ['Item', 'Dataset', 'Status', 'Recommended Qty', 'Est. Unit Price', 'Est. Total Cost', 'Impact'];
+    const header = ['Item', 'Dataset', 'Status', 'Recommended Qty', 'Avg. Historical Price', 'Est. Spend', 'Impact'];
     const rows = enriched.map((p) => [
       p.item.category,
       p.dataset,
@@ -98,7 +98,7 @@ export function PurchasePlan({ items, onRemove, onClearAll }: Props) {
               <th className="px-5 py-3 font-semibold text-[#1C1B1F]">Item</th>
               <th className="px-5 py-3 font-semibold text-[#1C1B1F] text-center">Status</th>
               <th className="px-5 py-3 font-semibold text-[#1C1B1F] text-right">Rec. Qty</th>
-              <th className="px-5 py-3 font-semibold text-[#1C1B1F] text-right">Est. Cost</th>
+              <th className="px-5 py-3 font-semibold text-[#1C1B1F] text-right">Est. Spend</th>
               <th className="px-5 py-3 font-semibold text-[#1C1B1F]">Impact</th>
               <th className="px-5 py-3 w-10" />
             </tr>
@@ -150,7 +150,7 @@ export function PurchasePlan({ items, onRemove, onClearAll }: Props) {
             <tfoot>
               <tr className="bg-[#EBF3FF] border-t border-[#C5D8F6]">
                 <td colSpan={3} className="px-5 py-3 font-semibold text-[#1C1B1F] text-right">
-                  Total Estimated Budget
+                  Total Estimated Spend
                 </td>
                 <td className="px-5 py-3 font-bold text-[#1D69C4] text-right font-mono text-base">
                   {formatCurrency(total)}
