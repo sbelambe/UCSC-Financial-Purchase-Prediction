@@ -1,3 +1,5 @@
+import csv
+import os
 from fastapi import APIRouter, HTTPException
 from typing import Optional
 from app.analytics import get_item_freq, get_spend_over_time
@@ -11,6 +13,18 @@ from app.bigquery_service import (
 )
 
 router = APIRouter(tags=["analytics"])
+
+# Resolves to backend/data_cleaning/data/clean/external_vendors_combined.csv.
+# This CSV is produced by the "External vendor counts and distribution" cell
+# in backend/data_cleaning/data_mining.ipynb — re-run that cell whenever the
+# clean source CSVs change.
+_EXTERNAL_VENDORS_CSV = os.path.normpath(
+    os.path.join(
+        os.path.dirname(__file__),
+        "..", "..", "data_cleaning", "data", "clean",
+        "external_vendors_combined.csv",
+    )
+)
 
 # Returns the item frequency/top item data
 @router.get("/api/analytics/top-items")
@@ -147,6 +161,62 @@ def item_spend_over_time_bigquery(
         return {"status": "success", "data": data}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/api/analytics/external-vendors")
+def external_vendors(limit: int = 10):
+    """
+    Serves the pre-computed combined external vendor ranking (Amazon + CruzBuy
+    + OneCard + ProCard) that the notebook writes to
+    backend/data_cleaning/data/clean/external_vendors_combined.csv.
+
+    Cheap file read — no BigQuery roundtrip — so it's safe to hit on page load.
+    """
+    try:
+        if not os.path.exists(_EXTERNAL_VENDORS_CSV):
+            raise HTTPException(
+                status_code=503,
+                detail=(
+                    "external_vendors_combined.csv has not been generated yet. "
+                    "Run the 'External vendor counts and distribution' cell in "
+                    "backend/data_cleaning/data_mining.ipynb."
+                ),
+            )
+
+        rows = []
+        total_vendors = 0
+        with open(_EXTERNAL_VENDORS_CSV, newline="", encoding="utf-8") as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                total_vendors += 1
+                if len(rows) >= max(1, limit):
+                    continue
+                rows.append({
+                    "rank": int(row.get("rank") or total_vendors),
+                    "merchant_name": row.get("Merchant Name", "").strip(),
+                    "purchase_count": int(float(row.get("purchase_count") or 0)),
+                    "total_spend": float(row.get("total_spend") or 0),
+                    "datasets": [
+                        d.strip()
+                        for d in (row.get("datasets") or "").split(",")
+                        if d.strip()
+                    ],
+                    "row_share_pct": float(row.get("row_share_pct") or 0),
+                    "spend_share_pct": float(row.get("spend_share_pct") or 0),
+                })
+
+        return {
+            "status": "success",
+            "data": {
+                "vendors": rows,
+                "total_vendors": total_vendors,
+                "source_csv": "backend/data_cleaning/data/clean/external_vendors_combined.csv",
+            },
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 def _bookstore_items_response(top_n: int, lookback_days: int, account: str):
     return get_campus_store_item_insights(

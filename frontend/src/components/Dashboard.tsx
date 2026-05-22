@@ -14,6 +14,8 @@ import ItemSpendTrendChart from './ItemSpendTrendChart';
 import { TopItemsTable } from './TopItemsTable';
 import { InventoryInsights, type InsightRow } from './InventoryInsights';
 import { PurchasePlan } from './PurchasePlan';
+import { MetricsGrid } from './MetricsGrid';
+import { ExternalVendorsPanel } from './ExternalVendorsPanel';
 import { FALLBACK_DATASET_SCHEMAS, type DatasetSchema } from '../lib/datasetConfig';
 import { getOriginalCategoriesForBroad } from '../lib/categoryMapping';
 import { AlertTriangle, BarChart3, Boxes, Building2, ShoppingBag, Sparkles, TrendingUp } from 'lucide-react';
@@ -174,6 +176,12 @@ export function Dashboard() {
   const topPatternsCacheRef = useRef<Record<string, { items: any[]; warnings?: string[] }>>({});
   const spendSeriesCacheRef = useRef<Record<string, { combined: SpendPoint[]; datasets: Record<string, SpendPoint[]> }>>({});
 
+  // Overall summary state for MetricsGrid on the Home tab
+  const [overallMerchants, setOverallMerchants] = useState<any[]>([]);
+  const [overallTopCategory, setOverallTopCategory] = useState<any | null>(null);
+  const [overallCombinedSpend, setOverallCombinedSpend] = useState<SpendPoint[]>([]);
+  const overallSummaryCacheRef = useRef<Record<string, { merchants: any[]; topCategory: any | null; spend: SpendPoint[] }>>({});
+
   // This map helps us determine which series to pull from the raw spend data
   // based on the active tab, since the API returns all datasets together and we
   // need to extract the relevant one for the current view
@@ -245,6 +253,65 @@ export function Dashboard() {
       })
       .finally(() => setDatasetPreviewsLoading(false));
   }, [activeTab]);
+
+  // Fetch cross-dataset summary (combined spend, top merchants, top category) for
+  // MetricsGrid on the Home tab. Uses 'overall' dataset which aggregates all sources.
+  useEffect(() => {
+    if (activeTab !== 'Home') return;
+
+    const cacheKey = `overall|${selectedYear}|${selectedQuarter}`;
+    const cached = overallSummaryCacheRef.current[cacheKey];
+    if (cached) {
+      setOverallMerchants(cached.merchants);
+      setOverallTopCategory(cached.topCategory);
+      setOverallCombinedSpend(cached.spend);
+      return;
+    }
+
+    const merchantParams = new URLSearchParams({
+      dataset: 'overall',
+      selected_year: selectedYear,
+      selected_quarter: selectedQuarter,
+      group_by: 'merchant',
+      sort_mode: 'cost',
+      limit: '100',
+    });
+    const categoryParams = new URLSearchParams({
+      dataset: 'overall',
+      selected_year: selectedYear,
+      selected_quarter: selectedQuarter,
+      group_by: 'category',
+      sort_mode: 'cost',
+      limit: '1',
+    });
+    const spendParams = new URLSearchParams({
+      dataset: 'overall',
+      time_period: 'month',
+      selected_year: selectedYear,
+      selected_quarter: selectedQuarter,
+    });
+
+    Promise.all([
+      fetch(`/api/analytics/top-items/bigquery?${merchantParams.toString()}`).then((r) => r.json()),
+      fetch(`/api/analytics/top-items/bigquery?${categoryParams.toString()}`).then((r) => r.json()),
+      fetch(`/api/analytics/spend-over-time/bigquery?${spendParams.toString()}`).then((r) => r.json()),
+    ])
+      .then(([merchantRes, categoryRes, spendRes]) => {
+        const merchants = merchantRes?.data?.items || [];
+        const topCategory = (categoryRes?.data?.items || [])[0] || null;
+        const spend = spendRes?.data?.combined || [];
+        overallSummaryCacheRef.current[cacheKey] = { merchants, topCategory, spend };
+        setOverallMerchants(merchants);
+        setOverallTopCategory(topCategory);
+        setOverallCombinedSpend(spend);
+      })
+      .catch((err) => {
+        console.error('Overall summary fetch failed:', err);
+        setOverallMerchants([]);
+        setOverallTopCategory(null);
+        setOverallCombinedSpend([]);
+      });
+  }, [activeTab, selectedYear, selectedQuarter]);
 
   useEffect(() => {
     setActiveChartSlide(0);
@@ -608,6 +675,42 @@ export function Dashboard() {
     });
   };
 
+  // Derived metrics for MetricsGrid on the Home tab — combined across all datasets.
+  const overallMetricsData = useMemo(() => {
+    const totalSpend = overallCombinedSpend.reduce((sum, p) => sum + (Number(p.spend) || 0), 0);
+    const totalTransactions = overallMerchants.reduce((sum, m) => sum + (Number(m.count) || 0), 0);
+
+    const topByCount = [...overallMerchants].sort(
+      (a, b) => (Number(b.count) || 0) - (Number(a.count) || 0)
+    )[0];
+    const topBySpend = overallMerchants[0];
+
+    const topItemByFreq = [...(topItems || [])]
+      .filter((it) => !shouldExcludeFromCharts(it, 'overall'))
+      .sort((a, b) => (Number(b.count) || 0) - (Number(a.count) || 0))[0];
+
+    return {
+      totalSpend,
+      totalTransactions,
+      topVendorSpend: {
+        name: topBySpend?.clean_item_name || '—',
+        amount: Number(topBySpend?.total_spent) || 0,
+      },
+      topVendorTransactions: {
+        name: topByCount?.clean_item_name || '—',
+        count: Number(topByCount?.count) || 0,
+      },
+      topCategory: {
+        name: overallTopCategory?.clean_item_name || '—',
+        amount: Number(overallTopCategory?.total_spent) || 0,
+      },
+      mostPurchasedItem: {
+        name: topItemByFreq?.clean_item_name || '—',
+        quantity: Number(topItemByFreq?.count) || 0,
+      },
+    };
+  }, [overallCombinedSpend, overallMerchants, overallTopCategory, topItems]);
+
   if (activeTab === 'Home') {
     return (
       <div className="w-full min-w-0 space-y-6">
@@ -666,6 +769,10 @@ export function Dashboard() {
               </div>
             </div>
           </div>
+        </section>
+
+        <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+          <MetricsGrid data={overallMetricsData} />
         </section>
 
         <section className="space-y-3">
@@ -745,6 +852,8 @@ export function Dashboard() {
             })}
           </div>
         </section>
+
+        <ExternalVendorsPanel limit={10} />
 
         <section className="w-full min-w-0 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
           <div className="mb-4">
