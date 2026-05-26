@@ -34,7 +34,7 @@ export function AppHeader({ currentView, isRefreshing, refreshMsg, onRefresh }: 
             <h1 className="text-4xl font-bold leading-none text-white">
               SlugSmart
             </h1>
-            <p className="mt-1 text-sm font-semibold leading-tight text-[#3372c0]">
+            <p className="mt-1 text-sm font-semibold leading-tight text-[#3675c2]">
               Turning UCSC Purchasing Data Into Smarter Stocking Decisions
             </p>
             <span className="mt-1 text-xs font-normal text-white">Logged in as: {user?.email}</span>

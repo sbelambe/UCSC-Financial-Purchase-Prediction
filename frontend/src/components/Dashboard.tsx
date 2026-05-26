@@ -616,20 +616,25 @@ export function Dashboard() {
         </div>
 
         <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-          <div className="flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
-            <div className="max-w-4xl">
-              <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-[#E7F0FA] px-3 py-1 text-xs font-semibold text-[#003c6c]">
-                <Sparkles className="size-3.5" />
-                Decision support overview
+          <div className="space-y-6">
+            <div>
+              <div>
               </div>
-              <h1 className="text-3xl font-bold text-slate-950">SlugSmart Overview</h1>
-              <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
-                Start here to see what finance and bookstore teams should pay attention to now:
-                Amazon demand signals, high-impact purchases, and the top items appearing across vendors.
+              <h1 className="text-3xl font-bold text-[#003c6c]">SlugSmart Overview</h1>
+              <p className="mt-2 text-sm leading-6 text-slate-600">
+                <b>Welcome to SlugSmart!</b> SlugSmart is a procurement analytics and financial decision-support 
+                platform for UCSC Financial Affairs. With SlugSmart, users can upload and view cleaned
+                purchase and sales datasets, analyze spending trends, discover stocking opportunities
+                through predictive insights, and view and export periodic summary reports.<br />
+                <br />
+                To get started, explore this page to view what needs attention right now: Amazon demand
+                insights, high-impact purchases, the top items appearing across datasets, and 
+                Amazon-specific spending analytics graphs. To view a dataset more in-depth, click on
+                its tab at the top.
               </p>
             </div>
 
-            <div className="grid w-full gap-3 sm:grid-cols-3 xl:max-w-3xl">
+            <div className="grid w-full gap-3 sm:grid-cols-3">
               <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
                 <div className="flex items-center gap-2 text-xs font-semibold uppercase text-slate-500">
                   <AlertTriangle className="size-4 text-amber-600" />
