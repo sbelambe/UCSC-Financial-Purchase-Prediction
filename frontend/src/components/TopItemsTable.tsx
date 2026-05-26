@@ -505,7 +505,6 @@ export function TopItemsTable({
                     </td>
 
                     <td className="p-4 font-semibold text-slate-900 truncate" title={item.clean_item_name}>
-                      {truncateText(item.clean_item_name)}
                       <div className="space-y-2">
                         <div>{truncateText(item.clean_item_name)}</div>
                         {renderImpactBadges(item)}

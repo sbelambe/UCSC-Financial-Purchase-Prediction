@@ -1,20 +1,21 @@
-// Component for tabbed navigation between different data views (Overall, 
-// CruzBuy, OneCard, Amazon, Bookstore)
+// Component for tabbed navigation between the overview and dataset drilldowns.
 interface TabNavigationProps {
   activeTab: string;
-  onTabChange: (tab: 'Overall' | 'CruzBuy' | 'OneCard' | 'Amazon' | 'Bookstore') => void;
+  onTabChange: (tab: 'Home' | 'Overall' | 'CruzBuy' | 'OneCard' | 'Amazon' | 'Bookstore') => void;
 }
 
 export function TabNavigation({ activeTab, onTabChange }: TabNavigationProps) {
-  const tabs = ['Overall', 'CruzBuy', 'OneCard', 'Amazon', 'Bookstore'];
+    const primaryTabs = ['Home', 'Amazon'];
+    const supportingTabs = ['CruzBuy', 'OneCard', 'Bookstore'];
+    const tabs = [...primaryTabs, ...supportingTabs];
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-1 flex gap-1">
+    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-1 flex flex-wrap gap-1">
       {tabs.map((tab) => (
         <button
           key={tab}
           onClick={() => onTabChange(tab as any)}
-          className={`flex-1 px-6 py-3 rounded-lg font-medium transition-all ${
+          className={`min-w-[120px] flex-1 px-6 py-3 rounded-lg font-medium transition-all ${
             activeTab === tab
               ? 'text-white shadow-sm'
               : 'text-gray-600 hover:bg-gray-100'

@@ -16,6 +16,7 @@ import { InventoryInsights, type InsightRow } from './InventoryInsights';
 import { PurchasePlan } from './PurchasePlan';
 import { FALLBACK_DATASET_SCHEMAS, type DatasetSchema } from '../lib/datasetConfig';
 import { getOriginalCategoriesForBroad } from '../lib/categoryMapping';
+import { AlertTriangle, BarChart3, Boxes, Building2, ShoppingBag, Sparkles, TrendingUp } from 'lucide-react';
 
 
 // --- TYPES & CONSTANTS ---
@@ -23,65 +24,8 @@ import { getOriginalCategoriesForBroad } from '../lib/categoryMapping';
 // populated when a staged projection has been blended into preview mode
 type SpendPoint = { period: string; spend: number; pending_spend?: number };
 type PatternDimension = 'item' | 'merchant' | 'category';
-
+type DashboardTab = 'Home' | 'Overall' | 'CruzBuy' | 'OneCard' | 'Amazon' | 'Bookstore';
 type QuarterName = 'All Quarters' | 'Fall' | 'Winter' | 'Spring' | 'Summer';
-
-const quarterForMonthDay = (month: number, day: number): QuarterName => {
-  if (
-    (month === 9 && day >= 15) ||
-    month === 10 ||
-    month === 11 ||
-    month === 12
-  ) {
-    return 'Fall';
-  }
-
-  if (
-    month === 1 ||
-    month === 2 ||
-    (month === 3 && day <= 20)
-  ) {
-    return 'Winter';
-  }
-
-  if (
-    (month === 3 && day >= 21) ||
-    month === 4 ||
-    month === 5 ||
-    (month === 6 && day <= 20)
-  ) {
-    return 'Spring';
-  }
-
-  return 'Summer';
-};
-
-const filterSeriesByQuarterName = (
-  points: SpendPoint[],
-  quarter: QuarterName
-): SpendPoint[] => {
-  if (quarter === 'All Quarters') return points;
-
-  return points.filter((p) => {
-    const [yearStr, monthStr] = String(p.period).split('-');
-    const month = Number(monthStr);
-
-    if (!yearStr || !monthStr || Number.isNaN(month)) {
-      return false;
-    }
-
-    // Since spend series is monthly, use a representative day in that month
-    // to classify the month into your quarter system.
-    let representativeDay = 15;
-
-    if (month === 3) representativeDay = 21;
-    if (month === 6) representativeDay = 21;
-    if (month === 9) representativeDay = 15;
-    if (month === 12) representativeDay = 15;
-
-    return quarterForMonthDay(month, representativeDay) === quarter;
-  });
-};
 
 // availableYearsFromSeries()
 // Extracts all unique years from a raw spend series to populate the "Year" filter 
@@ -91,10 +35,6 @@ const availableYearsFromSeries = (points: SpendPoint[]): string[] =>
   Array.from(new Set(points.map((p) => String(p.period).slice(0, 4))))
     .filter((y) => /^\d{4}$/.test(y))
     .sort((a, b) => a.localeCompare(b));
-
-const filterSeriesByYear = (points: SpendPoint[], year: string): SpendPoint[] => {
-  return points.filter((p) => String(p.period).startsWith(`${year}-`));
-};
 
 const EXCLUDED_CONDENSED_GROUPS = new Set([
   'gift cards',
@@ -145,10 +85,45 @@ const patternDimensionDescription = (dimension: PatternDimension) => {
   return 'Compare the most frequently purchased items and inspect detailed item-level breakdowns.';
 };
 
+const formatCurrency = (amount: number) =>
+  new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    maximumFractionDigits: 0,
+  }).format(Number(amount || 0));
+
+const datasetPreviewConfig = [
+  {
+    key: 'amazon',
+    label: 'Amazon',
+    description: 'External purchases with the strongest stocking signal.',
+    icon: ShoppingBag,
+  },
+  {
+    key: 'cruzbuy',
+    label: 'CruzBuy',
+    description: 'Procurement activity worth comparing against Amazon demand.',
+    icon: Building2,
+  },
+  {
+    key: 'onecard',
+    label: 'OneCard',
+    description: 'Card purchases that can reveal off-contract needs.',
+    icon: BarChart3,
+  },
+  {
+    key: 'bookstore',
+    label: 'Bookstore',
+    description: 'Campus Store sales and inventory context.',
+    icon: Boxes,
+  },
+] as const;
+
+type DatasetPreview = Record<string, any[]>;
 
 // --- MAIN COMPONENT ---
 export function Dashboard() {
-  const [activeTab, setActiveTab] = useState<'Overall' | 'CruzBuy' | 'OneCard' | 'Amazon' | 'Bookstore'>('Amazon');
+  const [activeTab, setActiveTab] = useState<DashboardTab>('Home');
 
   // Active display states
   // Top items states
@@ -182,6 +157,8 @@ export function Dashboard() {
   const [highImpactOnly, setHighImpactOnly] = useState<boolean>(false);
   const [activeChartSlide, setActiveChartSlide] = useState(0);
   const [insightsData, setInsightsData] = useState<{amazon: any[], bookstore: any[]}>({ amazon: [], bookstore: [] });
+  const [datasetPreviews, setDatasetPreviews] = useState<DatasetPreview>({});
+  const [datasetPreviewsLoading, setDatasetPreviewsLoading] = useState(false);
   const [purchasePlan, setPurchasePlan] = useState<{
     item: InsightRow;
     dataset: string;
@@ -201,6 +178,7 @@ export function Dashboard() {
   // based on the active tab, since the API returns all datasets together and we
   // need to extract the relevant one for the current view
   const tabToSeriesKeyMap: { [key: string]: string } = {
+    Home: 'amazon',
     Overall: 'combined',
     Amazon: 'amazon',
     Bookstore: 'bookstore',
@@ -209,6 +187,7 @@ export function Dashboard() {
   };
 
   const tabToBigQueryDatasetMap: { [key: string]: string } = {
+    Home: 'amazon',
     Overall: 'overall',
     Amazon: 'amazon',
     Bookstore: 'bookstore',
@@ -217,6 +196,21 @@ export function Dashboard() {
   };
 
   const activeDatasetKey = tabToBigQueryDatasetMap[activeTab] || 'overall';
+
+  const topAmazonItem = useMemo(() => {
+    if (!Array.isArray(topItems) || topItems.length === 0) return null;
+    return [...topItems].sort((a, b) => Number(b.count || 0) - Number(a.count || 0))[0];
+  }, [topItems]);
+
+  const highImpactCount = useMemo(
+    () => topItems.filter((item) => item.is_high_impact || (item.is_high_spend && item.is_frequent)).length,
+    [topItems]
+  );
+
+  const totalVisibleSpend = useMemo(
+    () => topItems.reduce((sum, item) => sum + Number(item.total_spent || 0), 0),
+    [topItems]
+  );
 
   useEffect(() => {
     fetch(`/api/analytics/dataset-config?dataset=${activeDatasetKey}`)
@@ -230,6 +224,31 @@ export function Dashboard() {
       .then((res) => setActiveSchema(res.data || FALLBACK_DATASET_SCHEMAS[activeDatasetKey]))
       .catch(() => setActiveSchema(FALLBACK_DATASET_SCHEMAS[activeDatasetKey] || FALLBACK_DATASET_SCHEMAS.overall));
   }, [activeDatasetKey]);
+
+  useEffect(() => {
+    if (activeTab !== 'Home') return;
+
+    setDatasetPreviewsLoading(true);
+    Promise.all(
+      datasetPreviewConfig.map((dataset) =>
+        fetch(`/api/analytics/top-items/bigquery?dataset=${dataset.key}&limit=10`)
+          .then((res) => res.json())
+          .then((payload) => [dataset.key, payload.data?.items || []] as const)
+      )
+    )
+      .then((entries) => {
+        setDatasetPreviews(Object.fromEntries(entries));
+      })
+      .catch((error) => {
+        console.error('Dataset previews fetch failed:', error);
+        setDatasetPreviews({});
+      })
+      .finally(() => setDatasetPreviewsLoading(false));
+  }, [activeTab]);
+
+  useEffect(() => {
+    setActiveChartSlide(0);
+  }, [activeTab]);
 
   const availablePatternDimensions = useMemo(
     () => getAvailablePatternDimensions(activeSchema, activeDatasetKey),
@@ -556,7 +575,7 @@ export function Dashboard() {
 
   // Fetch baseline data specifically for the Inventory Insights cross-reference
   useEffect(() => {
-    if (activeTab === 'Amazon' || activeTab === 'Bookstore') {
+    if (activeTab === 'Home' || activeTab === 'Amazon' || activeTab === 'Bookstore') {
       Promise.all([
         fetch('/api/analytics/top-items/bigquery?dataset=amazon&limit=100').then(r => r.json()),
         fetch('/api/analytics/top-items/bigquery?dataset=bookstore&limit=100').then(r => r.json())
@@ -587,6 +606,210 @@ export function Dashboard() {
         : item.predicted_demand;
       return [...prev, { item, dataset: activeDatasetKey, unitPrice, recommendedQty }];
     });
+  };
+
+  if (activeTab === 'Home') {
+    return (
+      <div className="w-full min-w-0 space-y-6">
+        <div className="sticky top-0 z-40 bg-gray-50/95 backdrop-blur py-2">
+          <TabNavigation activeTab={activeTab} onTabChange={setActiveTab} />
+        </div>
+
+        <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
+            <div className="max-w-4xl">
+              <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-[#E7F0FA] px-3 py-1 text-xs font-semibold text-[#003c6c]">
+                <Sparkles className="size-3.5" />
+                Decision support overview
+              </div>
+              <h1 className="text-3xl font-bold text-slate-950">SlugSmart Overview</h1>
+              <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
+                Start here to see what finance and bookstore teams should pay attention to now:
+                Amazon demand signals, high-impact purchases, and the top items appearing across vendors.
+              </p>
+            </div>
+
+            <div className="grid w-full gap-3 sm:grid-cols-3 xl:max-w-3xl">
+              <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                <div className="flex items-center gap-2 text-xs font-semibold uppercase text-slate-500">
+                  <AlertTriangle className="size-4 text-amber-600" />
+                  High impact
+                </div>
+                <div className="mt-2 text-2xl font-bold text-slate-950">{highImpactCount}</div>
+                <p className="text-xs text-slate-500">Amazon items flagged by spend and frequency.</p>
+              </div>
+              <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                <div className="flex items-center gap-2 text-xs font-semibold uppercase text-slate-500">
+                  <ShoppingBag className="size-4 text-[#003c6c]" />
+                  Top item
+                </div>
+                <div className="mt-2 truncate text-lg font-bold text-slate-950" title={topAmazonItem?.clean_item_name || ''}>
+                  {topAmazonItem?.clean_item_name || 'Loading'}
+                </div>
+                <p className="text-xs text-slate-500">
+                  {topAmazonItem ? `${Number(topAmazonItem.count || 0).toLocaleString()} recent purchases` : 'Waiting for live data.'}
+                </p>
+              </div>
+              <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                <div className="flex items-center gap-2 text-xs font-semibold uppercase text-slate-500">
+                  <TrendingUp className="size-4 text-emerald-700" />
+                  Visible spend
+                </div>
+                <div className="mt-2 text-2xl font-bold text-slate-950">{formatCurrency(totalVisibleSpend)}</div>
+                <p className="text-xs text-slate-500">Total across the current Amazon top-items result.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="space-y-3">
+          <div>
+            <h2 className="text-xl font-bold text-slate-950">High Priority Recommendations</h2>
+            <p className="text-sm text-slate-600">
+              Amazon is the primary signal here because it reveals external demand that may be worth stocking or monitoring internally.
+            </p>
+          </div>
+          <InventoryInsights
+            activeTab="Amazon"
+            onAddToPlan={handleAddToPlan}
+            planCategories={planCategories}
+          />
+          <PurchasePlan
+            items={purchasePlan.filter((p) => p.dataset === 'amazon')}
+            onRemove={(category) =>
+              setPurchasePlan((prev) => prev.filter((p) => p.item.category !== category))
+            }
+            onClearAll={() =>
+              setPurchasePlan((prev) => prev.filter((p) => p.dataset !== 'amazon'))
+            }
+          />
+        </section>
+
+        <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="mb-5 flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+            <div>
+              <h2 className="text-xl font-bold text-slate-950">Top Purchases Across Vendors</h2>
+              <p className="text-sm text-slate-600">
+                Compact top-10 previews help new users compare vendors before diving into a dataset page.
+              </p>
+            </div>
+          </div>
+
+          <div className="grid gap-4 lg:grid-cols-2">
+            {datasetPreviewConfig.map((dataset) => {
+              const Icon = dataset.icon;
+              const items = datasetPreviews[dataset.key] || [];
+
+              return (
+                <div key={dataset.key} className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                  <div className="mb-4 flex items-start justify-between gap-3">
+                    <div className="flex items-start gap-3">
+                      <div className="rounded-lg bg-white p-2 text-[#003c6c] shadow-sm">
+                        <Icon className="size-5" />
+                      </div>
+                      <div>
+                        <h3 className="font-bold text-slate-950">{dataset.label}</h3>
+                        <p className="text-xs leading-5 text-slate-500">{dataset.description}</p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab(dataset.label as DashboardTab)}
+                      className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100"
+                    >
+                      Open
+                    </button>
+                  </div>
+
+                  {datasetPreviewsLoading ? (
+                    <div className="h-40 rounded-lg bg-white/70 animate-pulse" />
+                  ) : items.length === 0 ? (
+                    <div className="rounded-lg bg-white p-4 text-sm text-slate-500">No preview rows available.</div>
+                  ) : (
+                    <ol className="space-y-2">
+                      {items.slice(0, 10).map((item, index) => (
+                        <li key={`${dataset.key}-${item.clean_item_name}-${index}`} className="flex items-center justify-between gap-3 rounded-lg bg-white px-3 py-2 text-sm">
+                          <div className="min-w-0">
+                            <div className="truncate font-semibold text-slate-800" title={item.clean_item_name}>
+                              {index + 1}. {item.clean_item_name}
+                            </div>
+                            <div className="text-xs text-slate-500">{Number(item.count || 0).toLocaleString()} purchases</div>
+                          </div>
+                          <div className="shrink-0 font-mono text-xs font-semibold text-slate-700">
+                            {formatCurrency(item.total_spent)}
+                          </div>
+                        </li>
+                      ))}
+                    </ol>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </section>
+
+        <section className="w-full min-w-0 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+          <div className="mb-4">
+            <h2 className="text-xl font-bold text-slate-950">Trend Insights</h2>
+            <p className="text-sm text-slate-600">
+              Use the carousel for focused analytics after reviewing recommendations and vendor rankings.
+            </p>
+          </div>
+          {isLoadingTopPatterns ? (
+            <div className="flex min-h-[420px] items-center justify-center">Loading...</div>
+          ) : (
+            <div className="rounded-lg border border-slate-200 bg-white p-5">
+              <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                <div>
+                  <h3 className="text-lg font-bold text-slate-900">{activeSlide.title}</h3>
+                  <p className="text-sm text-slate-500">{activeSlide.subtitle}</p>
+                </div>
+                {activeSlide.headerActions}
+              </div>
+              {activeChartSlide === 0 && displayedPatternError && (
+                <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                  {displayedPatternError}
+                </div>
+              )}
+
+              <div className="relative flex min-h-[470px] w-full items-center justify-center">
+                <button
+                  type="button"
+                  onClick={goToPreviousSlide}
+                  className="absolute left-0 z-10 ml-2 rounded-full border border-slate-200 bg-white px-3 py-2 text-lg font-bold text-slate-700 shadow-md hover:bg-slate-100"
+                  aria-label="Previous chart"
+                >
+                  &lsaquo;
+                </button>
+                <div className="w-full max-w-4xl">{activeSlide.content}</div>
+                <button
+                  type="button"
+                  onClick={goToNextSlide}
+                  className="absolute right-0 z-10 mr-2 rounded-full border border-slate-200 bg-white px-3 py-2 text-lg font-bold text-slate-700 shadow-md hover:bg-slate-100"
+                  aria-label="Next chart"
+                >
+                  &rsaquo;
+                </button>
+              </div>
+
+              <div className="mt-4 flex justify-center gap-2">
+                {chartSlides.map((slide, index) => (
+                  <button
+                    key={slide.title}
+                    type="button"
+                    onClick={() => setActiveChartSlide(index)}
+                    className={`h-2.5 rounded-full transition-all ${
+                      activeChartSlide === index ? 'w-8 bg-slate-900' : 'w-2.5 bg-slate-300'
+                    }`}
+                    aria-label={`Show ${slide.title}`}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+        </section>
+      </div>
+    );
   };
 
   // The return statement below renders the entire dashboard
