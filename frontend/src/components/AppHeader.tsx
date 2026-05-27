@@ -1,4 +1,4 @@
-import { FileText, HelpCircle, LogOut, RefreshCw, TableProperties } from 'lucide-react';
+import { ChartPie, FileText, HelpCircle, LogOut, RefreshCw, TableProperties } from 'lucide-react'
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
@@ -34,7 +34,7 @@ export function AppHeader({ currentView, isRefreshing, refreshMsg, onRefresh }: 
             <h1 className="text-4xl font-bold leading-none text-white">
               SlugSmart
             </h1>
-            <p className="mt-1 text-sm font-semibold leading-tight text-[#3675c2]">
+            <p className="mt-1 text-m font-semibold leading-tight text-[#3091ef]">
               Turning UCSC Purchasing Data Into Smarter Stocking Decisions
             </p>
             <span className="mt-1 text-xs font-normal text-white">Logged in as: {user?.email}</span>
@@ -47,6 +47,7 @@ export function AppHeader({ currentView, isRefreshing, refreshMsg, onRefresh }: 
             className={navButtonClass}
             style={navButtonStyle(currentView === 'dashboard')}
           >
+            <ChartPie size={18} />
             <span>Dashboard</span>
           </button>
 

@@ -621,11 +621,12 @@ export function Dashboard() {
               <div>
               </div>
               <h1 className="text-3xl font-bold text-[#003c6c]">SlugSmart Overview</h1>
-              <p className="mt-2 text-sm leading-6 text-slate-600">
-                <b>Welcome to SlugSmart!</b> SlugSmart is a procurement analytics and financial decision-support 
-                platform for UCSC Financial Affairs. With SlugSmart, users can upload and view cleaned
-                purchase and sales datasets, analyze spending trends, discover stocking opportunities
-                through predictive insights, and view and export periodic summary reports.<br />
+              <p className="mt-2 text-sm leading-6 text-slate-950">
+                <b>Welcome to SlugSmart!</b> SlugSmart is a procurement analytics and financial 
+                decision-support platform for the UCSC Financial Affairs office. With SlugSmart, 
+                users can upload and view cleaned purchase and sales datasets, analyze spending 
+                trends, discover stocking opportunities through predictive insights, and view and 
+                export periodic summary reports.<br />
                 <br />
                 To get started, explore this page to view what needs attention right now: Amazon demand
                 insights, high-impact purchases, the top items appearing across datasets, and 
@@ -636,32 +637,32 @@ export function Dashboard() {
 
             <div className="grid w-full gap-3 sm:grid-cols-3">
               <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-                <div className="flex items-center gap-2 text-xs font-semibold uppercase text-slate-500">
-                  <AlertTriangle className="size-4 text-amber-600" />
-                  High impact
+                <div className="flex items-center gap-2 text-xs font-semibold uppercase text-[#2d66ae]">
+                  <AlertTriangle className="size-4 text-[#003c6c]" />
+                  High impact items
                 </div>
                 <div className="mt-2 text-2xl font-bold text-slate-950">{highImpactCount}</div>
-                <p className="text-xs text-slate-500">Amazon items flagged by spend and frequency.</p>
+                <p className="text-xs text-slate-500">Number of Amazon items with high spend and frequency.</p>
               </div>
               <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-                <div className="flex items-center gap-2 text-xs font-semibold uppercase text-slate-500">
+                <div className="flex items-center gap-2 text-xs font-semibold uppercase text-[#2d66ae]">
                   <ShoppingBag className="size-4 text-[#003c6c]" />
-                  Top item
+                  Top item or item group
                 </div>
                 <div className="mt-2 truncate text-lg font-bold text-slate-950" title={topAmazonItem?.clean_item_name || ''}>
                   {topAmazonItem?.clean_item_name || 'Loading'}
                 </div>
                 <p className="text-xs text-slate-500">
-                  {topAmazonItem ? `${Number(topAmazonItem.count || 0).toLocaleString()} recent purchases` : 'Waiting for live data.'}
+                  {topAmazonItem ? `${Number(topAmazonItem.count || 0).toLocaleString()} recent purchases.` : 'Loading'}
                 </p>
               </div>
               <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-                <div className="flex items-center gap-2 text-xs font-semibold uppercase text-slate-500">
-                  <TrendingUp className="size-4 text-emerald-700" />
-                  Visible spend
+                <div className="flex items-center gap-2 text-xs font-semibold uppercase text-[#2d66ae]">
+                  <TrendingUp className="size-4 text-[#003c6c]" />
+                  Total spend
                 </div>
                 <div className="mt-2 text-2xl font-bold text-slate-950">{formatCurrency(totalVisibleSpend)}</div>
-                <p className="text-xs text-slate-500">Total across the current Amazon top-items result.</p>
+                <p className="text-xs text-slate-500"> Across the current Amazon top items.</p>
               </div>
             </div>
           </div>
@@ -669,10 +670,6 @@ export function Dashboard() {
 
         <section className="space-y-3">
           <div>
-            <h2 className="text-xl font-bold text-slate-950">High Priority Recommendations</h2>
-            <p className="text-sm text-slate-600">
-              Amazon is the primary signal here because it reveals external demand that may be worth stocking or monitoring internally.
-            </p>
           </div>
           <InventoryInsights
             activeTab="Amazon"

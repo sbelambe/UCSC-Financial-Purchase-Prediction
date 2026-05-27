@@ -10,7 +10,6 @@ import {
   PackageSearch,
   Sparkles,
   FlaskConical,
-  ShoppingBag,
 } from 'lucide-react';
 
 import {
@@ -101,31 +100,33 @@ export function InventoryInsights({ activeTab, onAddToPlan, planCategories }: Pr
   const error = isAmazon ? amazonError : bookstoreError;
 
   const renderActionBadge = (action: string) => {
-    const baseClass = "flex items-center gap-1.5 text-[11px] font-medium px-3 py-1 rounded-full whitespace-nowrap transition-colors";
+    const baseClass = "flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-full whitespace-nowrap transition-colors";
     switch (action) {
       case 'Critical Reorder':
       case 'Reorder Soon':
-        return <span className={`${baseClass} text-[#410002] bg-[#FFDAD6]`}><AlertCircle className="size-3.5" /> {action}</span>;
+      case 'High Demand Signal':
+        return <span className={`${baseClass} text-red-800 bg-red-100`}><AlertCircle className="size-3.5" /> {action}</span>;
       case 'Dead Stock Risk':
-        return <span className={`${baseClass} text-[#31111D] bg-[#FFD8E4]`}><PackageSearch className="size-3.5" /> Overstock</span>;
+      case 'Declining Signal':
+        return <span className={`${baseClass} text-rose-800 bg-rose-100`}><PackageSearch className="size-3.5" /> Overstock</span>;
       case 'Monitor Closely':
-        return <span className={`${baseClass} text-[#261A00] bg-[#FFDF99]`}><Clock className="size-3.5" /> {action}</span>;
+        return <span className={`${baseClass} text-amber-800 bg-amber-100`}><Clock className="size-3.5" /> {action}</span>;
       default:
-        return <span className={`${baseClass} text-[#00391C] bg-[#C4EED0]`}><CheckCircle className="size-3.5" /> Healthy</span>;
+        return <span className={`${baseClass} text-emerald-800 bg-emerald-100`}><CheckCircle className="size-3.5" /> Healthy</span>;
     }
   };
 
   const renderTrendIcon = (trend: string) => {
     switch (trend) {
-      case 'growing': return <div className="p-1.5 bg-[#C4EED0]/50 rounded-full"><TrendingUp className="size-4 text-[#00391C]" /></div>;
-      case 'declining': return <div className="p-1.5 bg-[#FFDAD6]/50 rounded-full"><TrendingDown className="size-4 text-[#410002]" /></div>;
-      default: return <div className="p-1.5 bg-[#C5D8F6] rounded-full"><Minus className="size-4 text-[#49454F]" /></div>;
+      case 'growing': return <div className="rounded-lg bg-emerald-50 p-1.5"><TrendingUp className="size-4 text-emerald-700" /></div>;
+      case 'declining': return <div className="rounded-lg bg-red-50 p-1.5"><TrendingDown className="size-4 text-red-700" /></div>;
+      default: return <div className="rounded-lg bg-slate-100 p-1.5"><Minus className="size-4 text-slate-500" /></div>;
     }
   };
 
   const title = isAmazon ? 'Amazon Demand Insights' : 'Inventory Insights';
   const subtitle = isAmazon
-    ? 'Amazon purchase demand by category via ML forecasting.'
+    ? 'Amazon Demand Insights uses AI-powered forecasting to highlight historical Amazon spending trends to drive campus Bookstore stocking decisions, including identifying overstocked or understocked items. Press the butttons below to adjust historical comparison ranges and forecast windows.'
     : 'Bookstore stock overview via ML forecasting.';
   const currentLabel = isAmazon ? 'Recent Orders' : 'Inventory';
   const forecastLabel = isAmazon ? 'ML Forecast' : 'ML Forecast';
@@ -134,60 +135,53 @@ export function InventoryInsights({ activeTab, onAddToPlan, planCategories }: Pr
     : 'No critical alerts detected.';
 
   return (
-    <div className="w-full mb-10 flex flex-col gap-8 bg-[#F5F9FF] p-4 md:p-8 rounded-[32px] font-sans">
+    <div className="w-full mb-10 flex flex-col gap-6 rounded-xl border border-slate-200 bg-white p-6 shadow-sm font-sans">
       {/* Header */}
-      <div className="relative overflow-hidden bg-[#EBF3FF] rounded-[32px] p-6 md:p-8 flex flex-col md:flex-row md:items-center justify-between gap-6 z-0 shadow-sm">
-        <div className="absolute top-0 right-0 w-72 h-72 bg-[#1D69C4] opacity-10 blur-3xl rounded-full -translate-y-1/2 translate-x-1/3 mix-blend-multiply pointer-events-none" />
-        <div className="absolute bottom-0 left-10 w-48 h-48 bg-[#1255A1] opacity-10 blur-3xl rounded-full translate-y-1/3 mix-blend-multiply pointer-events-none" />
-
-        <div className="relative z-10">
+      <div>
+        <div>
           <div className="flex items-center gap-3">
-            {isAmazon
-              ? <ShoppingBag className="size-6 text-[#1D69C4]" />
-              : <Sparkles className="size-5 text-[#1D69C4]" />
-            }
-            <h3 className="text-3xl font-medium text-[#1C1B1F] tracking-tight">{title}</h3>
+            <h3 className="text-xl font-bold text-[#003c6c]">{title}</h3>
             {devMode && (
-              <span className="flex items-center gap-1.5 text-[11px] font-medium px-3 py-1 rounded-full bg-[#FFDF99] text-[#261A00] whitespace-nowrap">
-                <FlaskConical className="size-3.5" /> DEV MODE — Synthetic Data
+              <span className="flex items-center gap-1.5 text-[11px] font-semibold px-3 py-1 rounded-full bg-amber-100 text-amber-800 whitespace-nowrap">
+                <FlaskConical className="size-3.5" /> DEV MODE - Synthetic Data
               </span>
             )}
           </div>
-          <p className="text-base text-[#49454F] mt-1">{subtitle}</p>
+          <p className="text-sm text-slate-950">{subtitle}<br />  ⠀ </p>
         </div>
 
-        <div className="relative z-10 flex items-center gap-4 flex-wrap justify-end">
+        <div className="flex flex-wrap items-center justify-start gap-3 md:justify-end">
           <button
             onClick={() => setDevMode(prev => !prev)}
-            className={`flex items-center gap-2 text-xs font-medium px-3 py-2 rounded-[10px] border transition-colors ${
+            className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-semibold transition-colors ${
               devMode
-                ? 'bg-[#FFDF99] border-[#F5C842] text-[#261A00]'
-                : 'bg-[#C5D8F6] border-[#7BAEE8] text-[#0A3A6E] hover:border-[#1D69C4]'
+                ? 'border-amber-200 bg-amber-100 text-amber-800'
+                : 'border-[#2d66ae] bg-[#2d66ae] text-[#ffffff] hover:border-[#2d66ae] hover:text-[#003c6c]'
             }`}
           >
-            <FlaskConical className="size-3.5" />
+            <FlaskConical className="size-4 " />
             {devMode ? 'Dev Mode' : 'Real Data'}
           </button>
 
-          <div className="flex items-center gap-3 bg-[#C5D8F6] rounded-t-[12px] rounded-b-none border-b-2 border-[#7BAEE8] focus-within:border-[#1D69C4] transition-colors duration-200 px-4 py-3 cursor-pointer group">
-            <TrendingUp className="size-5 text-[#49454F] group-focus-within:text-[#1D69C4] transition-colors" />
+          <div className="group flex cursor-pointer items-center gap-3 rounded-lg border border-slate-200 bg-slate-100 px-4 py-2.5 transition-colors duration-200 focus-within:border-[#2d66ae]">
+            <TrendingUp className="size-4 text-[#003c6c] transition-colors group-focus-within:text-[#003c6c]" />
             <select
               value={lookback}
               onChange={(e) => setLookback(e.target.value)}
-              className="border-none text-sm font-medium text-[#1C1B1F] bg-transparent focus:ring-0 cursor-pointer outline-none w-full appearance-none"
+              className="w-full cursor-pointer appearance-none border-none bg-transparent text-xs font-semibold uppercase text-[#2d66ae] outline-none focus:ring-0"
             >
-              <option value="1_year">vs. 1 Year ago</option>
-              <option value="2_year">vs. 2 Year avg</option>
-              <option value="3_year">vs. 3 Year avg</option>
+              <option value="1_year">VS. 1 YEAR AGO</option>
+              <option value="2_year">VS. 2-YEAR AVERAGE</option>
+              <option value="3_year">VS. 3-YEAR AVERAGE</option>
             </select>
           </div>
 
-          <div className="flex items-center gap-3 bg-[#C5D8F6] rounded-t-[12px] rounded-b-none border-b-2 border-[#7BAEE8] focus-within:border-[#1D69C4] transition-colors duration-200 px-4 py-3 cursor-pointer group">
-            <Clock className="size-5 text-[#49454F] group-focus-within:text-[#1D69C4] transition-colors" />
+          <div className="group flex cursor-pointer items-center gap-3 rounded-lg border border-slate-200 bg-slate-100 px-4 py-2.5 transition-colors duration-200 focus-within:border-[#2d66ae]">
+            <Clock className="size-4 text-[#003c6c] transition-colors group-focus-within:text-[#003c6c]" />
             <select
               value={timePeriod}
               onChange={(e) => setTimePeriod(e.target.value)}
-              className="border-none text-sm font-medium text-[#1C1B1F] bg-transparent focus:ring-0 cursor-pointer outline-none w-full appearance-none"
+              className="w-full cursor-pointer appearance-none border-none bg-transparent text-xs font-semibold uppercase text-[#2d66ae] outline-none focus:ring-0"
             >
               <option value="1_month">Next 30 Days</option>
               <option value="1_quarter">Next 90 Days</option>
@@ -199,21 +193,21 @@ export function InventoryInsights({ activeTab, onAddToPlan, planCategories }: Pr
       </div>
 
       {error && (
-        <div className="p-4 text-sm text-[#410002] bg-[#FFDAD6] rounded-[16px] flex items-center gap-3">
+        <div className="flex items-center gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
           <AlertCircle className="size-5" />
           <span>{error instanceof Error ? error.message : 'Connection Error'}</span>
         </div>
       )}
 
       {/* Cards Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {loading ? (
           [...Array(8)].map((_, i) => (
-            <div key={i} className="h-72 rounded-[24px] bg-[#EBF3FF] animate-pulse" />
+            <div key={i} className="h-60 animate-pulse rounded-xl border border-slate-200 bg-white" />
           ))
         ) : insights.length === 0 ? (
-          <div className="col-span-full py-16 text-center rounded-[24px] bg-[#EBF3FF]">
-            <p className="text-[#49454F] font-medium text-lg">{emptyMessage}</p>
+          <div className="col-span-full rounded-xl border border-slate-200 bg-white py-16 text-center">
+            <p className="text-lg font-medium text-slate-600">{emptyMessage}</p>
           </div>
         ) : (
           insights.map((item, index) => {
@@ -232,84 +226,84 @@ export function InventoryInsights({ activeTab, onAddToPlan, planCategories }: Pr
               <Card
                 key={index}
                 onClick={() => !isAmazon && setSelectedItem(item)}
-                className={`group flex flex-col h-full overflow-hidden bg-[#EBF3FF] border-none rounded-[24px] shadow-sm hover:shadow-md hover:scale-[1.02] ${!isAmazon ? 'cursor-pointer' : 'cursor-default'}`}
+                className={`group flex h-full flex-col overflow-hidden rounded-xl border border-slate-200 bg-slate-50 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md ${!isAmazon ? 'cursor-pointer' : 'cursor-default'}`}
               >
-                <div className="absolute inset-0 bg-[#1C1B1F] opacity-0 group-hover:opacity-[0.04] transition-opacity duration-300 pointer-events-none z-10" />
+                <div className="pointer-events-none absolute inset-0 z-10 bg-slate-950 opacity-0 transition-opacity duration-200 group-hover:opacity-[0.02]" />
 
-                <CardHeader className="pb-2 pt-6 px-6 relative z-20">
+                <CardHeader className="relative z-20 px-5 pb-2 pt-5">
                   <div className="flex justify-between items-start gap-4">
-                    <CardTitle className="text-lg font-medium text-[#1C1B1F] flex items-start gap-3">
+                    <CardTitle className="flex items-start gap-3 font-sans text-lg font-bold leading-tight text-[#003c6c]">
                       <span className="shrink-0">{renderTrendIcon(item.trend_direction)}</span>
                       <span>{item.category}</span>
                     </CardTitle>
                   </div>
                 </CardHeader>
 
-                <CardContent className="px-6 pb-4 flex-1 flex flex-col justify-end relative z-20">
-                  <div className="flex items-center justify-between mb-6 mt-2">
+                <CardContent className="relative z-20 flex flex-1 flex-col px-5 pb-4">
+                  <div className="mb-4 mt-1 flex items-center justify-between">
                     {renderActionBadge(item.action)}
-                    <div className="flex items-center gap-1.5 bg-[#D0E4FF] px-2.5 py-1 rounded-full">
-                      <Sparkles className="size-3 text-[#1D69C4]" />
-                      <span className="text-[10px] font-medium text-[#0F172A]">{item.certainty_score}%</span>
+                    <div className="flex items-center gap-1.5 rounded-full border border-[#2d66ae] bg-[#2d66ae] px-2.5 py-1 shadow-sm">
+                      <Sparkles className="size-3 text-[#ffffff]" />
+                      <span className="text-[10px] font-semibold text-white">{item.certainty_score}%</span>
                     </div>
                   </div>
 
-                  <div className="flex justify-between items-end mb-4">
+                  <div className="mb-4 flex justify-between items-end">
                     <div className="min-w-0">
-                      <div className="text-xs font-medium text-[#49454F] mb-1">{currentLabel}</div>
-                      <div className={`text-3xl font-medium leading-none truncate ${item.current_stock < 0 ? 'text-[#BA1A1A]' : 'text-[#1C1B1F]'}`}>
+                      <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-[#2d66ae]">{currentLabel}</div>
+                      <div className={`truncate text-xl font-bold leading-none ${item.current_stock < 0 ? 'text-red-700' : 'text-slate-950'}`}>
                         {item.current_stock.toLocaleString()}
                       </div>
                     </div>
                     {item.historical_avg > 0 && (
                       <div className="min-w-0 text-center">
-                        <div className="text-xs font-medium text-[#49454F] mb-1">Hist. Avg</div>
-                        <div className="text-xl font-medium text-[#49454F] leading-none truncate">
+                        <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-[#2d66ae]">Hist. Avg</div>
+                        <div className="truncate text-lg font-bold leading-none text-slate-950">
                           {item.historical_avg.toLocaleString()}
                         </div>
                       </div>
                     )}
                     <div className="min-w-0 text-right">
-                      <div className="text-xs font-medium text-[#1D69C4] mb-1">{forecastLabel}</div>
-                      <div className="text-3xl font-medium text-[#1D69C4] leading-none truncate">
+                      <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-[#2d66ae]">{forecastLabel}</div>
+                      <div className="truncate text-xl font-bold leading-none text-slate-950">
                         {item.predicted_demand.toLocaleString()}
                       </div>
                     </div>
                   </div>
 
                   <div>
-                    <div className="relative w-full h-2.5 bg-[#C5D8F6] rounded-full overflow-hidden mb-2">
+                    <div className="relative mb-2 h-2.5 w-full overflow-hidden rounded-full bg-slate-300">
                       <div
-                        className="absolute h-full bg-[#D0E4FF]"
+                        className="absolute h-full bg-[#2d66ae]"
                         style={{ left: `${lowerPos}%`, width: `${upperPos - lowerPos}%` }}
                       />
                       <div
-                        className="absolute top-0 bottom-0 w-[2px] bg-[#1D69C4]/40 z-10"
+                        className="absolute bottom-0 top-0 z-10 w-[2px] bg-[#003c6c]/70"
                         style={{ left: `${targetPos}%` }}
                       />
                       <div
-                        className={`absolute top-0 bottom-0 w-2.5 rounded-full z-20 transform -translate-x-1/2 shadow-sm ${
-                          item.action === 'Dead Stock Risk' || item.action === 'Declining Signal' ? 'bg-[#1255A1]' :
-                          item.action === 'Critical Reorder' || item.action === 'High Demand Signal' ? 'bg-[#BA1A1A]' : 'bg-[#1D69C4]'
+                        className={`absolute bottom-0 top-0 z-20 w-2.5 -translate-x-1/2 rounded-full shadow-sm ${
+                          item.action === 'Dead Stock Risk' || item.action === 'Declining Signal' ? 'bg-slate-600' :
+                          item.action === 'Critical Reorder' || item.action === 'High Demand Signal' ? 'bg-red-700' : 'bg-[#003c6c]'
                         }`}
                         style={{ left: `${stockPos}%` }}
                       />
                     </div>
-                    <div className="flex justify-between text-[11px] text-[#49454F] font-medium">
+                    <div className="flex justify-between text-xs text-slate-500">
                       <span>Low: {safeLower}</span>
                       <span>High: {safeUpper}</span>
                     </div>
                   </div>
                 </CardContent>
 
-                <div className="flex items-center justify-between mb-4 mt-auto pt-4 border-t border-[#C5D8F6]/50 px-6">
+                <div className="mt-auto flex items-center justify-between border-t border-slate-200 px-5 py-4">
                   {!isAmazon ? (
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
                         setFeedbackItem(item);
                       }}
-                      className="text-[10px] text-[#49454F] hover:text-[#1D69C4] underline font-medium transition-colors"
+                      className="text-[10px] font-medium text-slate-500 underline transition-colors hover:text-[#003c6c]"
                     >
                       Flag Issue
                     </button>
@@ -322,17 +316,17 @@ export function InventoryInsights({ activeTab, onAddToPlan, planCategories }: Pr
                           e.stopPropagation();
                           onAddToPlan(item);
                         }}
-                        className={`text-[10px] font-semibold px-2.5 py-1 rounded-full border transition-colors ${
+                        className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-semibold transition-colors ${
                           planCategories?.has(item.category)
-                            ? 'bg-[#C4EED0] border-[#6BBF8A] text-[#00391C]'
-                            : 'bg-[#EBF3FF] border-[#C5D8F6] text-[#1D69C4] hover:bg-[#D0E4FF]'
+                            ? 'border-[#2d66ae] bg-[#2d66ae] text-white'
+                            : 'border-[#2d66ae] bg-[#2d66ae] text-white hover:bg-[#003c6c]'
                         }`}
                       >
-                        {planCategories?.has(item.category) ? 'Added to Plan ✓' : 'Add to Plan'}
+                        {planCategories?.has(item.category) ? 'Added to Plan' : 'Add to Plan'}
                       </button>
                     )}
                     {!isAmazon && (
-                      <div className="flex items-center gap-1 text-[10px] font-medium text-[#1D69C4]">
+                      <div className="flex items-center gap-1 text-[10px] font-medium text-[#003c6c]">
                         <Sparkles className="size-3" />
                         <span>Tap for details</span>
                       </div>
