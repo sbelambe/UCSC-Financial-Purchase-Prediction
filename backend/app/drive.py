@@ -56,11 +56,33 @@ def get_drive_service():
 def list_files(folder_id):
     service = get_drive_service()
     results = service.files().list(
-        q=f"'{folder_id}' in parents",
-        fields="files(id, name, modifiedTime)"
+        q=f"'{folder_id}' in parents and trashed = false",
+        fields="files(id, name, modifiedTime, mimeType)",
+        supportsAllDrives=True,
+        includeItemsFromAllDrives=True,
     ).execute()
     return results.get("files", [])
 
+def list_files_recursive(folder_id, parent_path=""):
+    all_files = []
+    items = list_files(folder_id)
+
+    for item in items:
+        name = item["name"]
+        mime_type = item.get("mimeType", "")
+        current_path = os.path.join(parent_path, name)
+
+        if mime_type == "application/vnd.google-apps.folder":
+            all_files.extend(list_files_recursive(item["id"], current_path))
+        else:
+            item["path"] = parent_path
+            all_files.append(item)
+
+    return all_files
+
+def is_supported_data_file(filename):
+    lower_name = filename.lower()
+    return lower_name.endswith((".xlsx", ".xls", ".csv"))
 
 # ----------------------------------------------------
 # DOWNLOAD + NORMALIZE
@@ -78,8 +100,14 @@ def download_excel(file_id, destination_path):
             _, done = downloader.next_chunk()
 
 # Converts the downloaded Excel file to CSV format for easier processing
-def convert_excel_to_csv(excel_path, csv_path):
-    df = pd.read_excel(excel_path)
+def convert_file_to_csv(input_path, csv_path):
+    lower_path = input_path.lower()
+
+    if lower_path.endswith(".csv"):
+        df = pd.read_csv(input_path)
+    else:
+        df = pd.read_excel(input_path)
+
     df.to_csv(csv_path, index=False)
 
 # Extracts the source name from the Drive filename
@@ -88,11 +116,11 @@ def detect_source(filename):
 
     if "amazon" in lower_name:
         return "amazon"
-    elif "cruzbuy" in lower_name:
+    elif "cruzbuy" in lower_name or "cruz buy" in lower_name:
         return "cruzbuy"
-    elif "onecard" in lower_name or "procard" in lower_name:
+    elif "onecard" in lower_name or "procard" in lower_name or "pcard" in lower_name or "pro card" in lower_name:
         return "onecard"
-    elif "bay tree" in lower_name or "bookstore" in lower_name:
+    elif "bay tree" in lower_name or "baytree" in lower_name or "bookstore" in lower_name or "campus store" in lower_name or "store" in lower_name:
         return "bookstore"
 
     return None
@@ -112,20 +140,37 @@ def extract_year(filename):
     return None
 
 def list_available_years(folder_id):
-    files = list_files(folder_id)
+    files = list_files_recursive(folder_id)
 
     years = set()
 
     for file in files:
         name = file["name"]
+        path = file.get("path", "")
+        search_text = f"{path} {name}"
 
-        source = detect_source(name)
-        year = extract_year(name)
+        source = detect_source(search_text)
+        year = extract_year(search_text)
 
         if source and year:
             years.add(year)
 
     return sorted(years, reverse=True)
+
+def next_available_dataset_path(raw_dir, source, year, used_output_names):
+    base_name = f"{source}_{year}"
+    candidate_name = f"{base_name}.csv"
+    counter = 2
+
+    while (
+        candidate_name in used_output_names
+        or os.path.exists(os.path.join(raw_dir, candidate_name))
+    ):
+        candidate_name = f"{base_name}_{counter}.csv"
+        counter += 1
+
+    used_output_names.add(candidate_name)
+    return os.path.join(raw_dir, candidate_name)
 # ----------------------------------------------------
 # SYNC LOGIC
 # ----------------------------------------------------
@@ -139,20 +184,31 @@ def sync_drive_folder(folder_id, raw_dir):
     metadata_path = os.path.join(raw_dir, "drive_metadata.json")
     old_metadata = load_metadata(metadata_path)
 
-    files = list_files(folder_id)
+    files = list_files_recursive(folder_id)
     new_metadata = {}
 
     changed = False
     changed_files = []
+    used_output_names = set()
 
     # Process each file
     for file in files:
         name = file["name"]
         file_id = file["id"]
         modified = file["modifiedTime"]
+        path = file.get("path", "")
 
-        source = detect_source(name)
-        year = extract_year(name)
+        if not is_supported_data_file(name):
+            continue
+
+        search_text = f"{path} {name}"
+
+        source = detect_source(search_text)
+
+        # IMPORTANT:
+        # Use the year from the actual file name first.
+        # Only fall back to the folder path if the file name has no year.
+        year = extract_year(name) or extract_year(path)
 
         if not source:
             continue
@@ -161,24 +217,25 @@ def sync_drive_folder(folder_id, raw_dir):
         if not year:
             year = "unknown"
 
-        metadata_key = f"{source}_{year}"
+        metadata_key = file_id
 
         if metadata_key not in old_metadata or old_metadata[metadata_key] != modified:
             print(f"File changed: {name}")
             changed = True
             changed_files.append(name)
 
-            temp_excel_path = os.path.join(raw_dir, f"{source}_{year}.xlsx")
-            final_csv_path = os.path.join(raw_dir, f"{source}_{year}.csv")
+            file_ext = os.path.splitext(name)[1].lower()
+            temp_input_path = os.path.join(raw_dir, f"temp_{file_id}{file_ext}")
+            final_csv_path = next_available_dataset_path(raw_dir, source, year, used_output_names)
 
-            # 1. Download Excel
-            download_excel(file_id, temp_excel_path)
+            # 1. Download source file
+            download_excel(file_id, temp_input_path)
 
             # 2. Convert to CSV
-            convert_excel_to_csv(temp_excel_path, final_csv_path)
+            convert_file_to_csv(temp_input_path, final_csv_path)
 
-            # 3. Remove temp Excel
-            os.remove(temp_excel_path)
+            # 3. Remove temp source file
+            os.remove(temp_input_path)
 
         new_metadata[metadata_key] = modified
             

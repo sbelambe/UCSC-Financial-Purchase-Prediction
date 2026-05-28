@@ -202,10 +202,10 @@ const ItemSpendTrendChart: React.FC<ItemSpendTrendChartProps> = ({
     <div className="w-full min-w-0 space-y-5">
       <form
         onSubmit={handleSubmit}
-        className="flex flex-col gap-3 rounded-lg border border-slate-200 bg-slate-50 p-4 lg:flex-row lg:items-end"
+        className="flex flex-col gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm lg:flex-row lg:items-end"
       >
         <div className="min-w-0 flex-1">
-          <label className="mb-1 block text-sm font-normal text-slate-600">
+          <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-[#2d66ae]">
             Search item
           </label>
           <div className="flex gap-2">
@@ -213,9 +213,9 @@ const ItemSpendTrendChart: React.FC<ItemSpendTrendChartProps> = ({
               value={draftQuery}
               onChange={(event) => setDraftQuery(event.target.value)}
               placeholder="pens, notebooks, cheezits"
-              className="bg-white"
+              className="border-slate-200 text-sm bg-slate-50 focus-visible:ring-[#2d66ae]"
             />
-            <Button type="submit" className="bg-[#003c6c] text-white hover:bg-[#002f55]">
+            <Button type="submit" className="bg-[#2d66ae] text-white hover:bg-[#003c6c]">
               <Search className="size-4" />
               Search
             </Button>
@@ -223,11 +223,11 @@ const ItemSpendTrendChart: React.FC<ItemSpendTrendChartProps> = ({
         </div>
         {showDatasetSelector && (
           <div>
-            <label className="mb-1 block text-sm font-normal text-slate-600">
+            <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-[#2d66ae]">
               Dataset
             </label>
             <Select value={dataset} onValueChange={(value) => setDataset(value as DatasetKey)}>
-              <SelectTrigger className="w-40 bg-white">
+              <SelectTrigger className="w-40 border-slate-200 bg-slate-50">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -242,11 +242,11 @@ const ItemSpendTrendChart: React.FC<ItemSpendTrendChartProps> = ({
         )}
 
         <div>
-          <label className="mb-1 block text-sm font-normal text-slate-600">
+          <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-[#2d66ae]">
             Period
           </label>
           <Select value={timePeriod} onValueChange={(value) => setTimePeriod(value as TimePeriod)}>
-            <SelectTrigger className="w-32 bg-white">
+            <SelectTrigger className="w-32 border-slate-200 bg-slate-50">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -262,26 +262,26 @@ const ItemSpendTrendChart: React.FC<ItemSpendTrendChartProps> = ({
 
       {summary && (
         <div className="grid gap-3 md:grid-cols-3">
-          <div className="rounded-lg border border-slate-200 bg-white p-4">
-            <p className="text-sm font-normal text-slate-600">{metricLabel}</p>
-            <p className="mt-1 text-2xl font-bold text-slate-900">
+          <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-[#2d66ae]">{metricLabel}</p>
+            <p className="mt-1 text-2xl font-bold text-slate-950">
               {formatMetric(summary.total_spend, metricType)}
             </p>
           </div>
-          <div className="rounded-lg border border-slate-200 bg-white p-4">
-             <p className="text-sm font-normal text-slate-600">Purchases</p>
-            <p className="mt-1 text-2xl font-bold text-slate-900">{formatNumber(summary.purchase_count)}</p>
+          <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+             <p className="text-xs font-semibold uppercase tracking-wide text-[#2d66ae]">Purchases</p>
+            <p className="mt-1 text-2xl font-bold text-slate-950">{formatNumber(summary.purchase_count)}</p>
           </div>
-          <div className="rounded-lg border border-slate-200 bg-white p-4">
-            <p className="text-sm font-normal text-slate-600">Average per period</p>
-            <p className="mt-1 text-2xl font-bold text-slate-900">
+          <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-[#2d66ae]">Average per period</p>
+            <p className="mt-1 text-2xl font-bold text-slate-950">
               {formatMetric(summary.average_period_spend, metricType)}
             </p>
           </div>
         </div>
       )}
 
-      <div className="min-h-[320px] rounded-lg border border-dashed border-slate-300 bg-slate-50 p-4">
+      <div className="min-h-[320px] rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
         {loading ? (
           <div className="flex h-[300px] items-center justify-center text-sm text-slate-500">
             Loading item trend...
@@ -293,7 +293,7 @@ const ItemSpendTrendChart: React.FC<ItemSpendTrendChartProps> = ({
         ) : chartData.length ? (
           <ResponsiveContainer width="100%" height={320}>
             <LineChart data={chartData} margin={{ top: 16, right: 24, left: 8, bottom: 34 }}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} />
+              <CartesianGrid stroke="#e2e8f0" strokeDasharray="3 3" vertical={false} />
               <XAxis
                 dataKey="period"
                 interval={0}
@@ -314,10 +314,10 @@ const ItemSpendTrendChart: React.FC<ItemSpendTrendChartProps> = ({
               <Line
                 type="monotone"
                 dataKey="total_spend"
-                stroke="#1e3a8a"
+                stroke="#003c6c"
                 strokeWidth={3}
-                dot={{ r: 3, fill: '#1e3a8a' }}
-                activeDot={{ r: 5, fill: '#fdc700' }}
+                dot={{ r: 3, fill: '#003c6c' }}
+                activeDot={{ r: 5, fill: '#2d66ae' }}
                 name={metricLabel}
               />
             </LineChart>
@@ -337,7 +337,7 @@ const ItemSpendTrendChart: React.FC<ItemSpendTrendChartProps> = ({
 
       <div className="space-y-2">
         <div className="flex items-center justify-between gap-3">
-          <h3 className="text-sm font-bold text-slate-900">Matched Items</h3>
+          <h3 className="text-sm font-bold text-[#003c6c]">Matched Items</h3>
           {submittedQuery.trim() && (
             <span className="text-xs text-slate-500">
               "{submittedQuery.trim()}" in {datasetLabel(dataset)}
@@ -347,12 +347,12 @@ const ItemSpendTrendChart: React.FC<ItemSpendTrendChartProps> = ({
         <div className="max-h-44 overflow-auto rounded-lg border border-slate-200">
           {(trendData?.matched_items || []).length ? (
             <table className="w-full text-sm">
-              <thead className="sticky top-0 bg-slate-100 text-left text-sm font-normal text-slate-600">
+              <thead className="sticky top-0 bg-slate-100 text-left text-xs font-semibold uppercase tracking-wide text-[#2d66ae]">
                 <tr>
-                  <th className="px-3 py-2 font-normal">Item</th>
-                  <th className="px-3 py-2 font-normal">Dataset</th>
-                  <th className="px-3 py-2 text-right font-normal">{metricLabel}</th>
-                  <th className="px-3 py-2 text-right font-normal">Purchases</th>
+                  <th className="px-3 py-2 font-semibold">Item</th>
+                  <th className="px-3 py-2 font-semibold">Dataset</th>
+                  <th className="px-3 py-2 text-right font-semibold">{metricLabel}</th>
+                  <th className="px-3 py-2 text-right font-semibold">Purchases</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 bg-white">
@@ -362,7 +362,7 @@ const ItemSpendTrendChart: React.FC<ItemSpendTrendChartProps> = ({
                       {item.item_name}
                     </td>
                     <td className="px-3 py-2 text-slate-500">{datasetLabel(item.dataset)}</td>
-                    <td className="px-3 py-2 text-right text-slate-700">
+                    <td className="px-3 py-2 text-right font-semibold text-[#2d66ae]">
                       {formatMetric(item.total_spend, metricType)}
                     </td>
                     <td className="px-3 py-2 text-right text-slate-700">
