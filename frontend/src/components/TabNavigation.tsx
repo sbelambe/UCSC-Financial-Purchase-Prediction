@@ -5,9 +5,7 @@ interface TabNavigationProps {
 }
 
 export function TabNavigation({ activeTab, onTabChange }: TabNavigationProps) {
-    const primaryTabs = ['Home', 'Amazon'];
-    const supportingTabs = ['CruzBuy', 'OneCard', 'Bookstore'];
-    const tabs = [...primaryTabs, ...supportingTabs];
+    const tabs = ['Home', 'Amazon', 'Bookstore', 'CruzBuy', 'OneCard'];
 
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-1 flex flex-wrap gap-1">

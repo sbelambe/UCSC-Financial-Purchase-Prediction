@@ -63,7 +63,7 @@ function ActionBadge({ action }: { action: string }) {
 
 function MetricTile({ label, value, sub }: { label: string; value: string | number; sub?: string }) {
   return (
-    <div className="flex flex-col items-center bg-[#F3EDF7] rounded-[16px] px-4 py-3 min-w-0">
+    <div className="flex flex-col items-center bg-[#EFF4FB] rounded-[16px] px-4 py-3 min-w-0">
       <span className="text-[10px] font-medium text-[#49454F] uppercase tracking-wide mb-1">{label}</span>
       <span className="text-2xl font-medium text-[#1C1B1F] leading-none">{typeof value === 'number' ? value.toLocaleString() : value}</span>
       {sub && <span className="text-[10px] text-[#79747E] mt-1">{sub}</span>}
@@ -93,12 +93,12 @@ export function ItemHistoryDrawer({ item, devMode, onClose }: ItemHistoryDrawerP
     <Sheet open={!!item} onOpenChange={(open) => { if (!open) onClose(); }}>
       <SheetContent
         side="right"
-        className="w-full sm:max-w-xl overflow-y-auto bg-[#FFFBFE] border-l border-[#E7E0EC] p-0"
+        className="w-full sm:max-w-xl overflow-y-auto bg-[#F8FAFF] border-l border-[#DBEAFE] p-0"
       >
         {item && (
           <>
             {/* Header */}
-            <SheetHeader className="px-6 pt-6 pb-4 border-b border-[#E7E0EC]">
+            <SheetHeader className="px-6 pt-6 pb-4 border-b border-[#DBEAFE]">
               <div className="flex flex-col gap-2 min-w-0">
                 <SheetTitle className="text-lg font-medium text-[#1C1B1F] leading-snug">
                   {item.category}
@@ -125,16 +125,16 @@ export function ItemHistoryDrawer({ item, devMode, onClose }: ItemHistoryDrawerP
                 </h4>
 
                 {isLoading ? (
-                  <div className="h-[200px] rounded-[16px] bg-[#F3EDF7] animate-pulse" />
+                  <div className="h-[200px] rounded-[16px] bg-[#EFF4FB] animate-pulse" />
                 ) : history.length === 0 ? (
-                  <div className="h-[200px] rounded-[16px] bg-[#F3EDF7] flex items-center justify-center">
+                  <div className="h-[200px] rounded-[16px] bg-[#EFF4FB] flex items-center justify-center">
                     <p className="text-sm text-[#49454F]">No historical data available.</p>
                   </div>
                 ) : (
-                  <div className="bg-[#F3EDF7] rounded-[16px] p-4">
+                  <div className="bg-[#EFF4FB] rounded-[16px] p-4">
                     <ResponsiveContainer width="100%" height={200}>
                       <LineChart data={history} margin={{ top: 4, right: 8, left: -16, bottom: 0 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#E7E0EC" />
+                        <CartesianGrid strokeDasharray="3 3" stroke="#DBEAFE" />
                         <XAxis
                           dataKey="month"
                           tick={{ fontSize: 10, fill: '#79747E' }}
@@ -143,16 +143,16 @@ export function ItemHistoryDrawer({ item, devMode, onClose }: ItemHistoryDrawerP
                         />
                         <YAxis tick={{ fontSize: 10, fill: '#79747E' }} />
                         <Tooltip
-                          contentStyle={{ background: '#F3EDF7', border: '1px solid #E7E0EC', borderRadius: 12, fontSize: 12 }}
+                          contentStyle={{ background: '#EFF4FB', border: '1px solid #DBEAFE', borderRadius: 12, fontSize: 12 }}
                           formatter={(v: number) => [v.toLocaleString(), 'Qty']}
                         />
                         <Line
                           type="monotone"
                           dataKey="quantity"
-                          stroke="#6750A4"
+                          stroke="#2d66ae"
                           strokeWidth={2}
                           dot={false}
-                          activeDot={{ r: 4, fill: '#6750A4' }}
+                          activeDot={{ r: 4, fill: '#2d66ae' }}
                         />
                       </LineChart>
                     </ResponsiveContainer>
@@ -166,12 +166,12 @@ export function ItemHistoryDrawer({ item, devMode, onClose }: ItemHistoryDrawerP
               {/* Prediction bounds */}
               <div>
                 <h4 className="text-sm font-medium text-[#1C1B1F] mb-2">Forecast Range</h4>
-                <div className="bg-[#F3EDF7] rounded-[16px] p-4 flex flex-col gap-2">
+                <div className="bg-[#EFF4FB] rounded-[16px] p-4 flex flex-col gap-2">
                   <div className="flex justify-between text-xs text-[#49454F]">
                     <span>Low estimate</span>
                     <span className="font-medium">{item.lower_bound.toLocaleString()}</span>
                   </div>
-                  <div className="relative h-2 bg-[#E7E0EC] rounded-full overflow-hidden">
+                  <div className="relative h-2 bg-[#DBEAFE] rounded-full overflow-hidden">
                     {(() => {
                       const max = Math.max(item.upper_bound, item.current_stock, 1) * 1.15;
                       const lp = Math.min(100, (item.lower_bound / max) * 100);
@@ -179,8 +179,8 @@ export function ItemHistoryDrawer({ item, devMode, onClose }: ItemHistoryDrawerP
                       const sp = Math.min(100, (item.current_stock / max) * 100);
                       return (
                         <>
-                          <div className="absolute h-full bg-[#E8DEF8]" style={{ left: `${lp}%`, width: `${up - lp}%` }} />
-                          <div className="absolute top-0 bottom-0 w-2.5 rounded-full -translate-x-1/2 bg-[#6750A4]" style={{ left: `${sp}%` }} />
+                          <div className="absolute h-full bg-[#BFDBFE]" style={{ left: `${lp}%`, width: `${up - lp}%` }} />
+                          <div className="absolute top-0 bottom-0 w-2.5 rounded-full -translate-x-1/2 bg-[#2d66ae]" style={{ left: `${sp}%` }} />
                         </>
                       );
                     })()}
@@ -195,10 +195,10 @@ export function ItemHistoryDrawer({ item, devMode, onClose }: ItemHistoryDrawerP
               {/* AI Reasoning */}
               <div>
                 <div className="flex items-center gap-2 mb-2">
-                  <Sparkles className="size-4 text-[#6750A4]" />
+                  <Sparkles className="size-4 text-[#2d66ae]" />
                   <h4 className="text-sm font-medium text-[#1C1B1F]">Deep Analysis</h4>
                 </div>
-                <div className="bg-[#F3EDF7] rounded-[16px] p-4">
+                <div className="bg-[#EFF4FB] rounded-[16px] p-4">
                   <p className="text-sm text-[#49454F] leading-relaxed">{item.reasoning}</p>
                 </div>
               </div>

@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
   AlertCircle,
   CheckCircle,
-  TrendingUp,
   Clock,
+  TrendingUp,
   TrendingDown,
   Minus,
   PackageSearch,
@@ -45,7 +45,7 @@ interface Props {
 /**
  * Displays a responsive grid of cards showing inventory status, ML predictions, and trends.
  * Handles fetching dynamic data from either the Bookstore or Amazon endpoints based on the active tab,
- * and manages local state for development mode toggles, time periods, and historical lookback intervals.
+ * and manages local state for development mode toggles, time periods, and action filters.
  * @param {Props} props - The component props.
  * @param {string} props.activeTab - The currently selected tab ('Amazon' or 'Bookstore'), which determines which API endpoint to fetch data from.
  * @returns {JSX.Element} The rendered grid of inventory insights and associated portal modals.
@@ -55,18 +55,21 @@ export function InventoryInsights({ activeTab, onAddToPlan, planCategories }: Pr
 
   const [timePeriod, setTimePeriod] = useState<string>('1_quarter');
   const [devMode, setDevMode] = useState<boolean>(false);
-  const [lookback, setLookback] = useState<string>('2_year');
+  const [actionFilter, setActionFilter] = useState<string>('All');
   const [selectedItem, setSelectedItem] = useState<InsightRow | null>(null);
   const [feedbackItem, setFeedbackItem] = useState<InsightRow | null>(null);
+
+  // Reset filter when switching tabs or toggling dev mode so stale selection doesn't carry over
+  useEffect(() => { setActionFilter('All'); }, [activeTab, devMode]);
 
   const {
     data: bookstoreInsights = [],
     isLoading: bookstoreLoading,
     error: bookstoreError,
   } = useQuery({
-    queryKey: ['bookstore-insights', timePeriod, devMode, lookback],
+    queryKey: ['bookstore-insights', timePeriod, devMode],
     queryFn: async ({ signal }) => {
-      const url = `/api/analytics/bookstore-insights?time_period=${timePeriod}&dev_mode=${devMode}&lookback=${lookback}`;
+      const url = `/api/analytics/bookstore-insights?time_period=${timePeriod}&dev_mode=${devMode}`;
       const response = await fetch(url, { signal });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload?.detail || 'Failed to load ML predictions.');
@@ -82,9 +85,9 @@ export function InventoryInsights({ activeTab, onAddToPlan, planCategories }: Pr
     isLoading: amazonLoading,
     error: amazonError,
   } = useQuery({
-    queryKey: ['amazon-insights', timePeriod, devMode, lookback],
+    queryKey: ['amazon-insights', timePeriod, devMode],
     queryFn: async ({ signal }) => {
-      const url = `/api/analytics/amazon-insights?time_period=${timePeriod}&dev_mode=${devMode}&lookback=${lookback}`;
+      const url = `/api/analytics/amazon-insights?time_period=${timePeriod}&dev_mode=${devMode}`;
       const response = await fetch(url, { signal });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload?.detail || 'Failed to load Amazon ML predictions.');
@@ -124,11 +127,42 @@ export function InventoryInsights({ activeTab, onAddToPlan, planCategories }: Pr
     }
   };
 
+  // Map raw action values → display labels (matches badge rendering)
+  const getDisplayLabel = (action: string): string => {
+    if (action === 'Dead Stock Risk' || action === 'Declining Signal') return 'Overstock';
+    if (action === 'Adequate Stock') return 'Healthy';
+    return action;
+  };
+
+  // Chip colour config keyed by display label
+  const FILTER_CHIP_STYLES: Record<string, { active: string; inactive: string }> = {
+    'All':               { active: 'bg-[#003c6c] text-white border-[#003c6c]',            inactive: 'bg-white text-slate-600 border-slate-200 hover:border-[#003c6c] hover:text-[#003c6c]' },
+    'Critical Reorder':  { active: 'bg-red-600 text-white border-red-600',                 inactive: 'bg-white text-red-700 border-red-200 hover:border-red-400' },
+    'Reorder Soon':      { active: 'bg-red-500 text-white border-red-500',                 inactive: 'bg-white text-red-600 border-red-200 hover:border-red-400' },
+    'High Demand Signal':{ active: 'bg-red-700 text-white border-red-700',                 inactive: 'bg-white text-red-800 border-red-200 hover:border-red-500' },
+    'Monitor Closely':   { active: 'bg-amber-500 text-white border-amber-500',             inactive: 'bg-white text-amber-700 border-amber-200 hover:border-amber-400' },
+    'Overstock':         { active: 'bg-rose-600 text-white border-rose-600',               inactive: 'bg-white text-rose-700 border-rose-200 hover:border-rose-400' },
+    'Healthy':           { active: 'bg-emerald-600 text-white border-emerald-600',         inactive: 'bg-white text-emerald-700 border-emerald-200 hover:border-emerald-400' },
+  };
+
+  // Build chip list: "All" + unique display labels present in current data
+  const labelCounts = insights.reduce<Record<string, number>>((acc, row) => {
+    const label = getDisplayLabel(row.action);
+    acc[label] = (acc[label] ?? 0) + 1;
+    return acc;
+  }, {});
+  const filterChips = ['All', ...Object.keys(labelCounts)];
+
+  // Apply active filter to the grid
+  const filteredInsights = actionFilter === 'All'
+    ? insights
+    : insights.filter(row => getDisplayLabel(row.action) === actionFilter);
+
   const title = isAmazon ? 'Amazon Demand Insights' : 'Inventory Insights';
   const subtitle = isAmazon
     ? 'Amazon Demand Insights uses AI-powered forecasting to highlight historical Amazon spending trends and drive campus bookstore stocking decisions, including identifying overstocked or understocked items. Press the dropdowns below to adjust historical comparison ranges and forecast windows. Create a purchase plan by pressing "Add to Plan" under each desired item and exporting the list below.'
     : 'Bookstore stock overview via ML forecasting.';
-  const currentLabel = isAmazon ? 'Recent Orders' : 'Inventory';
+  const currentLabel = 'Inventory';
   const forecastLabel = isAmazon ? 'ML Forecast' : 'ML Forecast';
   const emptyMessage = isAmazon
     ? 'No Amazon demand predictions available.'
@@ -164,19 +198,6 @@ export function InventoryInsights({ activeTab, onAddToPlan, planCategories }: Pr
           </button>
 
           <div className="group flex cursor-pointer items-center gap-3 rounded-lg border border-slate-200 bg-slate-100 px-4 py-2.5 transition-colors duration-200 focus-within:border-[#2d66ae]">
-            <TrendingUp className="size-4 text-[#003c6c] transition-colors group-focus-within:text-[#003c6c]" />
-            <select
-              value={lookback}
-              onChange={(e) => setLookback(e.target.value)}
-              className="w-full cursor-pointer appearance-none border-none bg-transparent text-xs font-semibold uppercase text-[#2d66ae] outline-none focus:ring-0"
-            >
-              <option value="1_year">VS. 1 YEAR AGO</option>
-              <option value="2_year">VS. 2-YEAR AVERAGE</option>
-              <option value="3_year">VS. 3-YEAR AVERAGE</option>
-            </select>
-          </div>
-
-          <div className="group flex cursor-pointer items-center gap-3 rounded-lg border border-slate-200 bg-slate-100 px-4 py-2.5 transition-colors duration-200 focus-within:border-[#2d66ae]">
             <Clock className="size-4 text-[#003c6c] transition-colors group-focus-within:text-[#003c6c]" />
             <select
               value={timePeriod}
@@ -192,6 +213,30 @@ export function InventoryInsights({ activeTab, onAddToPlan, planCategories }: Pr
         </div>
       </div>
 
+      {/* Action filter chips */}
+      {!loading && insights.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2">
+          {filterChips.map(label => {
+            const styles = FILTER_CHIP_STYLES[label] ?? FILTER_CHIP_STYLES['All'];
+            const isActive = actionFilter === label;
+            return (
+              <button
+                key={label}
+                onClick={() => setActionFilter(label)}
+                className={`flex items-center gap-1.5 rounded-full border px-3 py-1 text-[11px] font-semibold transition-colors ${isActive ? styles.active : styles.inactive}`}
+              >
+                {label}
+                {label !== 'All' && (
+                  <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold ${isActive ? 'bg-white/25' : 'bg-slate-100'}`}>
+                    {labelCounts[label]}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
       {error && (
         <div className="flex items-center gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
           <AlertCircle className="size-5" />
@@ -205,12 +250,14 @@ export function InventoryInsights({ activeTab, onAddToPlan, planCategories }: Pr
           [...Array(8)].map((_, i) => (
             <div key={i} className="h-60 animate-pulse rounded-xl border border-slate-200 bg-white" />
           ))
-        ) : insights.length === 0 ? (
+        ) : filteredInsights.length === 0 ? (
           <div className="col-span-full rounded-xl border border-slate-200 bg-white py-16 text-center">
-            <p className="text-lg font-medium text-slate-600">{emptyMessage}</p>
+            <p className="text-lg font-medium text-slate-600">
+              {insights.length === 0 ? emptyMessage : `No items match "${actionFilter}".`}
+            </p>
           </div>
         ) : (
-          insights.map((item, index) => {
+          filteredInsights.map((item, index) => {
             const safeStock = Math.max(0, item.current_stock);
             const safeLower = Math.max(0, item.lower_bound);
             const safeUpper = Math.max(0, item.upper_bound);
@@ -225,8 +272,8 @@ export function InventoryInsights({ activeTab, onAddToPlan, planCategories }: Pr
             return (
               <Card
                 key={index}
-                onClick={() => !isAmazon && setSelectedItem(item)}
-                className={`group flex h-full flex-col overflow-hidden rounded-xl border border-slate-200 bg-slate-50 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md ${!isAmazon ? 'cursor-pointer' : 'cursor-default'}`}
+                onClick={() => setSelectedItem(item)}
+                className="group flex h-full flex-col overflow-hidden rounded-xl border border-slate-200 bg-slate-50 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md cursor-pointer"
               >
                 <div className="pointer-events-none absolute inset-0 z-10 bg-slate-950 opacity-0 transition-opacity duration-200 group-hover:opacity-[0.02]" />
 
@@ -248,22 +295,24 @@ export function InventoryInsights({ activeTab, onAddToPlan, planCategories }: Pr
                     </div>
                   </div>
 
-                  <div className="mb-4 flex justify-between items-end">
-                    <div className="min-w-0">
-                      <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-[#2d66ae]">{currentLabel}</div>
-                      <div className={`truncate text-xl font-bold leading-none ${item.current_stock < 0 ? 'text-red-700' : 'text-slate-950'}`}>
-                        {item.current_stock.toLocaleString()}
+                  <div className="mb-4 flex items-end gap-6">
+                    {!isAmazon && (
+                      <div className="min-w-0">
+                        <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-[#2d66ae]">{currentLabel}</div>
+                        <div className={`truncate text-xl font-bold leading-none ${item.current_stock < 0 ? 'text-red-700' : 'text-slate-950'}`}>
+                          {item.current_stock.toLocaleString()}
+                        </div>
                       </div>
-                    </div>
+                    )}
                     {item.historical_avg > 0 && (
-                      <div className="min-w-0 text-center">
+                      <div className="min-w-0">
                         <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-[#2d66ae]">Hist. Avg</div>
                         <div className="truncate text-lg font-bold leading-none text-slate-950">
                           {item.historical_avg.toLocaleString()}
                         </div>
                       </div>
                     )}
-                    <div className="min-w-0 text-right">
+                    <div className={`min-w-0 ${!isAmazon ? 'ml-auto text-right' : ''}`}>
                       <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-[#2d66ae]">{forecastLabel}</div>
                       <div className="truncate text-xl font-bold leading-none text-slate-950">
                         {item.predicted_demand.toLocaleString()}
@@ -325,12 +374,10 @@ export function InventoryInsights({ activeTab, onAddToPlan, planCategories }: Pr
                         {planCategories?.has(item.category) ? 'Added to Plan' : 'Add to Plan'}
                       </button>
                     )}
-                    {!isAmazon && (
-                      <div className="flex items-center gap-1 text-[10px] font-medium text-[#003c6c]">
-                        <Sparkles className="size-3" />
-                        <span>Tap for details</span>
-                      </div>
-                    )}
+                    <div className="flex items-center gap-1 text-[10px] font-medium text-[#003c6c]">
+                      <Sparkles className="size-3" />
+                      <span>Tap for details</span>
+                    </div>
                   </div>
                 </div>
               </Card>
@@ -339,20 +386,17 @@ export function InventoryInsights({ activeTab, onAddToPlan, planCategories }: Pr
         )}
       </div>
 
-      {/* ItemHistoryDrawer only for bookstore */}
+      <ItemHistoryDrawer
+        item={selectedItem}
+        devMode={devMode}
+        onClose={() => setSelectedItem(null)}
+      />
+
       {!isAmazon && (
-        <>
-          <ItemHistoryDrawer
-            item={selectedItem}
-            devMode={devMode}
-            onClose={() => setSelectedItem(null)}
-          />
-          
-          <FeedbackModal 
-            item={feedbackItem} 
-            onClose={() => setFeedbackItem(null)} 
-          />
-        </>
+        <FeedbackModal
+          item={feedbackItem}
+          onClose={() => setFeedbackItem(null)}
+        />
       )}
     </div>
   );

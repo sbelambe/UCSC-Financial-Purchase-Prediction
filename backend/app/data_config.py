@@ -165,6 +165,7 @@ def dataset_schema(dataset: str) -> Dict[str, Any]:
                 "display_in_table": (
                     column != "Transaction Date"
                     and not (dataset == "cruzbuy" and column == "Item Name")
+                    and not (dataset == "amazon" and column in ("Merchant Name", "Merchant State", "Merchant City"))
                 ),
                 "source_name": config["columns"][column]["source_name"],
                 "cleaned_name": config["columns"][column]["cleaned_name"],

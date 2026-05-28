@@ -27,6 +27,34 @@ else:
     print("[WARN] FIREBASE_CREDENTIALS_PATH not found in .env file.")
 
 
+def _normalize_dev_dataframe(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Prepare a DataFrame for dev BigQuery upload:
+    - Replace spaces in column names with underscores (BigQuery requirement).
+    - Coerce known numeric columns so autodetect infers INT64/FLOAT64, not STRING.
+    """
+    df = df.copy()
+    df.columns = [c.replace(" ", "_") for c in df.columns]
+
+    # Columns that must be numeric — cast with errors='ignore' so unexpected
+    # string values (e.g. a header row that snuck in) just stay as-is.
+    int_cols  = ["Quantity"]
+    float_cols = ["Subtotal", "Sales_Tax", "Total_Price", "Unit_Price"]
+
+    for col in int_cols:
+        if col in df.columns:
+            df[col] = pd.to_numeric(df[col].astype(str).str.replace(",", ""), errors="coerce").fillna(0).astype(int)
+
+    for col in float_cols:
+        if col in df.columns:
+            df[col] = pd.to_numeric(
+                df[col].astype(str).str.replace(r"[$,]", "", regex=True),
+                errors="coerce"
+            ).fillna(0.0)
+
+    return df
+
+
 def upload_dataframe_to_bigquery(df: pd.DataFrame, table_name: str):
     """
     Takes a cleaned pandas DataFrame and uploads it to BigQuery.
@@ -91,7 +119,10 @@ def main():
             print(f"[DEV MODE] Combining {len(bookstore_present)} fake bookstore files into 'bookstore_cleaned_dev'...\n")
             frames = [pd.read_csv(os.path.join(fake_dir, f)) for f in bookstore_present]
             combined = pd.concat(frames, ignore_index=True)
-            print(f"  Total rows: {len(combined):,}")
+            # Normalize column names and coerce numeric types so autodetect stores
+            # them as INT64/FLOAT64 rather than STRING in the dev table.
+            combined = _normalize_dev_dataframe(combined)
+            print(f"  Total rows: {len(combined):,}  |  Columns: {list(combined.columns)}")
             try:
                 upload_dataframe_to_bigquery(combined, "bookstore_cleaned_dev")
             except Exception as e:
@@ -107,7 +138,9 @@ def main():
             print(f"\n[DEV MODE] Combining {len(amazon_present)} fake amazon files into 'amazon_cleaned_dev'...\n")
             frames = [pd.read_csv(os.path.join(fake_dir, f)) for f in amazon_present]
             combined = pd.concat(frames, ignore_index=True)
-            print(f"  Total rows: {len(combined):,}")
+            # Normalize column names: spaces → underscores (matches dev SQL queries).
+            combined.columns = [c.replace(" ", "_") for c in combined.columns]
+            print(f"  Total rows: {len(combined):,}  |  Columns: {list(combined.columns)}")
             try:
                 upload_dataframe_to_bigquery(combined, "amazon_cleaned_dev")
             except Exception as e:

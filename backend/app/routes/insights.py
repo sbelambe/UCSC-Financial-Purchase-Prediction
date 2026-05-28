@@ -15,25 +15,23 @@ router = APIRouter(
 def get_bookstore_insights(
     time_period: str = Query("1_quarter", description="Time horizon for forecast"),
     dev_mode: bool = Query(False, description="Use synthetic dev data and dev model"),
-    lookback: str = Query("2_year", description="How many years of same-period history to average"),
 ):
     try:
-        results = fetch_bookstore_forecast_from_bigquery(time_period, dev_mode, lookback)
-        return {"status": "success", "time_period": time_period, "dev_mode": dev_mode, "lookback": lookback, "data": results}
+        results = fetch_bookstore_forecast_from_bigquery(time_period, dev_mode)
+        return {"status": "success", "time_period": time_period, "dev_mode": dev_mode, "data": results}
     except Exception as e:
         print(f"[ERROR] Bookstore Insights: {e}")
         raise HTTPException(status_code=500, detail="Failed to fetch ML insights from BigQuery.")
-    
+
 
 @router.get("/amazon-insights")
 def get_amazon_insights(
     time_period: str = Query("1_quarter", description="Time horizon for forecast"),
     dev_mode: bool = Query(False, description="Use synthetic dev data and dev model"),
-    lookback: str = Query("2_year", description="How many years of same-period history to average"),
 ):
     try:
-        results = fetch_amazon_forecast_from_bigquery(time_period, dev_mode, lookback)
-        return {"status": "success", "time_period": time_period, "dev_mode": dev_mode, "lookback": lookback, "data": results}
+        results = fetch_amazon_forecast_from_bigquery(time_period, dev_mode)
+        return {"status": "success", "time_period": time_period, "dev_mode": dev_mode, "data": results}
     except Exception as e:
         print(f"[ERROR] Amazon Insights: {e}")
         raise HTTPException(status_code=500, detail="Failed to fetch Amazon ML insights from BigQuery.")
