@@ -11,12 +11,14 @@ import os
 import re
 import urllib.error
 import urllib.request
+from google import genai
+from google.genai import types
 from typing import Any, Dict, Optional
 
 from .chatbot_prompts import QUESTION_GROUPS, build_system_prompt
 
 
-GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-1.5-flash")
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.0-flash-lite")
 
 
 def _normalize_context(context: Optional[Dict[str, Any]]) -> Dict[str, Any]:
@@ -110,6 +112,50 @@ def _parse_json_response(text: str) -> Dict[str, Any]:
 
 
 def _call_gemini(message: str, context: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    use_vertex = os.getenv("USE_VERTEX_AI", "False").lower() == "true"
+
+    if use_vertex:
+        try:
+            client = genai.Client(
+                vertexai=True,
+                project=os.getenv("GOOGLE_CLOUD_PROJECT"),
+                location=os.getenv("GOOGLE_CLOUD_LOCATION", "us-central1"),
+            )
+
+            prompt = _build_user_prompt(message, context)
+
+            response = client.models.generate_content(
+                model=os.getenv("GEMINI_MODEL", "gemini-2.5-flash"),
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    system_instruction=build_system_prompt(),
+                    temperature=0.4,
+                    max_output_tokens=512,
+                ),
+            )
+
+            text = response.text or ""
+            if not text:
+                return None
+
+            parsed = _parse_json_response(text)
+            suggested_questions = parsed.get("suggested_questions") or []
+            if not isinstance(suggested_questions, list):
+                suggested_questions = []
+
+            print("[VERTEX GEMINI SUCCESS] Response generated")
+
+            return {
+                "answer": str(parsed.get("answer") or text).strip(),
+                "category": str(parsed.get("category") or _matched_group(message)["id"]),
+                "suggested_questions": [str(question) for question in suggested_questions[:3]],
+                "source": "vertex",
+            }
+
+        except Exception as e:
+            print("[VERTEX GEMINI ERROR]", repr(e))
+            return None
+
     api_key = os.getenv("GEMINI_API_KEY")
     if not api_key:
         return None
@@ -159,13 +205,21 @@ def _call_gemini(message: str, context: Dict[str, Any]) -> Optional[Dict[str, An
         if not isinstance(suggested_questions, list):
             suggested_questions = []
 
+        print("[GEMINI SUCCESS] Response generated")
+
         return {
             "answer": str(parsed.get("answer") or text).strip(),
             "category": str(parsed.get("category") or _matched_group(message)["id"]),
             "suggested_questions": [str(question) for question in suggested_questions[:3]],
             "source": "gemini",
         }
-    except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError, json.JSONDecodeError, KeyError, IndexError, ValueError):
+
+    except urllib.error.HTTPError as e:
+        error_body = e.read().decode("utf-8", errors="ignore")
+        print("[GEMINI HTTP ERROR]", e.code, error_body)
+        return None
+    except Exception as e:
+        print("[GEMINI ERROR]", repr(e))
         return None
 
 

@@ -1,10 +1,47 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from typing import List, Optional, Dict, Any
+from app.services.chatbot_service import generate_chatbot_guidance
+from typing import Optional, Dict, Any
 
 router = APIRouter()
 
-# strictly defines the payload coming from the chatbot component
+ALLOWED_DATASETS = {
+    "overall",
+    "amazon",
+    "cruzbuy",
+    "onecard",
+    "pcard",
+    "procard",
+    "bookstore",
+}
+
+BLOCKED_TERMS = [
+    "ignore previous instructions",
+    "ignore all previous instructions",
+    "reveal system prompt",
+    "show system prompt",
+    "print system prompt",
+    "api key",
+    "password",
+    "credentials",
+    "environment variable",
+    ".env",
+    "secret",
+    "token",
+    "bypass",
+    "jailbreak",
+    "hack",
+    "malware",
+    "phishing",
+    "sql injection",
+]
+
+SAFE_REDIRECT = (
+    "I can only help with UCSC purchasing analytics, dashboard insights, "
+    "vendor trends, and Campus Store stocking questions."
+)
+
+
 class ChatbotRequest(BaseModel):
     message: str
     current_view: Optional[str] = "dashboard"
@@ -15,38 +52,96 @@ class ChatbotRequest(BaseModel):
     filters: Optional[Dict[str, Any]] = {}
 
 
-# Routes
+def is_blocked_message(message: str) -> bool:
+    lowered = (message or "").lower()
+    return any(term in lowered for term in BLOCKED_TERMS)
+
+
 @router.post("/guidance")
-# Handles incoming chatbot messages from the frontend.
-# It parses the user's question and current dashboard context, 
-# and returns a guided response with suggested follow-up questions.
-# Future implementation will connect this directly to the Gemini LLM.
 def get_chatbot_guidance(request: ChatbotRequest):
     try:
-        lower_msg = request.message.lower()
-        
-        # Safe fallback defaults
-        answer = "I can help you analyze that data. Please refine your question or use the dashboard filters."
-        suggested = ["What are the top items?", "Show me spending over time"]
+        message = (request.message or "").strip()
+        dataset = (request.dataset or "overall").strip().lower()
 
-        # Simple context-aware routing for the MVP
-        if "vendor" in lower_msg:
-            answer = f"To analyze vendor demand, check the 'Top Purchase Patterns' for {request.dataset}."
-            suggested = ["What items will be bought the most from this vendor?", "What vendor items should we reorder first?"]
-        elif "seasonal" in lower_msg or "quarter" in lower_msg:
-            answer = "Seasonal patterns typically show spikes in the Fall and Spring quarters. Check the 'Transactions Over Time' chart."
-            suggested = ["What items are bought the most in the spring quarter?", "How does demand change between spring and fall quarters?"]
-        elif "bookstore" in lower_msg:
-            answer = "The bookstore inventory is updated via BigQuery point-of-sale data."
-            suggested = ["Which bookstore items have low turnover?", "Which bookstore items should be prioritized for reordering?"]
+        if not message:
+            return {
+                "status": "blocked",
+                "data": {
+                    "answer": "Please ask a question about UCSC purchasing analytics or Campus Store stocking.",
+                    "category": "guardrail",
+                    "suggested_questions": [
+                        "Which bookstore items should we prioritize for reordering?",
+                        "What items were purchased most often last quarter?",
+                        "How does demand change across quarters?",
+                    ],
+                    "source": "guardrail",
+                },
+            }
+
+        if len(message) > 1000:
+            return {
+                "status": "blocked",
+                "data": {
+                    "answer": "Please shorten your question. I can help with focused questions about UCSC purchasing analytics.",
+                    "category": "guardrail",
+                    "suggested_questions": [
+                        "Which items should we restock first?",
+                        "What are the top purchasing trends?",
+                        "Which vendors have the highest demand?",
+                    ],
+                    "source": "guardrail",
+                },
+            }
+
+        if dataset not in ALLOWED_DATASETS:
+            return {
+                "status": "blocked",
+                "data": {
+                    "answer": SAFE_REDIRECT,
+                    "category": "guardrail",
+                    "suggested_questions": [
+                        "What are the top items in the approved datasets?",
+                        "Which bookstore items should we prioritize for reordering?",
+                        "What purchasing trends appear in the dashboard?",
+                    ],
+                    "source": "guardrail",
+                },
+            }
+
+        if is_blocked_message(message):
+            return {
+                "status": "blocked",
+                "data": {
+                    "answer": SAFE_REDIRECT,
+                    "category": "guardrail",
+                    "suggested_questions": [
+                        "Which bookstore items should we prioritize for reordering?",
+                        "What purchasing trends appear in the dashboard?",
+                        "How does demand change across quarters?",
+                    ],
+                    "source": "guardrail",
+                },
+            }
+
+        context = {
+            "current_view": request.current_view,
+            "dataset": dataset,
+            "selected_vendor": request.selected_vendor,
+            "selected_category": request.selected_category,
+            "selected_time_period": request.selected_time_period,
+            "filters": request.filters,
+        }
+
+        result = generate_chatbot_guidance(
+            message=message,
+            context=context,
+        )
 
         return {
             "status": "success",
-            "data": {
-                "answer": answer,
-                "suggested_questions": suggested
-            }
+            "data": result,
         }
+
     except Exception as e:
         print(f"[ERROR] Chatbot guidance failed: {e}")
         raise HTTPException(status_code=500, detail="Failed to process chatbot request.")
