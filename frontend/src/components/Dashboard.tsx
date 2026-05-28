@@ -453,7 +453,7 @@ export function Dashboard() {
   const chartSlides = [
     {
       title: 'Top Purchase Patterns',
-      subtitle: 'View the leading items, merchants, or categories for the active dataset.',
+      subtitle: 'View the leading items, merchants, or categories for the current dataset.',
       headerActions: patternDimensionControls,
       content: (
         <TopItemsChart
@@ -495,7 +495,7 @@ export function Dashboard() {
     },
     {
       title: 'Item Spend Trends',
-      subtitle: 'Search for an item keyword and track matching purchases over time.',
+      subtitle: 'Search for an item keyword and track its spending trends and matching purchases over time.',
       headerActions: null,
       content: (
         <ItemSpendTrendChart
@@ -628,10 +628,11 @@ export function Dashboard() {
                 trends, discover stocking opportunities through predictive insights, and view and 
                 export periodic summary reports.<br />
                 <br />
-                To get started, explore this page to view what needs attention right now: Amazon demand
-                insights, high-impact purchases, the top items appearing across datasets, and 
-                Amazon-specific spending analytics graphs. To view a dataset more in-depth, click on
-                its tab at the top.
+                To get started, upload procurement datasets to the Google Drive folder and press
+                the "Refresh Data" button at the top. Then, explore this page to view what needs 
+                attention right now: Amazon demand insights, high-impact purchases, the top items 
+                appearing across datasets, and Amazon-specific spending analytics graphs. To view 
+                a dataset more in-depth, click on its tab at the top.
               </p>
             </div>
 
@@ -691,7 +692,8 @@ export function Dashboard() {
           <div className="mb-5 w-full min-w-0 text-left">
             <h2 className="text-xl font-bold text-[#003c6c]">Top Items Across Datasets</h2>
             <p className="mt-1 text-sm text-slate-950">
-              View the most-bought external items and most-sold Bookstore items across all four data sources. To analyze a dataset further, press the "Open" button.
+              View the most-bought external items and most-sold Bookstore items across all four data sources to understand 
+              what is high in demand. To dive deeper into a specific dataset, press the "Open" button on its card.
             </p>
           </div>
 
@@ -746,20 +748,22 @@ export function Dashboard() {
           </div>
         </section>
 
-        <section className="w-full min-w-0 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+        <section className="w-full min-w-0 overflow-hidden rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
           <div className="mb-4">
-            <h2 className="text-xl font-bold text-slate-950">Trend Insights</h2>
-            <p className="text-sm text-slate-600">
-              Use the carousel for focused analytics after reviewing recommendations and vendor rankings.
+            <h2 className="text-xl font-bold text-[#003c6c]">Amazon Spending Analytics Graphs</h2>
+            <p className="mt-1 text-sm text-slate-950">
+              The Spending Analytics Graphs encompass various tools and visualizations to aid in analyzing spending trends.
+              They include a Top Purchase Patterns bar chart with a drilldown panel, a High Impact Items scatterplot, a Total Spend Over Time line
+              graph, and Total Spend Over Time on specific items line graph with a built-in search bar.
             </p>
           </div>
           {isLoadingTopPatterns ? (
             <div className="flex min-h-[420px] items-center justify-center">Loading...</div>
           ) : (
-            <div className="rounded-lg border border-slate-200 bg-white p-5">
+            <div className="min-w-0 rounded-lg border border-slate-200 bg-slate-50 p-5">
               <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                <div>
-                  <h3 className="text-lg font-bold text-slate-900">{activeSlide.title}</h3>
+                <div className="min-w-0">
+                  <h3 className="text-lg font-bold leading-tight text-[#003c6c]">{activeSlide.title}</h3>
                   <p className="text-sm text-slate-500">{activeSlide.subtitle}</p>
                 </div>
                 {activeSlide.headerActions}
@@ -770,20 +774,20 @@ export function Dashboard() {
                 </div>
               )}
 
-              <div className="relative flex min-h-[470px] w-full items-center justify-center">
+              <div className="relative flex min-h-[470px] w-full min-w-0 items-center justify-center">
                 <button
                   type="button"
                   onClick={goToPreviousSlide}
-                  className="absolute left-0 z-10 ml-2 rounded-full border border-slate-200 bg-white px-3 py-2 text-lg font-bold text-slate-700 shadow-md hover:bg-slate-100"
+                  className="absolute left-0 z-10 ml-2 rounded-full border border-[#2d66ae] bg-[#2d66ae] px-3 py-2 text-lg font-bold text-white shadow-md hover:bg-[#003c6c]"
                   aria-label="Previous chart"
                 >
                   &lsaquo;
                 </button>
-                <div className="w-full max-w-4xl">{activeSlide.content}</div>
+                <div className="w-full min-w-0 max-w-5xl px-10">{activeSlide.content}</div>
                 <button
                   type="button"
                   onClick={goToNextSlide}
-                  className="absolute right-0 z-10 mr-2 rounded-full border border-slate-200 bg-white px-3 py-2 text-lg font-bold text-slate-700 shadow-md hover:bg-slate-100"
+                  className="absolute right-0 z-10 mr-2 rounded-full border border-[#2d66ae] bg-[#2d66ae] px-3 py-2 text-lg font-bold text-white shadow-md hover:bg-[#003c6c]"
                   aria-label="Next chart"
                 >
                   &rsaquo;
@@ -797,7 +801,7 @@ export function Dashboard() {
                     type="button"
                     onClick={() => setActiveChartSlide(index)}
                     className={`h-2.5 rounded-full transition-all ${
-                      activeChartSlide === index ? 'w-8 bg-slate-900' : 'w-2.5 bg-slate-300'
+                      activeChartSlide === index ? 'w-8 bg-[#2d66ae]' : 'w-2.5 bg-slate-300'
                     }`}
                     aria-label={`Show ${slide.title}`}
                   />

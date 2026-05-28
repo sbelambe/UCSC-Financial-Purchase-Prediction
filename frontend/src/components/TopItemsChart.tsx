@@ -85,7 +85,7 @@ const TopItemsChart = ({
     }
   }, [chartData, selectedItem, enableDrilldown]);
 
-  const COLORS = ['#1e3a8a', '#2563eb', '#3b82f6', '#60a5fa', '#93c5fd'];
+  const COLORS = ['#003c6c', '#2d66ae', '#4f8fd0', '#7baee8', '#9cc6ee'];
 
   //Currency Formatter for the tooltip and y-axis
   const formatCurrency = (value: number) => {
@@ -107,17 +107,17 @@ const TopItemsChart = ({
   };
 
   return (
-    <div className="w-full bg-gray-100 p-4 rounded-lg border-2 border-dashed border-gray-300">
+    <div className="w-full min-w-0 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
       
       {/* Flex Header with Dropdown */}
-      <div className="flex justify-between items-center mb-4 px-4">
-        <h3 className="text-lg font-bold text-gray-700">
+      <div className="mb-4 flex flex-col gap-3 px-4 sm:items-center">
+        <h3 className="text-lg font-bold leading-tight text-[#003c6c]">
           {title}
         </h3>
         <select
           value={metric}
           onChange={(e) => setMetric(e.target.value as 'count' | 'spend' | 'cost_per_item')}
-          className="px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm font-semibold text-gray-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
+          className="cursor-pointer rounded-lg border border-[#2d66ae] bg-[#2d66ae] px-3 py-2 text-sm font-semibold text-white shadow-sm focus:outline-none focus:ring-2 focus:ring-[#2d66ae]"
           style={{ outlineColor: '#003c6c' }}
         >
           <option value="count">Number of Transactions</option>
@@ -127,10 +127,9 @@ const TopItemsChart = ({
       </div>
       
       <div className="mb-3 px-4 text-xs text-slate-500">
-        {enableDrilldown ? 'Click a bar to view vendor details and grouped purchase breakdowns.' : description}
       </div>
 
-      <div className={`grid grid-cols-1 gap-6 ${enableDrilldown ? 'lg:grid-cols-[minmax(0,2fr)_minmax(300px,1fr)]' : ''}`}>
+      <div className={`grid min-w-0 grid-cols-1 gap-6 ${enableDrilldown ? 'lg:grid-cols-[minmax(0,2fr)_minmax(280px,1fr)]' : ''}`}>
         <div className="w-full overflow-x-auto">
           <div className="mx-auto min-w-[680px]">
             <BarChart
@@ -139,20 +138,20 @@ const TopItemsChart = ({
               data={chartData}
               margin={{ top: 20, right: 20, left: 10, bottom: 100 }}
             >
-              <CartesianGrid strokeDasharray="3 3" vertical={false} />
+              <CartesianGrid stroke="#e2e8f0" strokeDasharray="3 3" vertical={false} />
               <XAxis 
                 dataKey="name"
                 interval={0}
                 angle={-45} 
                 textAnchor="end" 
                 height={100} 
-                tick={{ fontSize: 11, fill: '#4b5563' }}
+                tick={{ fontSize: 11, fill: '#475569' }}
                 tickFormatter={(value) => 
                   value.length > 15 ? `${value.substring(0, 15)}...` : value 
                 } 
               />
               
-              <YAxis tickFormatter={yAxisFormatter} width={80} />
+              <YAxis tick={{ fontSize: 11, fill: '#475569' }} tickFormatter={yAxisFormatter} width={80} />
 
               <Tooltip 
                 cursor={{ fill: '#f8fafc' }}
@@ -160,18 +159,18 @@ const TopItemsChart = ({
                   if (active && payload && payload.length) {
                     const d = payload[0].payload as ChartDataPoint;
                     return (
-                      <div className="bg-white p-4 shadow-xl border border-slate-100 rounded-lg z-50">
-                        <p className="font-bold text-slate-900 text-sm mb-2 border-b pb-1">
+                      <div className="z-50 rounded-lg border border-slate-200 bg-white p-4 shadow-xl">
+                        <p className="mb-2 border-b border-slate-200 pb-1 text-sm font-bold text-[#003c6c]">
                           {d.fullName}
                         </p>
                         <div className="space-y-1">
-                          <p className={`text-xs font-semibold ${metric === 'count' ? 'text-blue-700' : 'text-slate-500'}`}>
+                          <p className={`text-xs font-semibold ${metric === 'count' ? 'text-[#2d66ae]' : 'text-slate-500'}`}>
                             Frequency: <span className="font-mono text-slate-600">{d.count}</span>
                           </p>
-                          <p className={`text-xs font-semibold ${metric === 'spend' ? 'text-blue-700' : 'text-slate-500'}`}>
+                          <p className={`text-xs font-semibold ${metric === 'spend' ? 'text-[#2d66ae]' : 'text-slate-500'}`}>
                             {metricLabel}: <span className="font-mono text-slate-600">{metricType === 'quantity' ? new Intl.NumberFormat('en-US').format(d.total_spent) : formatCurrency(d.total_spent)}</span>
                           </p>
-                          <p className={`text-xs font-semibold ${metric === 'cost_per_item' ? 'text-blue-700' : 'text-slate-500'}`}>
+                          <p className={`text-xs font-semibold ${metric === 'cost_per_item' ? 'text-[#2d66ae]' : 'text-slate-500'}`}>
                             Cost Per Item: <span className="font-mono text-slate-600">{formatCurrency(d.cost_per_item || 0)}</span>
                           </p>
                           <p className="text-xs font-semibold text-slate-500">

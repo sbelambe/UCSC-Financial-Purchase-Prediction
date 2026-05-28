@@ -60,10 +60,10 @@ export default function TopItemDrilldownPanel({
 }: TopItemDrilldownPanelProps) {
   if (!selectedItem) {
     return (
-      <div className="h-full rounded-xl border border-slate-200 bg-slate-50 p-4">
-        <h4 className="text-sm font-semibold text-slate-700">Detailed Breakdown</h4>
-        <p className="mt-2 text-sm text-slate-500">
-          Click a bar to inspect project and vendor details for that item.
+      <div className="h-full rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+        <h4 className="text-sm font-bold text-[#003c6c]">Detailed Breakdown</h4>
+        <p className="mt-2 text-xs text-slate-500">
+          Click a bar to inspect its drilldown information.
         </p>
       </div>
     );
@@ -95,34 +95,34 @@ export default function TopItemDrilldownPanel({
 
   return (
     <div className="h-full rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-      <h4 className="text-sm font-semibold text-slate-700">Detailed Breakdown</h4>
+      <h4 className="text-sm font-bold text-[#003c6c]">Detailed Breakdown</h4>
       <p className="mt-1 text-xs text-slate-500">{selectedItem.clean_item_name}</p>
       {selectedItem.is_condensed && (
-        <p className="mt-1 text-xs font-medium text-indigo-700">
+        <p className="mt-1 text-xs font-medium text-[#2d66ae]">
           Condensed group: {selectedItem.condensed_group || selectedItem.clean_item_name}
         </p>
       )}
 
       <div className="mt-4 grid grid-cols-2 gap-2">
-        <div className="rounded-lg border border-blue-100 bg-blue-50 p-2">
-          <p className="text-[11px] font-medium text-blue-700">Frequency</p>
-          <p className="text-sm font-semibold text-blue-900">{formatNumber(combinedFrequency)}</p>
+        <div className="rounded-lg border border-slate-200 bg-slate-50 p-2">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-[#2d66ae]">Frequency</p>
+          <p className="text-sm font-bold text-slate-950">{formatNumber(combinedFrequency)}</p>
           {pendingFrequency > 0 && (
-            <p className="text-[11px] text-blue-700">{formatNumber(baseFrequency)} current + {formatNumber(pendingFrequency)} pending</p>
+            <p className="text-[11px] text-slate-500">{formatNumber(baseFrequency)} current + {formatNumber(pendingFrequency)} pending</p>
           )}
         </div>
-        <div className="rounded-lg border border-emerald-100 bg-emerald-50 p-2">
-          <p className="text-[11px] font-medium text-emerald-700">{metricLabel}</p>
-          <p className="text-sm font-semibold text-emerald-900">{metricValue(combinedMetric)}</p>
+        <div className="rounded-lg border border-slate-200 bg-slate-50 p-2">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-[#2d66ae]">{metricLabel}</p>
+          <p className="text-sm font-bold text-slate-950">{metricValue(combinedMetric)}</p>
           {pendingMetric > 0 && (
-            <p className="text-[11px] text-emerald-700">{metricValue(baseMetric)} current + {metricValue(pendingMetric)} pending</p>
+            <p className="text-[11px] text-slate-500">{metricValue(baseMetric)} current + {metricValue(pendingMetric)} pending</p>
           )}
         </div>
       </div>
 
       {selectedItem.is_condensed && (
         <div className="mt-4">
-          <h5 className="text-xs font-semibold uppercase tracking-wide text-slate-500">Underlying Purchases</h5>
+          <h5 className="text-xs font-semibold uppercase tracking-wide text-[#2d66ae]">Underlying Purchases</h5>
           {drilldownItems.length === 0 ? (
             <p className="mt-2 text-xs text-slate-400">No sub-item rows available for this condensed group.</p>
           ) : (
@@ -132,17 +132,17 @@ export default function TopItemDrilldownPanel({
                 return (
                   <div
                     key={`${subItem.clean_item_name}-${subItem.count}-${subItem.total_spent}`}
-                    className="rounded-md border border-indigo-100 bg-indigo-50 p-2"
+                    className="rounded-md border border-slate-200 bg-slate-50 p-2"
                   >
                     <div className="flex items-center justify-between gap-2">
-                      <p className="text-xs font-semibold text-indigo-900 truncate">{subItem.clean_item_name}</p>
-                      <p className="text-xs font-medium text-indigo-900">{metricValue(Number(subItem.total_spent || 0))}</p>
+                      <p className="truncate text-xs font-semibold text-slate-800">{subItem.clean_item_name}</p>
+                      <p className="text-xs font-semibold text-[#2d66ae]">{metricValue(Number(subItem.total_spent || 0))}</p>
                     </div>
-                    <p className="mt-1 text-[11px] text-indigo-800">
+                    <p className="mt-1 text-[11px] text-slate-500">
                       {formatNumber(Number(subItem.count || 0))} transactions
                     </p>
                     {subItemVendors.length > 0 && (
-                      <p className="mt-1 text-[11px] text-indigo-700">
+                      <p className="mt-1 text-[11px] text-slate-500">
                         Vendors: {subItemVendors.map((vendor) => vendor.name || 'Unknown').join(', ')}
                       </p>
                     )}
@@ -155,7 +155,7 @@ export default function TopItemDrilldownPanel({
       )}
 
       <div className="mt-4">
-        <h5 className="text-xs font-semibold uppercase tracking-wide text-slate-500">Vendor Breakdown</h5>
+        <h5 className="text-xs font-semibold uppercase tracking-wide text-[#2d66ae]">Vendor Breakdown</h5>
         {vendors.length === 0 ? (
           <p className="mt-2 text-xs text-slate-400">No vendor-level breakdown available.</p>
         ) : (
@@ -164,7 +164,7 @@ export default function TopItemDrilldownPanel({
               <div key={`${vendor.name}-${vendor.count}-${vendor.spend}`} className="rounded-md border border-slate-100 bg-slate-50 p-2">
                 <div className="flex items-center justify-between">
                   <p className="truncate pr-2 text-xs font-semibold text-slate-700">{vendor.name || 'Unknown vendor'}</p>
-                  <p className="text-xs font-medium text-slate-900">{metricValue(Number(vendor.spend || 0))}</p>
+                  <p className="text-xs font-semibold text-[#2d66ae]">{metricValue(Number(vendor.spend || 0))}</p>
                 </div>
                 <p className="mt-1 text-[11px] text-slate-500">{formatNumber(Number(vendor.count || 0))} transactions</p>
               </div>
@@ -175,12 +175,12 @@ export default function TopItemDrilldownPanel({
 
       {projectEntries.length > 0 && (
         <div className="mt-4">
-          <h5 className="text-xs font-semibold uppercase tracking-wide text-slate-500">Project and Allocation Fields</h5>
+          <h5 className="text-xs font-semibold uppercase tracking-wide text-[#2d66ae]">Project and Allocation Fields</h5>
           <div className="mt-2 space-y-1">
             {projectEntries.map(([key, value]) => (
-              <div key={key} className="flex items-start justify-between gap-3 rounded-md border border-amber-100 bg-amber-50 px-2 py-1.5">
-                <span className="text-[11px] font-medium text-amber-900">{key}</span>
-                <span className="text-[11px] text-amber-800 text-right break-all">{formatFieldValue(key, value, metricType)}</span>
+              <div key={key} className="flex items-start justify-between gap-3 rounded-md border border-slate-200 bg-slate-50 px-2 py-1.5">
+                <span className="text-[11px] font-medium text-slate-600">{key}</span>
+                <span className="break-all text-right text-[11px] text-slate-700">{formatFieldValue(key, value, metricType)}</span>
               </div>
             ))}
           </div>
@@ -189,7 +189,7 @@ export default function TopItemDrilldownPanel({
 
       {otherEntries.length > 0 && (
         <div className="mt-4">
-          <h5 className="text-xs font-semibold uppercase tracking-wide text-slate-500">Other Dataset Details</h5>
+          <h5 className="text-xs font-semibold uppercase tracking-wide text-[#2d66ae]">Other Dataset Details</h5>
           <div className="mt-2 space-y-1">
             {otherEntries.map(([key, value]) => (
               <div key={key} className="flex items-start justify-between gap-3 rounded-md border border-slate-100 bg-slate-50 px-2 py-1.5">

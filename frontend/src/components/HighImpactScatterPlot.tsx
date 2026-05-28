@@ -70,42 +70,39 @@ export function HighImpactScatterPlot({
 
   if (!chartData.length) {
     return (
-      <div className="w-full bg-gray-100 p-4 rounded-lg border-2 border-dashed border-gray-300 h-[420px] flex items-center justify-center">
+      <div className="flex h-[420px] w-full items-center justify-center rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-500 shadow-sm">
         No item data available for the high-impact scatter plot.
       </div>
     );
   }
 
   return (
-    <div className="w-full bg-gray-100 p-4 rounded-lg border-2 border-dashed border-gray-300">
+    <div className="w-full min-w-0 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
       <div className="mb-4 px-4">
-        <h3 className="text-lg font-bold text-gray-700">High Impact Items</h3>
-        <p className="text-sm text-gray-500">
-          Items in the top-right quadrant combine high purchase frequency with high {metricLabel.toLowerCase()}.
-        </p>
       </div>
-
-      <div className="flex justify-center">
+      <div className="flex justify-center overflow-x-auto">
         <ScatterChart width={780} height={420} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
-          <CartesianGrid strokeDasharray="3 3" />
+          <CartesianGrid stroke="#e2e8f0" strokeDasharray="3 3" />
           <XAxis
             type="number"
             dataKey="frequency"
             name="Frequency"
-            tick={{ fontSize: 11, fill: '#4b5563' }}
-            label={{ value: 'Number of Purchases', position: 'insideBottom', offset: -10 }}
+            tick={{ fontSize: 11, fill: '#475569' }}
+            label={{ value: 'Number of Purchases', position: 'insideBottom', offset: -10, fill: '#475569', fontSize: 12 }}
           />
           <YAxis
             type="number"
             dataKey="metric"
             name={metricLabel}
-            tick={{ fontSize: 11, fill: '#4b5563' }}
+            tick={{ fontSize: 11, fill: '#475569' }}
             tickFormatter={(value) => formatMetric(Number(value), metricType)}
             width={100}
             label={{
               value: metricLabel,
               angle: -90,
               position: 'insideLeft',
+              fill: '#475569',
+              fontSize: 12,
             }}
           />
           <Tooltip
@@ -117,10 +114,10 @@ export function HighImpactScatterPlot({
 
               return (
                 <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-xl">
-                  <p className="mb-2 border-b pb-1 text-sm font-bold text-slate-900">
+                  <p className="mb-2 border-b border-slate-200 pb-1 text-sm font-bold text-[#003c6c]">
                     {point.name}
                   </p>
-                  <p className="mb-2 text-xs font-semibold text-blue-700">
+                  <p className="mb-2 text-xs font-semibold text-[#2d66ae]">
                     {label}
                   </p>
                   <div className="space-y-1 text-xs text-slate-600">
@@ -135,20 +132,21 @@ export function HighImpactScatterPlot({
               );
             }}
           />
-          <Legend verticalAlign="bottom" align="center" wrapperStyle={{ paddingTop: '24px' }} />
           <ReferenceLine
             x={averageFrequency}
-            stroke="#fca5a5"
+            stroke="#94a3b8"
+            strokeDasharray="4 2"
             label={{ value: '', position: 'top', fill: '#b91c1c', fontSize: 11 }}
           />
           <ReferenceLine
             y={averageMetric}
-            stroke="#fca5a5"
+            stroke="#94a3b8"
+            strokeDasharray="4 2"
             label={{ value: '', position: 'right', fill: '#b91c1c', fontSize: 11 }}
           />
-          <Scatter name="Items" data={chartData} fill="#2563eb">
+          <Scatter data={chartData}>
             {chartData.map((_, index) => (
-              <Cell key={`scatter-cell-${index}`} fill="#2563eb" />
+              <Cell key={`scatter-cell-${index}`} fill={index % 2 === 0 ? '#2d66ae' : '#003c6c'} />
             ))}
           </Scatter>
         </ScatterChart>
