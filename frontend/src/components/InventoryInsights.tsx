@@ -126,7 +126,7 @@ export function InventoryInsights({ activeTab, onAddToPlan, planCategories }: Pr
 
   const title = isAmazon ? 'Amazon Demand Insights' : 'Inventory Insights';
   const subtitle = isAmazon
-    ? 'Amazon Demand Insights uses AI-powered forecasting to highlight historical Amazon spending trends to drive campus Bookstore stocking decisions, including identifying overstocked or understocked items. Press the butttons below to adjust historical comparison ranges and forecast windows.'
+    ? 'Amazon Demand Insights uses AI-powered forecasting to highlight historical Amazon spending trends and drive campus bookstore stocking decisions, including identifying overstocked or understocked items. Press the dropdowns below to adjust historical comparison ranges and forecast windows. Create a purchase plan by pressing "Add to Plan" under each desired item and exporting the list below.'
     : 'Bookstore stock overview via ML forecasting.';
   const currentLabel = isAmazon ? 'Recent Orders' : 'Inventory';
   const forecastLabel = isAmazon ? 'ML Forecast' : 'ML Forecast';

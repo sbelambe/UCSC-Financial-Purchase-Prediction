@@ -96,25 +96,25 @@ const datasetPreviewConfig = [
   {
     key: 'amazon',
     label: 'Amazon',
-    description: 'External purchases with the strongest stocking signal.',
+    description: 'External purchases on Amazon.com',
     icon: ShoppingBag,
   },
   {
     key: 'cruzbuy',
     label: 'CruzBuy',
-    description: 'Procurement activity worth comparing against Amazon demand.',
+    description: 'External purchases made through student and employee requests.',
     icon: Building2,
   },
   {
     key: 'onecard',
     label: 'OneCard',
-    description: 'Card purchases that can reveal off-contract needs.',
+    description: 'External purchases using the UCSC employee Visa card.',
     icon: BarChart3,
   },
   {
     key: 'bookstore',
     label: 'Bookstore',
-    description: 'Campus Store sales and inventory context.',
+    description: 'Campus store sales.',
     icon: Boxes,
   },
 ] as const;
@@ -687,57 +687,53 @@ export function Dashboard() {
           />
         </section>
 
-        <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-          <div className="mb-5 flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
-            <div>
-              <h2 className="text-xl font-bold text-slate-950">Top Purchases Across Vendors</h2>
-              <p className="text-sm text-slate-600">
-                Compact top-10 previews help new users compare vendors before diving into a dataset page.
-              </p>
-            </div>
+        <section className="w-full min-w-0 overflow-hidden rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="mb-5 w-full min-w-0 text-left">
+            <h2 className="text-xl font-bold text-[#003c6c]">Top Items Across Datasets</h2>
+            <p className="mt-1 text-sm text-slate-950">
+              View the most-bought external items and most-sold Bookstore items across all four data sources. To analyze a dataset further, press the "Open" button.
+            </p>
           </div>
 
-          <div className="grid gap-4 lg:grid-cols-2">
+          <div className="grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-2">
             {datasetPreviewConfig.map((dataset) => {
               const Icon = dataset.icon;
               const items = datasetPreviews[dataset.key] || [];
 
               return (
-                <div key={dataset.key} className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-                  <div className="mb-4 flex items-start justify-between gap-3">
-                    <div className="flex items-start gap-3">
-                      <div className="rounded-lg bg-white p-2 text-[#003c6c] shadow-sm">
-                        <Icon className="size-5" />
-                      </div>
-                      <div>
-                        <h3 className="font-bold text-slate-950">{dataset.label}</h3>
-                        <p className="text-xs leading-5 text-slate-500">{dataset.description}</p>
-                      </div>
+                <div key={dataset.key} className="min-w-0 rounded-lg border border-slate-200 bg-slate-50 p-4">
+                  <div className="mb-4 grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-3">
+                    <div className="shrink-0 rounded-lg bg-white p-2 text-[#003c6c] shadow-sm">
+                      <Icon className="size-4 text-[#2d66ae]" />
+                    </div>
+                    <div className="min-w-0">
+                      <h3 className="text-lg font-bold leading-tight text-[#003c6c]">{dataset.label}</h3>
+                      <p className="text-xs leading-5 text-slate-500">{dataset.description}</p>
                     </div>
                     <button
                       type="button"
                       onClick={() => setActiveTab(dataset.label as DashboardTab)}
-                      className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100"
+                      className="shrink-0 rounded-lg border border-[#2d66ae] bg-[#2d66ae] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#003c6c]"
                     >
                       Open
                     </button>
                   </div>
 
                   {datasetPreviewsLoading ? (
-                    <div className="h-40 rounded-lg bg-white/70 animate-pulse" />
+                    <div className="h-40 rounded-lg border border-slate-200 bg-white/70 animate-pulse" />
                   ) : items.length === 0 ? (
-                    <div className="rounded-lg bg-white p-4 text-sm text-slate-500">No preview rows available.</div>
+                    <div className="rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-500">No preview rows available.</div>
                   ) : (
                     <ol className="space-y-2">
                       {items.slice(0, 10).map((item, index) => (
-                        <li key={`${dataset.key}-${item.clean_item_name}-${index}`} className="flex items-center justify-between gap-3 rounded-lg bg-white px-3 py-2 text-sm">
+                        <li key={`${dataset.key}-${item.clean_item_name}-${index}`} className="flex min-w-0 items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm">
                           <div className="min-w-0">
                             <div className="truncate font-semibold text-slate-800" title={item.clean_item_name}>
                               {index + 1}. {item.clean_item_name}
                             </div>
                             <div className="text-xs text-slate-500">{Number(item.count || 0).toLocaleString()} purchases</div>
                           </div>
-                          <div className="shrink-0 font-mono text-xs font-semibold text-slate-700">
+                          <div className="shrink-0 text-xs font-semibold text-[#2d66ae]">
                             {formatCurrency(item.total_spent)}
                           </div>
                         </li>
