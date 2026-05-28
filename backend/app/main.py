@@ -2,7 +2,8 @@
 # behavior (ex: user clicks "Refresh Data"). Includes creating the FastAPI
 # app, frontend/backend port communication through CORS Middleware, health
 # and status checks, refresh data, and returning dashboard data
-import sys, os
+import sys, os, threading
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
@@ -23,8 +24,39 @@ from .routes.explorer import router as explorer_router
 from .routes.upload import router as upload_router
 from .routes.chatbot import router as chatbot_router
 
+
+def _warm_insight_caches():
+    """
+    Pre-populate the lru_cache for the two most expensive ML endpoints
+    (ML.EXPLAIN_FORECAST) so the first real user request is served from
+    cache instead of waiting 5-15s for BigQuery inference.
+
+    Runs in a daemon thread at startup — errors are logged but never
+    surface to users since the endpoints will still work on demand.
+    """
+    try:
+        from app.bigquery_service import (
+            fetch_bookstore_forecast_from_bigquery,
+            fetch_amazon_forecast_from_bigquery,
+        )
+        print("[STARTUP] Warming bookstore insights cache...")
+        fetch_bookstore_forecast_from_bigquery("1_quarter", False)
+        print("[STARTUP] Warming Amazon insights cache...")
+        fetch_amazon_forecast_from_bigquery("1_quarter", False)
+        print("[STARTUP] Cache warm-up complete.")
+    except Exception as e:
+        print(f"[STARTUP] Cache warm-up failed (non-fatal): {e}")
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Fire cache warming in the background so it doesn't block startup.
+    threading.Thread(target=_warm_insight_caches, daemon=True).start()
+    yield
+
+
 # Create the FastAPI App.
-app = FastAPI(title="UCSC Financial Dashboard API")
+app = FastAPI(title="UCSC Financial Dashboard API", lifespan=lifespan)
 
 # --- CORS Middleware ---
 # Allows the frontend (running on port 5173) to communicate with this backend (port 8000).

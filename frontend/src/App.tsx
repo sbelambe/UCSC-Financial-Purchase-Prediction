@@ -1,4 +1,4 @@
-import { ReactNode, useState } from 'react';
+import { ReactNode, useState, useEffect } from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Dashboard } from './components/Dashboard';
@@ -16,17 +16,150 @@ type AuthenticatedLayoutProps = {
   children: ReactNode;
 };
 
-// so the cache isn't destroyed on re-renders
+// QueryClient lives outside any component so it is never destroyed on re-renders or
+// route navigations. gcTime is set high so cached data survives while the user is
+// on another page (Dataset Explorer, Reports) and is still there when they come back.
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      // Prevents spamming the backend if the user switches tabs frequently
-      refetchOnWindowFocus: false, 
-      // Safe fallback: if a network request fails, try one more time before showing an error
-      retry: 1, 
+      refetchOnWindowFocus: false,
+      retry: 1,
+      // Keep cached data for 1 hour after all observers unmount (default is 5 min).
+      gcTime: 60 * 60 * 1000,
     },
   },
 });
+
+// ---------------------------------------------------------------------------
+// Sequential startup prefetch — runs once when the app first loads.
+// Populates the QueryClient cache with the four main datasets in priority order
+// (Amazon → Bookstore → CruzBuy → OneCard) so that tabs open instantly even
+// after navigating away to Dataset Explorer or Reports and back again.
+// ---------------------------------------------------------------------------
+const PREFETCH_DATASETS = ['amazon', 'bookstore', 'cruzbuy', 'onecard'] as const;
+
+async function prefetchAllDatasets() {
+  const DEFAULT_YEAR    = 'All Time';
+  const DEFAULT_QUARTER = 'All Quarters';
+
+  for (const dataset of PREFETCH_DATASETS) {
+    // ── top-items (default filter state — matches what Dashboard loads first) ──
+    const topItemsParams = new URLSearchParams({
+      dataset,
+      search_query:     '',
+      selected_year:    DEFAULT_YEAR,
+      selected_quarter: DEFAULT_QUARTER,
+      min_spend:        '0',
+      limit:            '20',
+      sort_mode:        'frequency',
+      high_impact_only: 'false',
+    }).toString();
+
+    // ── spend-over-time ──
+    const spendParams = new URLSearchParams({
+      dataset,
+      time_period:      'month',
+      selected_year:    DEFAULT_YEAR,
+      selected_quarter: DEFAULT_QUARTER,
+    }).toString();
+
+    // ── top-patterns (item dimension, default) ──
+    const patternParams = new URLSearchParams({
+      dataset,
+      search_query:     '',
+      selected_year:    DEFAULT_YEAR,
+      selected_quarter: DEFAULT_QUARTER,
+      min_spend:        '0',
+      limit:            '5',
+      sort_mode:        'frequency',
+      group_by:         'item',
+    }).toString();
+
+    // Run the three per-dataset queries in parallel, then move to next dataset.
+    await Promise.all([
+      queryClient.prefetchQuery({
+        queryKey:  ['top-items', topItemsParams],
+        queryFn:   () => fetch(`/api/analytics/top-items/bigquery?${topItemsParams}`).then((r) => r.json()).then((p) => p.data),
+        staleTime: 30 * 60 * 1000,
+      }),
+      queryClient.prefetchQuery({
+        queryKey:  ['spend-series', spendParams],
+        queryFn:   () =>
+          fetch(`/api/analytics/spend-over-time/bigquery?${spendParams}`)
+            .then((r) => r.json())
+            .then((p) => ({ combined: p.data?.combined ?? [], datasets: p.data?.datasets ?? {} })),
+        staleTime: 30 * 60 * 1000,
+      }),
+      queryClient.prefetchQuery({
+        queryKey:  ['top-patterns', patternParams],
+        queryFn:   () => fetch(`/api/analytics/top-items/bigquery?${patternParams}`).then((r) => r.json()).then((p) => p.data),
+        staleTime: 30 * 60 * 1000,
+      }),
+      // Home-tab dataset preview cards (limit=10, no filters)
+      queryClient.prefetchQuery({
+        queryKey:  ['dataset-preview', dataset],
+        queryFn:   () =>
+          fetch(`/api/analytics/top-items/bigquery?dataset=${dataset}&limit=10`)
+            .then((r) => r.json())
+            .then((p) => p.data?.items ?? []),
+        staleTime: 30 * 60 * 1000,
+      }),
+    ]);
+  }
+
+  // ── Overall summary (Home tab metrics) ──
+  const base = `selected_year=${encodeURIComponent(DEFAULT_YEAR)}&selected_quarter=${encodeURIComponent(DEFAULT_QUARTER)}&dataset=overall`;
+  await Promise.all([
+    queryClient.prefetchQuery({
+      queryKey:  ['overall-merchants', DEFAULT_YEAR, DEFAULT_QUARTER],
+      queryFn:   () =>
+        fetch(`/api/analytics/top-items/bigquery?${base}&group_by=merchant&sort_mode=cost&limit=100`)
+          .then((r) => r.json()).then((p) => p.data?.items ?? []),
+      staleTime: 30 * 60 * 1000,
+    }),
+    queryClient.prefetchQuery({
+      queryKey:  ['overall-top-category', DEFAULT_YEAR, DEFAULT_QUARTER],
+      queryFn:   () =>
+        fetch(`/api/analytics/top-items/bigquery?${base}&group_by=category&sort_mode=cost&limit=10`)
+          .then((r) => r.json())
+          .then((p) => {
+            const items = (p.data?.items ?? []) as any[];
+            const valid = items.find((it: any) => {
+              const n = String(it?.clean_item_name ?? '').trim().toLowerCase();
+              return n.length > 0 && n !== 'unknown' && n !== '—' && n !== '-';
+            });
+            return valid ?? items[0] ?? null;
+          }),
+      staleTime: 30 * 60 * 1000,
+    }),
+    queryClient.prefetchQuery({
+      queryKey:  ['overall-spend', DEFAULT_YEAR, DEFAULT_QUARTER],
+      queryFn:   () =>
+        fetch(`/api/analytics/spend-over-time/bigquery?${base}&time_period=month`)
+          .then((r) => r.json()).then((p) => p.data?.combined ?? []),
+      staleTime: 30 * 60 * 1000,
+    }),
+  ]);
+
+  // ── ML insights (Amazon + Bookstore) ──
+  const period = '1_quarter';
+  await Promise.all([
+    queryClient.prefetchQuery({
+      queryKey:  ['amazon-insights', period, false],
+      queryFn:   () =>
+        fetch(`/api/analytics/amazon-insights?time_period=${period}&dev_mode=false`)
+          .then((r) => r.json()).then((p) => p.data),
+      staleTime: 30 * 60 * 1000,
+    }),
+    queryClient.prefetchQuery({
+      queryKey:  ['bookstore-insights', period, false],
+      queryFn:   () =>
+        fetch(`/api/analytics/bookstore-insights?time_period=${period}&dev_mode=false`)
+          .then((r) => r.json()).then((p) => p.data),
+      staleTime: 30 * 60 * 1000,
+    }),
+  ]);
+}
 
 function AuthenticatedLayout({ currentView, children }: AuthenticatedLayoutProps) {
   const [isChatOpen, setIsChatOpen] = useState(false);
@@ -103,6 +236,10 @@ function ReportsPage() {
 }
 
 export default function App() {
+  // Fire-and-forget: pre-warm the QueryClient cache with all four datasets
+  // in priority order as soon as the app mounts.
+  useEffect(() => { prefetchAllDatasets(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
