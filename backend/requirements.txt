@@ -9,6 +9,7 @@ firebase_admin
 openpyxl
 google-api-python-client
 google-cloud-bigquery
+google-genai
 python-multipart
 pyarrow
 pandas-gbq
