@@ -342,9 +342,20 @@ def _build_search_where(parsed_query: Dict[str, Any], category_originals: Option
 
 
 def _condensed_group_case_expression(source_alias: str = "") -> str:
-    """Build SQL CASE that maps noisy/repetitive purchases into high-level groups."""
+    """Build SQL CASE that maps noisy/repetitive purchases into high-level groups.
+
+    Most rules use item_text (item name + category + subcategory) so that a
+    merchant/vendor name like "Amazon Business Services LLC" or "Costco Wholesale
+    Food Services" can't mis-label unrelated physical products.
+
+    AT&T Bills is the only exception that needs full_text (all fields including
+    merchant_name) because the merchant literally IS AT&T — the item description
+    for a phone bill may just say "wireless charge" with no carrier name in it.
+    """
     prefix = f"{source_alias}." if source_alias else ""
-    searchable_text = (
+
+    # Only used for AT&T Bills where the merchant name is the primary signal.
+    full_text = (
         f"LOWER(CONCAT(' ', "
         f"COALESCE({prefix}clean_item_name, ''), ' ', "
         f"COALESCE({prefix}category, ''), ' ', "
@@ -354,8 +365,22 @@ def _condensed_group_case_expression(source_alias: str = "") -> str:
         f"COALESCE({prefix}vendor_name, ''), ' '))"
     )
 
+    # Default for all other rules: item fields only, no merchant/vendor names.
+    item_text = (
+        f"LOWER(CONCAT(' ', "
+        f"COALESCE({prefix}clean_item_name, ''), ' ', "
+        f"COALESCE({prefix}category, ''), ' ', "
+        f"COALESCE({prefix}subcategory, ''), ' ', "
+        f"COALESCE({prefix}item_description, ''), ' '))"
+    )
+
+    # Only AT&T Bills needs the merchant name; everything else matches on item fields.
+    text_for_label = {
+        "AT&T Bills": full_text,
+    }
+
     cases = "\n".join(
-        f"WHEN REGEXP_CONTAINS({searchable_text}, r\"{pattern}\") THEN '{label}'"
+        f"WHEN REGEXP_CONTAINS({text_for_label.get(label, item_text)}, r\"{pattern}\") THEN '{label}'"
         for label, pattern in CONDENSED_PURCHASE_GROUP_RULES
     )
     return f"CASE\n{cases}\nELSE NULL END"
@@ -1667,9 +1692,9 @@ def fetch_amazon_bookstore_recommendations():
 
     return {"overlap": overlap[:15], "gaps": gaps[:15]}
 
-# This caches the last 30 unique (time_period, dev_mode, lookback) combos in server RAM.
-@lru_cache(maxsize=30)
-def fetch_bookstore_forecast_from_bigquery(time_period: str, dev_mode: bool = False, lookback: str = "2_year"):
+# This caches the last 10 unique (time_period, dev_mode) combos in server RAM.
+@lru_cache(maxsize=10)
+def fetch_bookstore_forecast_from_bigquery(time_period: str, dev_mode: bool = False):
     """
     Retrieves inventory health insights by comparing current stock against BQML demand forecasts.
 
@@ -1688,18 +1713,24 @@ def fetch_bookstore_forecast_from_bigquery(time_period: str, dev_mode: bool = Fa
     model_path = f"{bq_project}.{bq_dataset}.bookstore_inventory_forecast{model_suffix}"
     data_table = f"{bq_project}.{bq_dataset}.bookstore_cleaned{model_suffix}"
 
+    # Dev tables are uploaded via pandas autodetect which sanitizes spaces → underscores
+    # and may store numeric columns as STRING. Use SAFE_CAST in dev mode as a safety net.
+    col_date = "Transaction_Date" if dev_mode else "`Transaction Date`"
+    col_item = "Item_Description"  if dev_mode else "`Item Description`"
+    col_qty  = "SAFE_CAST(Quantity AS INT64)" if dev_mode else "Quantity"
+
     horizon_map = {"1_month": 1, "1_quarter": 3, "6_months": 6, "1_year": 12}
     months_to_forecast = horizon_map.get(time_period, 3)
 
-    lookback_map = {"1_year": 1, "2_year": 2, "3_year": 3}
-    lookback_years = lookback_map.get(lookback, 2)
+    # Fixed 2-year historical comparison window
+    lookback_years = 2
 
     # Compute which calendar months we are forecasting (starting next month from today)
     today = datetime.date.today()
     forecast_months = [((today.month - 1 + i + 1) % 12) + 1 for i in range(months_to_forecast)]
     month_list_sql = ", ".join(str(m) for m in forecast_months)
 
-    # Year range for historical comparison: the past N complete years before the current one
+    # Year range for historical comparison: the past 2 complete years before the current one
     hist_end_year   = today.year - 1
     hist_start_year = today.year - lookback_years
 
@@ -1727,8 +1758,8 @@ def fetch_bookstore_forecast_from_bigquery(time_period: str, dev_mode: bool = Fa
     -- so the query works correctly regardless of how old the data is relative to today.
     DataBounds AS (
         SELECT
-            MAX(CAST(`Transaction Date` AS DATE)) AS latest_date,
-            MIN(CAST(`Transaction Date` AS DATE)) AS earliest_date
+            MAX(CAST({col_date} AS DATE)) AS latest_date,
+            MIN(CAST({col_date} AS DATE)) AS earliest_date
         FROM `{data_table}`
     ),
 
@@ -1737,10 +1768,10 @@ def fetch_bookstore_forecast_from_bigquery(time_period: str, dev_mode: bool = Fa
     -- snapshot of what is on the shelf. No baseline subtraction — SUM(Quantity) IS inventory.
     CurrentStock AS (
         SELECT
-            `Item Description` AS item_name,
-            SUM(Quantity)      AS stock
+            {col_item} AS item_name,
+            SUM({col_qty})     AS stock
         FROM `{data_table}`, DataBounds
-        WHERE CAST(`Transaction Date` AS DATE) >= DATE_SUB(DataBounds.latest_date, INTERVAL 3 MONTH)
+        WHERE CAST({col_date} AS DATE) >= DATE_SUB(DataBounds.latest_date, INTERVAL 3 MONTH)
         GROUP BY item_name
     ),
 
@@ -1750,13 +1781,13 @@ def fetch_bookstore_forecast_from_bigquery(time_period: str, dev_mode: bool = Fa
         SELECT item_name, AVG(period_qty) AS historical_avg
         FROM (
             SELECT
-                `Item Description`                                    AS item_name,
-                EXTRACT(YEAR FROM CAST(`Transaction Date` AS DATE))   AS yr,
-                SUM(Quantity)                                         AS period_qty
+                {col_item}                                            AS item_name,
+                EXTRACT(YEAR FROM CAST({col_date} AS DATE))          AS yr,
+                SUM({col_qty})                                        AS period_qty
             FROM `{data_table}`, DataBounds
             WHERE
-                EXTRACT(MONTH FROM CAST(`Transaction Date` AS DATE)) IN ({month_list_sql})
-                AND EXTRACT(YEAR FROM CAST(`Transaction Date` AS DATE))
+                EXTRACT(MONTH FROM CAST({col_date} AS DATE)) IN ({month_list_sql})
+                AND EXTRACT(YEAR FROM CAST({col_date} AS DATE))
                     BETWEEN EXTRACT(YEAR FROM DataBounds.latest_date) - {lookback_years}
                         AND EXTRACT(YEAR FROM DataBounds.latest_date) - 1
             GROUP BY item_name, yr
@@ -1894,8 +1925,8 @@ def fetch_bookstore_forecast_from_bigquery(time_period: str, dev_mode: bool = Fa
     return results
 
 
-@lru_cache(maxsize=30)
-def fetch_amazon_forecast_from_bigquery(time_period: str, dev_mode: bool = False, lookback: str = "2_year"):
+@lru_cache(maxsize=10)
+def fetch_amazon_forecast_from_bigquery(time_period: str, dev_mode: bool = False):
     """
     Retrieves Amazon demand forecasts per item name using BQML ARIMA+.
     current_stock = recent 3-month Amazon order volume for that item.
@@ -1909,11 +1940,17 @@ def fetch_amazon_forecast_from_bigquery(time_period: str, dev_mode: bool = False
     model_path = f"{bq_project}.{bq_dataset}.amazon_demand_forecast{model_suffix}"
     amazon_table = f"{bq_project}.{bq_dataset}.amazon_cleaned{model_suffix}"
 
+    # Dev tables are uploaded via pandas autodetect which sanitizes spaces → underscores
+    # and may store numeric columns as STRING. Use SAFE_CAST in dev mode as a safety net.
+    col_date = "Transaction_Date" if dev_mode else "`Transaction Date`"
+    col_item = "Item_Description"  if dev_mode else "`Item Description`"
+    col_qty  = "SAFE_CAST(Quantity AS INT64)" if dev_mode else "Quantity"
+
     horizon_map = {"1_month": 1, "1_quarter": 3, "6_months": 6, "1_year": 12}
     months_to_forecast = horizon_map.get(time_period, 3)
 
-    lookback_map = {"1_year": 1, "2_year": 2, "3_year": 3}
-    lookback_years = lookback_map.get(lookback, 2)
+    # Fixed 2-year historical comparison window
+    lookback_years = 2
 
     today = datetime.date.today()
     forecast_months = [((today.month - 1 + i + 1) % 12) + 1 for i in range(months_to_forecast)]
@@ -1939,31 +1976,31 @@ def fetch_amazon_forecast_from_bigquery(time_period: str, dev_mode: bool = False
     -- Recent 3-month order volume per item, anchored to dataset's own latest date
     RecentOrders AS (
         SELECT
-            `Item Description` AS item_name,
-            SUM(Quantity)      AS recent_qty
+            {col_item} AS item_name,
+            SUM({col_qty})     AS recent_qty
         FROM `{amazon_table}`
-        WHERE CAST(`Transaction Date` AS DATE) >= DATE_SUB(
-            (SELECT MAX(CAST(`Transaction Date` AS DATE)) FROM `{amazon_table}`),
+        WHERE CAST({col_date} AS DATE) >= DATE_SUB(
+            (SELECT MAX(CAST({col_date} AS DATE)) FROM `{amazon_table}`),
             INTERVAL 3 MONTH
         )
-          AND `Item Description` IS NOT NULL
-        GROUP BY `Item Description`
+          AND {col_item} IS NOT NULL
+        GROUP BY {col_item}
     ),
 
     HistoricalContext AS (
         SELECT item_name, AVG(period_qty) AS historical_avg
         FROM (
             SELECT
-                `Item Description` AS item_name,
-                EXTRACT(YEAR FROM CAST(`Transaction Date` AS DATE))  AS yr,
-                SUM(Quantity)                                        AS period_qty
+                {col_item} AS item_name,
+                EXTRACT(YEAR FROM CAST({col_date} AS DATE))  AS yr,
+                SUM({col_qty})                               AS period_qty
             FROM `{amazon_table}`
             WHERE
-                EXTRACT(MONTH FROM CAST(`Transaction Date` AS DATE)) IN ({month_list_sql})
-                AND EXTRACT(YEAR FROM CAST(`Transaction Date` AS DATE))
-                    BETWEEN (SELECT EXTRACT(YEAR FROM MAX(CAST(`Transaction Date` AS DATE))) FROM `{amazon_table}`) - {lookback_years}
-                        AND (SELECT EXTRACT(YEAR FROM MAX(CAST(`Transaction Date` AS DATE))) FROM `{amazon_table}`) - 1
-                AND `Item Description` IS NOT NULL
+                EXTRACT(MONTH FROM CAST({col_date} AS DATE)) IN ({month_list_sql})
+                AND EXTRACT(YEAR FROM CAST({col_date} AS DATE))
+                    BETWEEN (SELECT EXTRACT(YEAR FROM MAX(CAST({col_date} AS DATE))) FROM `{amazon_table}`) - {lookback_years}
+                        AND (SELECT EXTRACT(YEAR FROM MAX(CAST({col_date} AS DATE))) FROM `{amazon_table}`) - 1
+                AND {col_item} IS NOT NULL
             GROUP BY item_name, yr
         )
         GROUP BY item_name
@@ -2086,14 +2123,17 @@ def fetch_item_history(item_name: str, dev_mode: bool = False):
     bq_dataset = os.getenv("BIGQUERY_DATASET", "")
     suffix = "_dev" if dev_mode else ""
     data_table = f"{bq_project}.{bq_dataset}.bookstore_cleaned{suffix}"
+    col_date = "Transaction_Date" if dev_mode else "`Transaction Date`"
+    col_item = "Item_Description"  if dev_mode else "`Item Description`"
+    col_qty  = "SAFE_CAST(Quantity AS INT64)" if dev_mode else "Quantity"
 
     sql = f"""
     SELECT
-        FORMAT_DATE('%Y-%m', DATE_TRUNC(CAST(`Transaction Date` AS DATE), MONTH)) AS month,
-        SUM(Quantity) AS quantity
+        FORMAT_DATE('%Y-%m', DATE_TRUNC(CAST({col_date} AS DATE), MONTH)) AS month,
+        SUM({col_qty}) AS quantity
     FROM `{data_table}`
-    WHERE `Item Description` = @item_name
-      AND `Transaction Date` IS NOT NULL
+    WHERE {col_item} = @item_name
+      AND {col_date} IS NOT NULL
     GROUP BY month
     ORDER BY month ASC
     """

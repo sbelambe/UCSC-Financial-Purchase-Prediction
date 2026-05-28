@@ -65,61 +65,78 @@ export function FilterBar({
   const categories = BROAD_CATEGORIES;
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-      <div className="flex items-center gap-4">
-        <div className="text-sm font-medium text-gray-700">Filter:</div>
-        
-        {/* Year Filter */}
-        <div className="flex items-center gap-2">
-          <span className="text-sm text-gray-500 font-medium">Year</span>
+    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 space-y-3">
+
+      {/* Search — full width on its own row */}
+      <div className="relative">
+        <Search
+          size={16}
+          className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
+        />
+        <input
+          type="text"
+          value={searchQuery}
+          onChange={(e) => onSearchChange(e.target.value)}
+          placeholder={isLiveMode ? 'Search items, e.g. paper, pens, notebooks…' : 'Search item name, vendor, etc.'}
+          className="w-full pl-9 pr-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-opacity-50 text-sm"
+          style={{ outlineColor: '#003c6c' }}
+        />
+      </div>
+
+      {/* Filter controls — wrapping row */}
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-xs font-semibold uppercase tracking-wide text-gray-400 mr-1">
+          Filters
+        </span>
+
+        {/* Year */}
+        <div className="flex items-center gap-1.5">
+          <label className="text-xs font-medium text-gray-500">Year</label>
           <select
             value={selectedYear}
             onChange={(e) => onYearChange(e.target.value)}
-            className="px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-opacity-50 text-sm"
+            className="px-3 py-1.5 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-opacity-50 text-sm bg-white"
             style={{ outlineColor: '#003c6c' }}
           >
             {years.map((year) => (
-              <option key={year} value={year}>
-                {year}
-              </option>
+              <option key={year} value={year}>{year}</option>
             ))}
           </select>
         </div>
 
-        
-        {/* Quarter Filter */}
-        <select
-          value={selectedQuarter}
-          onChange={(e) => onQuarterChange(e.target.value as QuarterName)}
-          className="px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-opacity-50 text-sm"
-          style={{ outlineColor: '#003c6c' }}
-        >
-          {quarters.map((quarter) => (
-            <option key={quarter} value={quarter}>
-              {quarter}
-            </option>
-          ))}
-        </select>
+        {/* Quarter */}
+        <div className="flex items-center gap-1.5">
+          <label className="text-xs font-medium text-gray-500">Quarter</label>
+          <select
+            value={selectedQuarter}
+            onChange={(e) => onQuarterChange(e.target.value as QuarterName)}
+            className="px-3 py-1.5 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-opacity-50 text-sm bg-white"
+            style={{ outlineColor: '#003c6c' }}
+          >
+            {quarters.map((quarter) => (
+              <option key={quarter} value={quarter}>{quarter}</option>
+            ))}
+          </select>
+        </div>
 
-        {/* Category Filter */}
-        <select
-          value={selectedCategory}
-          onChange={(e) => onCategoryChange(e.target.value)}
-          className="px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-opacity-50 text-sm"
-          style={{ outlineColor: '#003c6c' }}
-        >
-          {categories.map((category) => (
-            <option key={category.value} value={category.value}>
-              {category.label}
-            </option>
-          ))}
-        </select>
+        {/* Category */}
+        <div className="flex items-center gap-1.5">
+          <label className="text-xs font-medium text-gray-500">Category</label>
+          <select
+            value={selectedCategory}
+            onChange={(e) => onCategoryChange(e.target.value)}
+            className="px-3 py-1.5 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-opacity-50 text-sm bg-white"
+            style={{ outlineColor: '#003c6c' }}
+          >
+            {categories.map((category) => (
+              <option key={category.value} value={category.value}>{category.label}</option>
+            ))}
+          </select>
+        </div>
 
-        
-
-        {/* Minimum Spend Filter */}
-        <div className="flex items-center gap-2">
-          <span className="text-sm text-gray-500 font-medium">Min $</span>
+        {/* Min Spend */}
+        <div className="flex items-center gap-1.5">
+          <label className="text-xs font-medium text-gray-500">Min $</label>
           <input
             type="number"
             min="0"
@@ -127,33 +144,33 @@ export function FilterBar({
             value={minSpend || ''}
             onChange={(e) => onMinSpendChange(Number(e.target.value))}
             placeholder="0"
-            className="w-24 p-1 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-opacity-50 text-sm"
+            className="w-20 px-3 py-1.5 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-opacity-50 text-sm"
             style={{ outlineColor: '#003c6c' }}
           />
         </div>
 
-        <div className="flex items-center gap-2">
-          <span className="text-sm text-gray-500 font-medium">Limit</span>
+        {/* Limit */}
+        <div className="flex items-center gap-1.5">
+          <label className="text-xs font-medium text-gray-500">Limit</label>
           <select
             value={selectedLimit}
             onChange={(e) => onLimitChange(Number(e.target.value))}
-            className="px-3 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-opacity-50 text-sm"
+            className="px-3 py-1.5 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-opacity-50 text-sm bg-white"
             style={{ outlineColor: '#003c6c' }}
           >
             {[10, 20, 50].map((limit) => (
-              <option key={limit} value={limit}>
-                {limit}
-              </option>
+              <option key={limit} value={limit}>{limit}</option>
             ))}
           </select>
         </div>
 
-        <div className="flex items-center gap-2">
-          <span className="text-sm text-gray-500 font-medium">Sort</span>
+        {/* Sort */}
+        <div className="flex items-center gap-1.5">
+          <label className="text-xs font-medium text-gray-500">Sort</label>
           <select
             value={selectedSortMode}
             onChange={(e) => onSortModeChange(e.target.value as 'frequency' | 'cost')}
-            className="px-3 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-opacity-50 text-sm"
+            className="px-3 py-1.5 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-opacity-50 text-sm bg-white"
             style={{ outlineColor: '#003c6c' }}
           >
             <option value="frequency">Frequency</option>
@@ -161,37 +178,22 @@ export function FilterBar({
           </select>
         </div>
 
-        {/* High-Impact Filter Toggle */}
+        {/* High-Impact toggle */}
         <button
+          type="button"
           onClick={() => onHighImpactChange(!highImpactOnly)}
-          className={`flex items-center gap-2 px-3 py-2 rounded-lg border-2 transition-all text-sm font-medium ${
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border-2 transition-all text-sm font-medium ${
             highImpactOnly
               ? 'bg-purple-100 border-purple-400 text-purple-700'
               : 'bg-white border-gray-300 text-gray-600 hover:border-purple-300'
           }`}
           title="Show only high-spend and frequently purchased items"
         >
-          <Zap size={16} />
+          <Zap size={14} />
           High-Impact
         </button>
-        
-        {/* Search Bar */}
-        <div className="flex-1 relative">
-          <Search
-            size={18}
-            className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
-          />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => onSearchChange(e.target.value)}
-            placeholder={isLiveMode ? 'BigQuery search: paper, vendor:amazon, year:2025' : 'Search item name, vendor, etc.'}
-            className="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-opacity-50 text-sm"
-            style={{ outlineColor: '#003c6c' }}
-          />
-        </div>
-
       </div>
+
     </div>
   );
 }
