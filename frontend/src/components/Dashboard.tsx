@@ -18,7 +18,7 @@ import { MetricsGrid } from './MetricsGrid';
 import { ExternalVendorsPanel } from './ExternalVendorsPanel';
 import { FALLBACK_DATASET_SCHEMAS, type DatasetSchema } from '../lib/datasetConfig';
 import { getOriginalCategoriesForBroad } from '../lib/categoryMapping';
-import { AlertTriangle, BarChart3, Boxes, Building2, ShoppingBag, Sparkles, TrendingUp } from 'lucide-react';
+import { BarChart3, Boxes, Building2, ShoppingBag } from 'lucide-react';
 
 
 // --- TYPES & CONSTANTS ---
@@ -204,21 +204,6 @@ export function Dashboard() {
   };
 
   const activeDatasetKey = tabToBigQueryDatasetMap[activeTab] || 'overall';
-
-  const topAmazonItem = useMemo(() => {
-    if (!Array.isArray(topItems) || topItems.length === 0) return null;
-    return [...topItems].sort((a, b) => Number(b.count || 0) - Number(a.count || 0))[0];
-  }, [topItems]);
-
-  const highImpactCount = useMemo(
-    () => topItems.filter((item) => item.is_high_impact || (item.is_high_spend && item.is_frequent)).length,
-    [topItems]
-  );
-
-  const totalVisibleSpend = useMemo(
-    () => topItems.reduce((sum, item) => sum + Number(item.total_spent || 0), 0),
-    [topItems]
-  );
 
   useEffect(() => {
     fetch(`/api/analytics/dataset-config?dataset=${activeDatasetKey}`)
@@ -738,41 +723,8 @@ export function Dashboard() {
               </p>
             </div>
 
-            <div className="grid w-full gap-3 sm:grid-cols-3">
-              <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-                <div className="flex items-center gap-2 text-xs font-semibold uppercase text-[#2d66ae]">
-                  <AlertTriangle className="size-4 text-[#003c6c]" />
-                  High impact items
-                </div>
-                <div className="mt-2 text-2xl font-bold text-slate-950">{highImpactCount}</div>
-                <p className="text-xs text-slate-500">Number of Amazon items with high spend and frequency.</p>
-              </div>
-              <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-                <div className="flex items-center gap-2 text-xs font-semibold uppercase text-[#2d66ae]">
-                  <ShoppingBag className="size-4 text-[#003c6c]" />
-                  Top item or item group
-                </div>
-                <div className="mt-2 truncate text-lg font-bold text-slate-950" title={topAmazonItem?.clean_item_name || ''}>
-                  {topAmazonItem?.clean_item_name || 'Loading'}
-                </div>
-                <p className="text-xs text-slate-500">
-                  {topAmazonItem ? `${Number(topAmazonItem.count || 0).toLocaleString()} recent purchases.` : 'Loading'}
-                </p>
-              </div>
-              <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-                <div className="flex items-center gap-2 text-xs font-semibold uppercase text-[#2d66ae]">
-                  <TrendingUp className="size-4 text-[#003c6c]" />
-                  Total spend
-                </div>
-                <div className="mt-2 text-2xl font-bold text-slate-950">{formatCurrency(totalVisibleSpend)}</div>
-                <p className="text-xs text-slate-500"> Across the current Amazon top items.</p>
-              </div>
-            </div>
+            <MetricsGrid data={overallMetricsData} />
           </div>
-        </section>
-
-        <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-          <MetricsGrid data={overallMetricsData} />
         </section>
 
         <section className="space-y-3">
