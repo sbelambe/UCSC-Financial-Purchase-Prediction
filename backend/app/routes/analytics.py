@@ -1,10 +1,11 @@
 import csv
-import os
+import io
 from fastapi import APIRouter, HTTPException
 from typing import Optional
 from app.analytics import get_item_freq, get_spend_over_time
 from app.analytics_bookstore import get_campus_store_item_insights
 from app.data_config import dataset_schema
+from app.firebase import bucket
 from app.bigquery_service import (
     query_item_spend_over_time_from_bigquery,
     query_period_summary_from_bigquery,
@@ -14,17 +15,9 @@ from app.bigquery_service import (
 
 router = APIRouter(tags=["analytics"])
 
-# Resolves to backend/data_cleaning/data/clean/external_vendors_combined.csv.
-# This CSV is produced by the "External vendor counts and distribution" cell
-# in backend/data_cleaning/data_mining.ipynb — re-run that cell whenever the
-# clean source CSVs change.
-_EXTERNAL_VENDORS_CSV = os.path.normpath(
-    os.path.join(
-        os.path.dirname(__file__),
-        "..", "..", "data_cleaning", "data", "clean",
-        "external_vendors_combined.csv",
-    )
-)
+# Fixed path in Firebase Storage — uploaded once via scripts/upload_external_vendors.py.
+# Re-upload whenever data_mining.ipynb regenerates the CSV.
+_EXTERNAL_VENDORS_STORAGE_PATH = "reference/external_vendors_combined.csv"
 
 # Returns the item frequency/top item data
 @router.get("/api/analytics/top-items")
@@ -166,50 +159,51 @@ def item_spend_over_time_bigquery(
 def external_vendors(limit: int = 10):
     """
     Serves the pre-computed combined external vendor ranking (Amazon + CruzBuy
-    + OneCard + ProCard) that the notebook writes to
-    backend/data_cleaning/data/clean/external_vendors_combined.csv.
+    + OneCard + ProCard) from Firebase Storage.
 
-    Cheap file read — no BigQuery roundtrip — so it's safe to hit on page load.
+    Upload/refresh the file with:
+        python -m scripts.upload_external_vendors
     """
     try:
-        if not os.path.exists(_EXTERNAL_VENDORS_CSV):
+        blob = bucket.blob(_EXTERNAL_VENDORS_STORAGE_PATH)
+        if not blob.exists():
             raise HTTPException(
                 status_code=503,
                 detail=(
-                    "external_vendors_combined.csv has not been generated yet. "
-                    "Run the 'External vendor counts and distribution' cell in "
-                    "backend/data_cleaning/data_mining.ipynb."
+                    "external_vendors_combined.csv has not been uploaded to Firebase Storage yet. "
+                    "Run: python -m scripts.upload_external_vendors"
                 ),
             )
 
+        csv_bytes = blob.download_as_bytes()
+        reader = csv.DictReader(io.StringIO(csv_bytes.decode("utf-8")))
+
         rows = []
         total_vendors = 0
-        with open(_EXTERNAL_VENDORS_CSV, newline="", encoding="utf-8") as f:
-            reader = csv.DictReader(f)
-            for row in reader:
-                total_vendors += 1
-                if len(rows) >= max(1, limit):
-                    continue
-                rows.append({
-                    "rank": int(row.get("rank") or total_vendors),
-                    "merchant_name": row.get("Merchant Name", "").strip(),
-                    "purchase_count": int(float(row.get("purchase_count") or 0)),
-                    "total_spend": float(row.get("total_spend") or 0),
-                    "datasets": [
-                        d.strip()
-                        for d in (row.get("datasets") or "").split(",")
-                        if d.strip()
-                    ],
-                    "row_share_pct": float(row.get("row_share_pct") or 0),
-                    "spend_share_pct": float(row.get("spend_share_pct") or 0),
-                })
+        for row in reader:
+            total_vendors += 1
+            if len(rows) >= max(1, limit):
+                continue
+            rows.append({
+                "rank": int(row.get("rank") or total_vendors),
+                "merchant_name": row.get("Merchant Name", "").strip(),
+                "purchase_count": int(float(row.get("purchase_count") or 0)),
+                "total_spend": float(row.get("total_spend") or 0),
+                "datasets": [
+                    d.strip()
+                    for d in (row.get("datasets") or "").split(",")
+                    if d.strip()
+                ],
+                "row_share_pct": float(row.get("row_share_pct") or 0),
+                "spend_share_pct": float(row.get("spend_share_pct") or 0),
+            })
 
         return {
             "status": "success",
             "data": {
                 "vendors": rows,
                 "total_vendors": total_vendors,
-                "source_csv": "backend/data_cleaning/data/clean/external_vendors_combined.csv",
+                "source": f"gs://{bucket.name}/{_EXTERNAL_VENDORS_STORAGE_PATH}",
             },
         }
     except HTTPException:
