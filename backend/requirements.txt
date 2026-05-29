@@ -13,3 +13,4 @@ google-genai
 python-multipart
 pyarrow
 pandas-gbq
+beautifulsoup4
