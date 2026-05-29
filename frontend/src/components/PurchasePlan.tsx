@@ -1,6 +1,7 @@
 import React from 'react';
 import { Download, Trash2, ShoppingCart } from 'lucide-react';
 import type { InsightRow } from './InventoryInsights';
+import { Button } from './ui/button';
 
 export interface PlanItem {
   item: InsightRow;
@@ -61,70 +62,72 @@ export function PurchasePlan({ items, onRemove, onClearAll }: Props) {
   };
 
   return (
-    <div className="w-full bg-[#F5F9FF] rounded-[32px] p-4 md:p-8 flex flex-col gap-6">
+    <div className="w-full min-w-0 overflow-hidden rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-4">
-        <div className="flex items-center gap-3">
-          <ShoppingCart className="size-5 text-[#1D69C4]" />
+        <div className="flex items-start gap-3">
+          <ShoppingCart className="size-5 text-[#2d66ae] mt-1" />
           <div>
-            <h3 className="text-xl font-medium text-[#1C1B1F]">Purchase Plan</h3>
-            <p className="text-sm text-[#49454F]">
-              Items flagged for procurement based on ML forecasts.
+            <h3 className="text-xl font-bold text-[#003c6c]">Purchase Plan</h3>
+            <p className="text-sm text-slate-950">
+              Lists items for procurement plans after reviewing the ML forecast insights. Press "Export CSV" when
+              done or remove an item(s) with the trash icon or "Clear All".
             </p>
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <button
+          <Button
             onClick={handleExport}
-            className="flex items-center gap-2 px-4 py-2 bg-[#1D69C4] text-white rounded-xl text-sm font-semibold hover:bg-[#1255A1] transition-colors"
+            className="border-[#2d66ae] bg-[#2d66ae] text-sm font-semibold text-white hover:bg-[#003c6c]"
           >
             <Download className="size-4" />
             Export CSV
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="outline"
             onClick={onClearAll}
-            className="flex items-center gap-2 px-4 py-2 bg-white border border-[#C5D8F6] text-[#49454F] rounded-xl text-sm font-semibold hover:bg-[#EBF3FF] transition-colors"
+            className="border-slate-200 bg-white text-sm text-slate-950 hover:bg-slate-50"
           >
             Clear All
-          </button>
+          </Button>
         </div>
       </div>
 
       {/* Table */}
-      <div className="overflow-hidden rounded-2xl border border-[#C5D8F6] bg-white">
+      <div className="overflow-auto rounded-xl border border-slate-200 bg-white ">
         <table className="w-full text-sm text-left">
-          <thead>
-            <tr className="bg-[#EBF3FF] border-b border-[#C5D8F6]">
-              <th className="px-5 py-3 font-semibold text-[#1C1B1F]">Item</th>
-              <th className="px-5 py-3 font-semibold text-[#1C1B1F] text-center">Status</th>
-              <th className="px-5 py-3 font-semibold text-[#1C1B1F] text-right">Rec. Qty</th>
-              <th className="px-5 py-3 font-semibold text-[#1C1B1F] text-right">Est. Spend</th>
-              <th className="px-5 py-3 font-semibold text-[#1C1B1F]">Impact</th>
+          <thead className="bg-slate-50">
+            <tr className="border-b border-slate-200">
+              <th className="px-5 py-3 text-xs font-semibold text-[#2d66ae] uppercase">Item</th>
+              <th className="px-5 py-3 text-xs font-semibold text-[#2d66ae] uppercase text-center">Status</th>
+              <th className="px-5 py-3 text-xs font-semibold text-[#2d66ae] uppercase text-right">Rec. Qty</th>
+              <th className="px-5 py-3 text-xs font-semibold text-[#2d66ae] uppercase text-right">Est. Spend</th>
+              <th className="px-5 py-3 text-xs font-semibold text-[#2d66ae] uppercase">Impact</th>
               <th className="px-5 py-3 w-10" />
             </tr>
           </thead>
-          <tbody className="divide-y divide-[#EBF3FF]">
+          <tbody className="divide-y divide-slate-50">
             {enriched.map(({ item, dataset, recommendedQty, estimatedCost, unitPrice }) => (
               <tr key={item.category} className="hover:bg-[#F5F9FF] transition-colors">
-                <td className="px-5 py-4 font-medium text-[#1C1B1F] max-w-[200px]">
+                <td className="px-5 py-4 font-medium text-[#003c6c] max-w-[200px]">
                   <div className="truncate" title={item.category}>{item.category}</div>
-                  <div className="text-xs text-[#49454F] capitalize mt-0.5">{dataset}</div>
+                  <div className="text-xs text-slate-500 capitalize mt-0.5">{dataset}</div>
                 </td>
                 <td className="px-5 py-4 text-center">
-                  <span className={`inline-flex items-center text-[11px] font-medium px-2.5 py-1 rounded-full whitespace-nowrap ${ACTION_COLORS[item.action] ?? 'text-[#49454F] bg-[#EBF3FF]'}`}>
+                  <span className={`inline-flex items-center text-[11px] font-medium px-2.5 py-1 rounded-full whitespace-nowrap ${ACTION_COLORS[item.action] ?? 'text-slate-700 bg-slate-100'}`}>
                     {item.action}
                   </span>
                 </td>
-                <td className="px-5 py-4 text-right font-mono font-semibold text-[#1C1B1F]">
+                <td className="px-5 py-4 text-right text-xs font-normal text-slate-950">
                   {recommendedQty.toLocaleString()}
                 </td>
-                <td className="px-5 py-4 text-right font-mono font-semibold text-[#1C1B1F]">
+                <td className="px-5 py-4 text-right text-xs font-normal text-slate-950">
                   {estimatedCost != null
                     ? formatCurrency(estimatedCost)
-                    : <span className="text-[#49454F] text-xs font-normal italic">Price unavailable</span>
+                    : <span className="text-slate-500 text-xs font-normal italic">Price unavailable</span>
                   }
                 </td>
-                <td className="px-5 py-4 text-sm text-[#49454F] max-w-[220px]">
+                <td className="px-5 py-4 text-left text-xs font-normal text-slate-950">
                   {dataset === 'bookstore'
                     ? estimatedCost != null
                       ? `On-campus revenue opportunity: ${formatCurrency(estimatedCost)}`
@@ -135,20 +138,21 @@ export function PurchasePlan({ items, onRemove, onClearAll }: Props) {
                   }
                 </td>
                 <td className="px-5 py-4">
-                  <button
+                  <Button
+                    variant="ghost"
                     onClick={() => onRemove(item.category)}
                     className="text-[#49454F] hover:text-[#BA1A1A] transition-colors"
                     title="Remove from plan"
                   >
-                    <Trash2 className="size-4" />
-                  </button>
+                    <Trash2 className="size-4 text-[#003c6c]" />
+                  </Button>
                 </td>
               </tr>
             ))}
           </tbody>
           {hasAnyPrice && (
             <tfoot>
-              <tr className="bg-[#EBF3FF] border-t border-[#C5D8F6]">
+              <tr className="bg-slate-50 border-t border-slate-200">
                 <td colSpan={3} className="px-5 py-3 font-semibold text-[#1C1B1F] text-right">
                   Total Estimated Spend
                 </td>
