@@ -60,7 +60,7 @@ const TransactionsOverTimeChart: React.FC<TransactionsOverTimeChartProps> = ({
 
   if (loading) {
     return (
-      <div className="w-full bg-gray-100 p-4 rounded-lg border-2 border-dashed border-gray-300 h-[360px] flex items-center justify-center">
+      <div className="flex h-[360px] w-full items-center justify-center rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-500 shadow-sm">
         Loading spend trend...
       </div>
     );
@@ -68,7 +68,7 @@ const TransactionsOverTimeChart: React.FC<TransactionsOverTimeChartProps> = ({
 
   if (!chartData.length) {
     return (
-      <div className="w-full bg-gray-100 p-4 rounded-lg border-2 border-dashed border-gray-300 h-[360px] flex items-center justify-center">
+      <div className="flex h-[360px] w-full items-center justify-center rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-500 shadow-sm">
         No spend trend data available.
       </div>
     );
@@ -80,12 +80,12 @@ const TransactionsOverTimeChart: React.FC<TransactionsOverTimeChartProps> = ({
       : formatCurrency(Number(value));
 
   return (
-    <div className="w-full bg-gray-100 p-4 rounded-lg border-2 border-dashed border-gray-300">
-      <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
-        <h3 className="text-lg font-bold text-gray-700">{title}</h3>
+    <div className="w-full min-w-0 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+        <h3 className="text-lg font-bold leading-tight text-[#003c6c]">{title}</h3>
         {hasProjection && (
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-purple-100 text-purple-800 text-xs font-semibold border border-purple-200">
-            <span className="w-2 h-2 rounded-full bg-purple-500 animate-pulse" />
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-[#2d66ae] bg-[#2d66ae] px-3 py-1 text-xs font-semibold text-white">
+            <span className="h-2 w-2 animate-pulse rounded-full bg-white" />
             ML Projection overlay active
           </span>
         )}
@@ -95,17 +95,17 @@ const TransactionsOverTimeChart: React.FC<TransactionsOverTimeChartProps> = ({
           data={chartData}
           margin={{ top: 20, right: 30, left: 20, bottom: 40 }}
         >
-          <CartesianGrid strokeDasharray="3 3" vertical={false} />
+          <CartesianGrid stroke="#e2e8f0" strokeDasharray="3 3" vertical={false} />
           <XAxis
             dataKey="period"
             interval={0}
             angle={-30}
             textAnchor="end"
             height={70}
-            tick={{ fontSize: 11, fill: '#4b5563' }}
+            tick={{ fontSize: 11, fill: '#475569' }}
           />
           <YAxis
-            tick={{ fontSize: 11, fill: '#4b5563' }}
+            tick={{ fontSize: 11, fill: '#475569' }}
             tickFormatter={formatValue}
           />
           <Tooltip
@@ -114,7 +114,7 @@ const TransactionsOverTimeChart: React.FC<TransactionsOverTimeChartProps> = ({
               name === 'pending_spend' ? 'ML Projection' : `Historical ${metricLabel}`,
             ]}
             labelFormatter={(label) => `Period: ${label}`}
-            contentStyle={{ borderRadius: '8px', fontSize: '12px' }}
+            contentStyle={{ borderRadius: '8px', borderColor: '#e2e8f0', fontSize: '12px' }}
           />
           {hasProjection && (
             <Legend
@@ -127,18 +127,18 @@ const TransactionsOverTimeChart: React.FC<TransactionsOverTimeChartProps> = ({
           {projectionStartPeriod && (
             <ReferenceLine
               x={projectionStartPeriod}
-              stroke="#7c3aed"
+              stroke="#2d66ae"
               strokeDasharray="4 2"
               strokeWidth={1.5}
-              label={{ value: 'Projected →', position: 'insideTopRight', fontSize: 10, fill: '#7c3aed' }}
+              label={{ value: 'Projected ->', position: 'insideTopRight', fontSize: 10, fill: '#2d66ae' }}
             />
           )}
           <Line
             type="monotone"
             dataKey="spend"
-            stroke="#1e3a8a"
+            stroke="#003c6c"
             strokeWidth={3}
-            dot={{ r: 3, fill: '#1e3a8a' }}
+            dot={{ r: 3, fill: '#003c6c' }}
             activeDot={{ r: 5 }}
             name="spend"
             connectNulls
@@ -147,10 +147,10 @@ const TransactionsOverTimeChart: React.FC<TransactionsOverTimeChartProps> = ({
             <Line
               type="monotone"
               dataKey="pending_spend"
-              stroke="#7c3aed"
+              stroke="#2d66ae"
               strokeWidth={2.5}
               strokeDasharray="6 3"
-              dot={{ r: 4, fill: '#7c3aed', strokeWidth: 2, stroke: '#fff' }}
+              dot={{ r: 4, fill: '#2d66ae', strokeWidth: 2, stroke: '#fff' }}
               activeDot={{ r: 6 }}
               name="pending_spend"
               connectNulls

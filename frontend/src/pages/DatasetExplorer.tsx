@@ -234,7 +234,7 @@ export default function DatasetExplorer() {
     <div className="w-full min-w-0 space-y-6">
       <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="flex flex-col gap-6">
-          <div className="max-w-5xl text-left">
+          <div className="text-left">
             <h2 className="text-3xl font-bold text-[#003c6c]">Dataset Explorer</h2>
             <p className="mt-2 text-sm leading-6 text-slate-950">
               Welcome to the Dataset Explorer! This is a built-in CSV viewer that allows users to inspect,
@@ -255,7 +255,7 @@ export default function DatasetExplorer() {
                     'rounded-lg border px-5 py-2.5 text-sm font-semibold transition-all',
                     activeDataset === dataset.key
                       ? 'border-[#003c6c] text-white shadow-sm'
-                      : 'border-[#2d66ae] bg-white text-[#003c6c] hover:bg-slate-50'
+                      : 'border-slate-200 bg-white text-[#003c6c] hover:bg-slate-50'
                   )}
                   style={activeDataset === dataset.key ? { backgroundColor: '#003c6c' } : undefined}
                 >
@@ -268,7 +268,7 @@ export default function DatasetExplorer() {
           <div>
             <h3 className="mb-4 text-lg font-semibold text-[#003c6c]">Search and Filter Tools</h3>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-6">
-            <div className="xl:col-span-2">
+            <div>
               <label className="mb-1 block text-xs font-semibold uppercase text-[#2d66ae]">
                 Search
               </label>
@@ -285,7 +285,7 @@ export default function DatasetExplorer() {
                 Search Scope
               </label>
               <Select value={searchField} onValueChange={(value) => setSearchField(value as SearchField)}>
-                <SelectTrigger className="border-slate-200 bg-slate-50 text-sm font-semibold text-[#003c6c]">
+                <SelectTrigger className="border-slate-200 bg-slate-50 text-sm text-slate-950">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="max-h-80 overflow-y-auto">
@@ -303,7 +303,7 @@ export default function DatasetExplorer() {
                 Merchant
               </label>
               <Select value={merchantFilter} onValueChange={setMerchantFilter}>
-                <SelectTrigger className="border-slate-200 bg-slate-50 text-sm font-semibold text-[#003c6c]">
+                <SelectTrigger className="border-slate-200 bg-slate-50 text-sm text-slate-950">
                   <SelectValue placeholder="All merchants" />
                 </SelectTrigger>
                 <SelectContent className="max-h-80 overflow-y-auto">
@@ -322,7 +322,7 @@ export default function DatasetExplorer() {
                 Category
               </label>
               <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                <SelectTrigger className="border-slate-200 bg-slate-50 text-sm font-semibold text-[#003c6c]">
+                <SelectTrigger className="border-slate-200 bg-slate-50 text-sm text-slate-950">
                   <SelectValue placeholder="All categories" />
                 </SelectTrigger>
                 <SelectContent className="max-h-80 overflow-y-auto">
@@ -342,7 +342,7 @@ export default function DatasetExplorer() {
               </label>
               <div className="relative">
                 <CalendarDays className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[#003c6c]" />
-                <Input type="date" value={startDate} onChange={(event) => setStartDate(event.target.value)} className="border-slate-200 bg-slate-50 pl-9 text-sm font-semibold text-[#003c6c] focus-visible:ring-[#2d66ae]" />
+                <Input type="date" value={startDate} onChange={(event) => setStartDate(event.target.value)} className="border-slate-200 bg-slate-50 pl-9 text-sm text-slate-950 focus-visible:ring-[#2d66ae]" />
               </div>
             </div>
 
@@ -352,7 +352,7 @@ export default function DatasetExplorer() {
               </label>
               <div className="relative">
                 <CalendarDays className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[#003c6c]" />
-                <Input type="date" value={endDate} onChange={(event) => setEndDate(event.target.value)} className="border-slate-200 bg-slate-50 pl-9 text-sm font-semibold text-[#003c6c] focus-visible:ring-[#2d66ae]" />
+                <Input type="date" value={endDate} onChange={(event) => setEndDate(event.target.value)} className="border-slate-200 bg-slate-50 pl-9 text-sm text-slate-950 focus-visible:ring-[#2d66ae]" />
               </div>
             </div>
           </div>
@@ -379,7 +379,7 @@ export default function DatasetExplorer() {
           <div className="flex flex-wrap items-center justify-start gap-3">
             <div className="w-28">
               <Select value={String(pageSize)} onValueChange={(value) => setPageSize(Number(value))}>
-                <SelectTrigger className="border-slate-200 bg-slate-50 text-sm font-semibold text-[#003c6c]">
+                <SelectTrigger className="border-slate-200 bg-slate-50 text-sm text-slate-950">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -392,7 +392,7 @@ export default function DatasetExplorer() {
             <Button
               variant="outline"
               onClick={clearFilters}
-              className="border-[#2d66ae] bg-white text-sm font-semibold text-[#003c6c] hover:bg-slate-50"
+              className="border-slate-200 bg-white text-sm text-slate-950 hover:bg-slate-50"
             >
               Clear Filters
             </Button>
@@ -404,16 +404,16 @@ export default function DatasetExplorer() {
                 >
                   <Download size={16} />
                   {isExporting ? 'Exporting...' : 'Export As...'}
-                </Button>
+                                </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start" className="w-40">
-                <DropdownMenuItem onClick={() => handleExport('csv')} className="text-sm font-semibold text-[#003c6c]">
+                <DropdownMenuItem onSelect={() => void handleExport('csv')} className="text-sm font-semibold text-[#003c6c]">
                   CSV
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleExport('xlsx')} className="text-sm font-semibold text-[#003c6c]">
+                <DropdownMenuItem onSelect={() => void handleExport('xlsx')} className="text-sm font-semibold text-[#003c6c]">
                   XLSX
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleExport('json')} className="text-sm font-semibold text-[#003c6c]">
+                <DropdownMenuItem onSelect={() => void handleExport('json')} className="text-sm font-semibold text-[#003c6c]">
                   JSON
                 </DropdownMenuItem>
               </DropdownMenuContent>
@@ -494,7 +494,7 @@ export default function DatasetExplorer() {
                 variant="outline"
                 onClick={() => setPage((current) => Math.max(current - 1, 1))}
                 disabled={!data || data.page <= 1 || loading}
-                className="border-[#2d66ae] bg-white text-sm font-semibold text-[#003c6c] hover:bg-slate-50"
+                className="border-[#2d66ae] bg-[#2d66ae] text-sm font-semibold text-white hover:bg-slate-50"
               >
                 <ChevronLeft size={16} />
                 Previous
@@ -503,7 +503,7 @@ export default function DatasetExplorer() {
                 variant="outline"
                 onClick={() => setPage((current) => (data ? Math.min(current + 1, data.total_pages) : current))}
                 disabled={!data || data.page >= data.total_pages || loading}
-                className="border-[#2d66ae] bg-white text-sm font-semibold text-[#003c6c] hover:bg-slate-50"
+                className="border-[#2d66ae] bg-[#2d66ae] text-sm font-semibold text-white hover:bg-slate-50"
               >
                 Next
                 <ChevronRight size={16} />
