@@ -120,7 +120,7 @@ export function ItemHistoryDrawer({ item, devMode, onClose }: ItemHistoryDrawerP
 
               {/* Purchase history chart */}
               <div>
-                <h4 className="text-sm font-medium text-[#1C1B1F] mb-3">
+                <h4 className="text-md font-semibold mb-4 text-[#003c6c]">
                   Monthly Purchase History
                 </h4>
 
@@ -128,7 +128,7 @@ export function ItemHistoryDrawer({ item, devMode, onClose }: ItemHistoryDrawerP
                   <div className="h-[200px] rounded-[16px] bg-[#EFF4FB] animate-pulse" />
                 ) : history.length === 0 ? (
                   <div className="h-[200px] rounded-[16px] bg-[#EFF4FB] flex items-center justify-center">
-                    <p className="text-sm text-[#49454F]">No historical data available.</p>
+                    <p className="text-xs text-slate-500">No historical data available.</p>
                   </div>
                 ) : (
                   <div className="bg-[#EFF4FB] rounded-[16px] p-4">
@@ -144,7 +144,10 @@ export function ItemHistoryDrawer({ item, devMode, onClose }: ItemHistoryDrawerP
                         <YAxis tick={{ fontSize: 10, fill: '#79747E' }} />
                         <Tooltip
                           contentStyle={{ background: '#EFF4FB', border: '1px solid #DBEAFE', borderRadius: 12, fontSize: 12 }}
-                          formatter={(v: number) => [v.toLocaleString(), 'Qty']}
+                          formatter={(value) => [
+                            typeof value === 'number' ? value.toLocaleString() : value,
+                            'Qty',
+                          ]}
                         />
                         <Line
                           type="monotone"
@@ -165,13 +168,13 @@ export function ItemHistoryDrawer({ item, devMode, onClose }: ItemHistoryDrawerP
 
               {/* Prediction bounds */}
               <div>
-                <h4 className="text-sm font-medium text-[#1C1B1F] mb-2">Forecast Range</h4>
+                <h4 className="text-md font-semibold mb-4 text-[#003c6c]">Forecast Range</h4>
                 <div className="bg-[#EFF4FB] rounded-[16px] p-4 flex flex-col gap-2">
-                  <div className="flex justify-between text-xs text-[#49454F]">
+                  <div className="flex justify-between text-[10px] text-[#2d66ae] uppercase font-bold">
                     <span>Low estimate</span>
                     <span className="font-medium">{item.lower_bound.toLocaleString()}</span>
                   </div>
-                  <div className="relative h-2 bg-[#DBEAFE] rounded-full overflow-hidden">
+                  <div className="relative h-2 bg-slate-200 rounded-full overflow-hidden">
                     {(() => {
                       const max = Math.max(item.upper_bound, item.current_stock, 1) * 1.15;
                       const lp = Math.min(100, (item.lower_bound / max) * 100);
@@ -179,13 +182,13 @@ export function ItemHistoryDrawer({ item, devMode, onClose }: ItemHistoryDrawerP
                       const sp = Math.min(100, (item.current_stock / max) * 100);
                       return (
                         <>
-                          <div className="absolute h-full bg-[#BFDBFE]" style={{ left: `${lp}%`, width: `${up - lp}%` }} />
-                          <div className="absolute top-0 bottom-0 w-2.5 rounded-full -translate-x-1/2 bg-[#2d66ae]" style={{ left: `${sp}%` }} />
+                          <div className="absolute h-full bg-[#2d66ae]" style={{ left: `${lp}%`, width: `${up - lp}%` }} />
+                          <div className="absolute top-0 bottom-0 w-2.5 rounded-full -translate-x-1/2 bg-red-700" style={{ left: `${sp}%` }} />
                         </>
                       );
                     })()}
                   </div>
-                  <div className="flex justify-between text-xs text-[#49454F]">
+                  <div className="flex justify-between text-[10px] text-[#2d66ae] uppercase font-bold">
                     <span>High estimate</span>
                     <span className="font-medium">{item.upper_bound.toLocaleString()}</span>
                   </div>
@@ -196,10 +199,11 @@ export function ItemHistoryDrawer({ item, devMode, onClose }: ItemHistoryDrawerP
               <div>
                 <div className="flex items-center gap-2 mb-2">
                   <Sparkles className="size-4 text-[#2d66ae]" />
-                  <h4 className="text-sm font-medium text-[#1C1B1F]">Deep Analysis</h4>
+                  <h4 className="text-md font-semibold text-[#003c6c]">Deep Analysis</h4>
+                  
                 </div>
                 <div className="bg-[#EFF4FB] rounded-[16px] p-4">
-                  <p className="text-sm text-[#49454F] leading-relaxed">{item.reasoning}</p>
+                  <p className="mt-1 text-xs text-slate-950">{item.reasoning}</p>
                 </div>
               </div>
             </div>

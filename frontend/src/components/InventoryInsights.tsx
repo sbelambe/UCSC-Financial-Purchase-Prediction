@@ -321,7 +321,7 @@ export function InventoryInsights({ activeTab, onAddToPlan, planCategories }: Pr
                   </div>
 
                   <div>
-                    <div className="relative mb-2 h-2.5 w-full overflow-hidden rounded-full bg-slate-300">
+                    <div className="relative mb-2 h-2.5 w-full overflow-hidden rounded-full bg-slate-200">
                       <div
                         className="absolute h-full bg-[#2d66ae]"
                         style={{ left: `${lowerPos}%`, width: `${upperPos - lowerPos}%` }}
