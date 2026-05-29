@@ -60,15 +60,19 @@ app = FastAPI(title="UCSC Financial Dashboard API", lifespan=lifespan)
 
 # --- CORS Middleware ---
 # Allows the frontend (running on port 5173) to communicate with this backend (port 8000).
+_FRONTEND_ORIGIN = os.getenv("FRONTEND_ORIGIN", "")
+_ALLOWED_ORIGINS = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    # Production Vercel URL — set FRONTEND_ORIGIN in Vercel env vars
+    *([_FRONTEND_ORIGIN] if _FRONTEND_ORIGIN else []),
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-        "http://localhost:8000/*",
-    ],
+    allow_origins=_ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],  # Allows all methods (GET, POST, etc.)
     allow_headers=["*"],  
