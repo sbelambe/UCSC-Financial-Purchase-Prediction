@@ -30,11 +30,12 @@
       "dest": "/backend/app/main.py"
     },
     {
-      "handle": "filesystem"
+      "src": "/([^.]+)",
+      "dest": "/frontend/index.html"
     },
     {
       "src": "/(.*)",
-      "dest": "/frontend/index.html"
+      "dest": "/frontend/$1"
     }
   ]
 }
