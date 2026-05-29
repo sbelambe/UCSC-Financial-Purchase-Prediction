@@ -76,6 +76,7 @@ def dataset_explorer_export(
             buffer = io.StringIO()
             df.to_csv(buffer, index=False)
             file_buffer = io.BytesIO(buffer.getvalue().encode("utf-8"))
+            file_buffer.seek(0)
             media_type = "text/csv"
             filename = f"{base_name}.csv"
         elif format == "xlsx":
@@ -89,6 +90,7 @@ def dataset_explorer_export(
             json_buffer = io.StringIO()
             df.to_json(json_buffer, orient="records", indent=2, force_ascii=False)
             file_buffer = io.BytesIO(json_buffer.getvalue().encode("utf-8"))
+            file_buffer.seek(0)
             media_type = "application/json"
             filename = f"{base_name}.json"
 

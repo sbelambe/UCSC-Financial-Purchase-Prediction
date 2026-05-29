@@ -56,21 +56,21 @@ export function MetricsGrid({ data }: MetricsGridProps) {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
         {metrics.map((metric, index) => (
           <div
-            key={index}
-            className="bg-gradient-to-br from-white to-gray-50 rounded-lg border-2 p-4 hover:shadow-md transition-all"
+            key={index} 
+            className="bg-slate-50 from-white to-gray-50 rounded-lg border-2 p-4 hover:shadow-md transition-all"
             style={{ borderColor: '#e5e7eb' }}
           >
             <div
-              className="w-10 h-10 rounded-lg flex items-center justify-center mb-3"
-              style={{ backgroundColor: '#f0f5ff' }}
+              className="w-10 h-10 rounded-lg flex items-center justify-center mb-3 p-2 shadow-sm"
+              style={{ backgroundColor: '#ffffff' }}
             >
               <div style={{ color: '#003c6c' }}>{metric.icon}</div>
             </div>
-            <p className="text-xs text-gray-600 mb-1">{metric.label}</p>
-            <p className="text-lg font-bold mb-1" style={{ color: '#003c6c' }}>
+            <p className="text-xs text-[#2d66ae] uppercase font-bold mb-1">{metric.label}</p>
+            <p className="text-lg font-bold mb-1 text-slate-950">
               {metric.value}
             </p>
-            <p className="text-xs" style={{ color: '#fdc700' }}>
+            <p className="text-xs text-slate-500">
               {metric.subtext}
             </p>
           </div>

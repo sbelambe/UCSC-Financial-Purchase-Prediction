@@ -160,7 +160,7 @@ export function InventoryInsights({ activeTab, onAddToPlan, planCategories }: Pr
 
   const title = isAmazon ? 'Amazon Demand Insights' : 'Inventory Insights';
   const subtitle = isAmazon
-    ? 'Amazon Demand Insights uses AI-powered forecasting to highlight historical Amazon spending trends and drive campus bookstore stocking decisions, including identifying overstocked or understocked items. Press the dropdowns below to adjust historical comparison ranges and forecast windows. Create a purchase plan by pressing "Add to Plan" under each desired item and exporting the list below.'
+    ? 'Amazon Demand Insights uses AI-powered forecasting to highlight historical Amazon spending trends and drive campus bookstore stocking decisions, including identifying overstocked or understocked items. Press the buttons below to toggle between real/synthetic data or adjust historical forecast windows. Create a purchase plan by pressing "Add to Plan" under each desired item and exporting the list below.'
     : 'Bookstore stock overview via ML forecasting.';
   const currentLabel = 'Inventory';
   const forecastLabel = isAmazon ? 'ML Forecast' : 'ML Forecast';
@@ -374,7 +374,7 @@ export function InventoryInsights({ activeTab, onAddToPlan, planCategories }: Pr
                         {planCategories?.has(item.category) ? 'Added to Plan' : 'Add to Plan'}
                       </button>
                     )}
-                    <div className="flex items-center gap-1 text-[10px] font-medium text-[#003c6c]">
+                    <div className="flex items-center gap-1 text-[10px] font-semibold text-[#2d66ae] uppercase">
                       <Sparkles className="size-3" />
                       <span>Tap for details</span>
                     </div>

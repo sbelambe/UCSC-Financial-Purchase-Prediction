@@ -3,12 +3,6 @@ import { ArrowDown, ArrowUp, CalendarDays, ChevronLeft, ChevronRight, Download }
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '../components/ui/dropdown-menu';
-import {
   Select,
   SelectContent,
   SelectItem,
@@ -93,7 +87,6 @@ export default function DatasetExplorer() {
   const [activeDataset, setActiveDataset] = useState<DatasetKey>('amazon');
   const [search, setSearch] = useState('');
   const [searchField, setSearchField] = useState<SearchField>('all');
-  const [merchantFilter, setMerchantFilter] = useState('all');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
@@ -104,6 +97,7 @@ export default function DatasetExplorer() {
   const [data, setData] = useState<DatasetExplorerResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [isExporting, setIsExporting] = useState(false);
+  const [exportFormat, setExportFormat] = useState<ExportFormat>('csv');
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -115,7 +109,6 @@ export default function DatasetExplorer() {
         page_size: String(pageSize),
         search,
         search_field: searchField,
-        merchant: merchantFilter === 'all' ? '' : merchantFilter,
         category: categoryFilter === 'all' ? '' : categoryFilter,
         start_date: startDate,
         end_date: endDate,
@@ -155,11 +148,11 @@ export default function DatasetExplorer() {
       controller.abort();
       window.clearTimeout(timeoutId);
     };
-  }, [activeDataset, page, pageSize, search, searchField, merchantFilter, categoryFilter, startDate, endDate, sortBy, sortDir]);
+  }, [activeDataset, page, pageSize, search, searchField, categoryFilter, startDate, endDate, sortBy, sortDir]);
 
   useEffect(() => {
     setPage(1);
-  }, [activeDataset, search, searchField, merchantFilter, categoryFilter, startDate, endDate, pageSize]);
+  }, [activeDataset, search, searchField, categoryFilter, startDate, endDate, pageSize]);
 
   const columns = data?.columns || [];
 
@@ -168,7 +161,6 @@ export default function DatasetExplorer() {
       dataset: activeDataset,
       search,
       search_field: searchField,
-      merchant: merchantFilter === 'all' ? '' : merchantFilter,
       category: categoryFilter === 'all' ? '' : categoryFilter,
       start_date: startDate,
       end_date: endDate,
@@ -189,7 +181,6 @@ export default function DatasetExplorer() {
   const clearFilters = () => {
     setSearch('');
     setSearchField('all');
-    setMerchantFilter('all');
     setCategoryFilter('all');
     setStartDate('');
     setEndDate('');
@@ -240,7 +231,7 @@ export default function DatasetExplorer() {
               Welcome to the Dataset Explorer! This is a built-in CSV viewer that allows users to inspect,
               manipulate, and export the cleaned purchase and/or sales datasets. Use the buttons below to
               switch between datasets, search for attributes within a chosen scope, and filter for specific
-              merchants, categories, or date ranges.
+              categories or date ranges.
             </p>
           </div>
 
@@ -298,24 +289,6 @@ export default function DatasetExplorer() {
               </Select>
             </div>
 
-            <div>
-              <label className="mb-1 block text-xs font-semibold uppercase text-[#2d66ae]">
-                Merchant
-              </label>
-              <Select value={merchantFilter} onValueChange={setMerchantFilter}>
-                <SelectTrigger className="border-slate-200 bg-slate-50 text-sm text-slate-950">
-                  <SelectValue placeholder="All merchants" />
-                </SelectTrigger>
-                <SelectContent className="max-h-80 overflow-y-auto">
-                  <SelectItem value="all">All merchants</SelectItem>
-                  {(data?.available_filters.merchants || []).map((merchant) => (
-                    <SelectItem key={merchant} value={merchant}>
-                      {merchant}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
 
             <div>
               <label className="mb-1 block text-xs font-semibold uppercase text-[#2d66ae]">
@@ -368,7 +341,7 @@ export default function DatasetExplorer() {
             </h3>
             <p className="mt-2 text-sm leading-6 text-slate-950">
               Use the buttons below to change the number of visible rows per page, clear any current filters, or export
-              the current dataset view (CSV, XLSX, or JSON). Press the arrow next to a column name to sort the dataset
+              the current dataset view (.csv, .xlsx, or .json). Press the arrow next to a column name to sort the dataset
               by that column (ascending or descending).
             </p>
             <p className="mt-2 text-xs text-slate-500">
@@ -396,28 +369,26 @@ export default function DatasetExplorer() {
             >
               Clear Filters
             </Button>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  disabled={loading || isExporting}
-                  className="border-[#2d66ae] bg-[#2d66ae] text-sm font-semibold text-white hover:bg-[#003c6c]"
-                >
-                  <Download size={16} />
-                  {isExporting ? 'Exporting...' : 'Export As...'}
-                                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-40">
-                <DropdownMenuItem onSelect={() => void handleExport('csv')} className="text-sm font-semibold text-[#003c6c]">
-                  CSV
-                </DropdownMenuItem>
-                <DropdownMenuItem onSelect={() => void handleExport('xlsx')} className="text-sm font-semibold text-[#003c6c]">
-                  XLSX
-                </DropdownMenuItem>
-                <DropdownMenuItem onSelect={() => void handleExport('json')} className="text-sm font-semibold text-[#003c6c]">
-                  JSON
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <div className="flex items-center gap-2">
+              <Select value={exportFormat} onValueChange={(value) => setExportFormat(value as ExportFormat)}>
+                <SelectTrigger className="border-slate-200 bg-slate-50 text-sm text-slate-950">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="csv">.csv</SelectItem>
+                  <SelectItem value="xlsx">.xlsx</SelectItem>
+                  <SelectItem value="json">.json</SelectItem>
+                </SelectContent>
+              </Select>
+              <Button
+                disabled={loading || isExporting}
+                onClick={() => void handleExport(exportFormat)}
+                className="border-[#2d66ae] bg-[#2d66ae] text-sm font-semibold text-white hover:bg-[#003c6c]"
+              >
+                <Download size={16} />
+                {isExporting ? `Exporting ${exportFormat.toUpperCase()}...` : 'Export'}
+              </Button>
+            </div>
           </div>
         </div>
 

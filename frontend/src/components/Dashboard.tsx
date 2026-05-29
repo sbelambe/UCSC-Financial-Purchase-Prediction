@@ -249,9 +249,10 @@ export function Dashboard() {
           <p className="mt-2 text-sm leading-6 text-slate-950">
             <b>Welcome to SlugSmart!</b> SlugSmart is a procurement analytics and financial
             decision-support platform for the UCSC Financial Affairs office. With SlugSmart,
-            users can upload and view cleaned purchase and sales datasets, analyze spending
-            trends, discover stocking opportunities through predictive insights, and view and
-            export periodic summary reports.<br /><br />
+            users can upload and view cleaned Amazon, CruzBuy, and OneCard purchase datasets 
+            and Bay Tree Bookstore sales datasets. In addition, they can analyze spending trends, 
+            discover stocking opportunities through predictive insights, and view and export 
+            periodic summary reports.<br /><br />
             To get started, upload procurement datasets to the Google Drive folder and press
             the "Refresh Data" button at the top. Then, explore this page to view what needs
             attention right now: Amazon demand insights, high-impact purchases, the top items

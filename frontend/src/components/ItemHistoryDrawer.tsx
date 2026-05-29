@@ -64,9 +64,9 @@ function ActionBadge({ action }: { action: string }) {
 function MetricTile({ label, value, sub }: { label: string; value: string | number; sub?: string }) {
   return (
     <div className="flex flex-col items-center bg-[#EFF4FB] rounded-[16px] px-4 py-3 min-w-0">
-      <span className="text-[10px] font-medium text-[#49454F] uppercase tracking-wide mb-1">{label}</span>
-      <span className="text-2xl font-medium text-[#1C1B1F] leading-none">{typeof value === 'number' ? value.toLocaleString() : value}</span>
-      {sub && <span className="text-[10px] text-[#79747E] mt-1">{sub}</span>}
+      <span className="text-[10px] text-[#2d66ae] uppercase font-semibold tracking-wide">{label}</span>
+      <span className="text-lg font-bold text-slate-950 mt-1">{typeof value === 'number' ? value.toLocaleString() : value}</span>
+      {sub && <span className="text-xs text-slate-500 mt-1">{sub}</span>}
     </div>
   );
 }
@@ -100,7 +100,7 @@ export function ItemHistoryDrawer({ item, devMode, onClose }: ItemHistoryDrawerP
             {/* Header */}
             <SheetHeader className="px-6 pt-6 pb-4 border-b border-[#DBEAFE]">
               <div className="flex flex-col gap-2 min-w-0">
-                <SheetTitle className="text-lg font-medium text-[#1C1B1F] leading-snug">
+                <SheetTitle className="text-lg font-sans font-bold text-[#003c6c] leading-snug">
                   {item.category}
                 </SheetTitle>
                 <ActionBadge action={item.action} />
@@ -109,9 +109,9 @@ export function ItemHistoryDrawer({ item, devMode, onClose }: ItemHistoryDrawerP
 
             <div className="px-6 py-5 flex flex-col gap-6">
               {/* Key metrics */}
-              <div className="grid grid-cols-4 gap-3">
+              <div className="grid grid-cols-3 gap-3">
                 <MetricTile label="Inventory" value={item.current_stock} sub="last 3 mo." />
-                <MetricTile label="ML Forecast" value={item.predicted_demand} />
+                <MetricTile label="Forecast" value={item.predicted_demand} />
                 {item.historical_avg > 0 && (
                   <MetricTile label="Hist. Avg" value={item.historical_avg} sub="same period" />
                 )}
