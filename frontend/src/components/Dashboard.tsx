@@ -312,7 +312,7 @@ export function Dashboard() {
                       {items.slice(0, 10).map((item, i) => (
                         <li key={`${dataset.key}-${item.clean_item_name}-${i}`} className="flex min-w-0 items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm">
                           <div className="min-w-0">
-                            <div className="truncate font-semibold text-slate-800" title={item.clean_item_name}>
+                            <div className="truncate font-semibold text-slate-950" title={item.clean_item_name}>
                               {i + 1}. {item.clean_item_name}
                             </div>
                             <div className="text-xs text-slate-500">{Number(item.count || 0).toLocaleString()} purchases</div>
