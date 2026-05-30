@@ -325,33 +325,54 @@ export function TopItemsTable({
 
 
   if (hasDynamicRows) {
+    // count total num. of columns in the table
+    const totalColumns = activeColumns.length + (schema?.dataset === 'overall' ? 1 : 0) + 3;
+
+    // reserve 4% for the # col. and split the remaining 96% equally
+    const equalColWidth = `${96 / (totalColumns - 1)}%`;
+
     return (
       <div className="top-items-table-shell w-full max-w-full min-w-0 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
         <div className="border-b border-gray-200 bg-slate-50 px-4 py-2 text-xs font-medium text-slate-500">
           Scroll within this table to view more rows and columns.
         </div>
         <div className="top-items-table-scroll block max-h-[520px] w-full max-w-full min-w-0 overflow-auto overscroll-contain">
-          <table className="top-items-table top-items-table--dynamic min-w-max text-left text-sm border-collapse">
+          <table className="top-items-table top-items-table--dynamic w-full text-left text-sm border-collapse table-fixed">
+
+            <colgroup>
+              <col style={{ width: '4%' }} /> {/* The # Column */}
+              {schema?.dataset === 'overall' && <col style={{ width: equalColWidth }} />}
+              {activeColumns.map((col) => (
+                <col key={col.canonical_name} style={{ width: equalColWidth }} />
+              ))}
+              <col style={{ width: equalColWidth }} /> {/* The Freq Column */}
+              <col style={{ width: equalColWidth }} /> {/* The Total Spend Column */}
+            </colgroup>
+
             <thead className="sticky top-0 z-30">
-              <tr className="sticky top-0 bg-slate-100 text-left text-xs font-semibold uppercase tracking-wide text-[#2d66ae]">
-                <th className="px-4 py-3 text-[#2d66ae] sticky left-0 z-20 bg-slate-100 whitespace-nowrap">#</th>
+              <tr className="bg-slate-50 border-b border-gray-200">
+                <th className="p-4 font-semibold text-slate-700 sticky left-0 z-20 bg-slate-50 whitespace-nowrap">#</th>
                 {schema?.dataset === 'overall' && (
-                  <th className="px-4 py-3 text-[#2d66ae] whitespace-nowrap w-[120px]">Dataset</th>
+                  <th className="p-4 font-semibold text-slate-700 whitespace-nowrap overflow-hidden">Dataset</th>
                 )}
                 {activeColumns.map((column) => (
                   <th
                     key={column.canonical_name}
-                    className="px-4 py-3 text-[#2d66ae] whitespace-nowrap w-[200px]"
+                    className="p-4 font-semibold text-slate-700 whitespace-nowrap overflow-hidden"
                   >
                     {column.canonical_name}
                   </th>
                 ))}
-                <th className="px-4 py-3 text-[#2d66ae] text-center whitespace-nowrap w-[100px]">Freq.</th>
-                <th className="px-4 py-3 text-[#2d66ae] text-right whitespace-nowrap w-[150px]">
-                  {schema?.metric_label || 'Total Metric'}
+                <th className="p-4 font-semibold text-slate-700 text-center whitespace-nowrap overflow-hidden">Freq.</th>
+                <th className="p-4 font-semibold text-slate-700 text-right whitespace-nowrap overflow-hidden">
+                  <div className="truncate" title={schema?.metric_label || 'Total Metric'}>
+                    {schema?.metric_label || 'Total Metric'}
+                  </div>
                 </th>
               </tr>
             </thead>
+
+            
             <tbody className="divide-y divide-gray-100">
               {sortedData.map((item, index) => {
                 const isExpanded = expandedRow === index;
@@ -364,7 +385,7 @@ export function TopItemsTable({
                   <React.Fragment key={`${item.dataset || 'dataset'}-${item.clean_item_name}-${index}`}>
                     <tr
                       onClick={() => hasDetails && setExpandedRow(isExpanded ? null : index)}
-                      className={`${rowBackgroundClass} ${hasDetails ? 'cursor-pointer' : ''} border-b border-slate-100 hover:bg-slate-50`}
+                      className={`${rowBackgroundClass} ${hasDetails ? 'cursor-pointer hover:bg-slate-100' : ''}`}
                     >
                       <td className={`p-4 text-xs font-mono text-slate-500 sticky left-0 z-10 whitespace-nowrap ${rowBackgroundClass}`}>
                         <span className={`mr-2 inline-block w-3 ${hasDetails ? 'text-blue-500' : ''}`}>
@@ -378,8 +399,8 @@ export function TopItemsTable({
                         </td>
                       )}
                       {activeColumns.map((column) => (
-                        <td key={column.canonical_name} className="p-4 text-slate-700 align-top w-[200px] max-w-[200px]">
-                          <div className="max-w-[200px] overflow-hidden break-words" title={String(getDisplayCellValue(item, column.canonical_name) ?? '')}>
+                        <td key={column.canonical_name} className="p-4 text-slate-700 align-top overflow-hidden">
+                          <div className="truncate" title={String(getDisplayCellValue(item, column.canonical_name) ?? '')}>
                             {formatDynamicValue(
                               column.canonical_name,
                               getDisplayCellValue(item, column.canonical_name),
@@ -387,7 +408,7 @@ export function TopItemsTable({
                             )}
                           </div>
                         </td>
-                      ))}
+                      ))}  
                       <td className="p-4 text-center">
                         <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-bold bg-blue-50 text-blue-700 ring-1 ring-inset ring-blue-700/10">
                           {item.count.toLocaleString()}
@@ -409,18 +430,18 @@ export function TopItemsTable({
                             </div>
                             <div className="max-h-[320px] w-full max-w-full overflow-auto overscroll-contain">
                               <table className="min-w-max text-left text-sm border-collapse">
-                                                <thead className="sticky top-0 z-10 bg-slate-100 border-b border-slate-200 text-xs font-semibold uppercase tracking-wide text-[#2d66ae]">
-                                                  <tr>
-                                                    {activeColumns.map((column) => (
-                                                      <th
-                                                        key={column.canonical_name}
-                                                        className="px-4 py-3 text-[#2d66ae] whitespace-nowrap w-[200px]"
-                                                      >
-                                                        {column.canonical_name}
-                                                      </th>
-                                                    ))}
-                                                  </tr>
-                                                </thead>
+                                <thead className="sticky top-0 z-10 bg-gray-50 border-b border-gray-200">
+                                  <tr>
+                                    {activeColumns.map((column) => (
+                                      <th
+                                        key={column.canonical_name}
+                                        className="p-3 font-semibold text-slate-700 whitespace-nowrap w-[200px]"
+                                      >
+                                        {column.canonical_name}
+                                      </th>
+                                    ))}
+                                  </tr>
+                                </thead>
                                 <tbody className="divide-y divide-gray-100">
                                   {detailRows.map((detailRow, detailIndex) => (
                                     <tr key={`${item.clean_item_name}-detail-${detailIndex}`} className={detailIndex % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
@@ -462,18 +483,18 @@ export function TopItemsTable({
       <div className="top-items-table-scroll overflow-x-auto">
         <table className="top-items-table top-items-table--summary w-full text-left text-sm table-fixed border-collapse">
           <thead>
-            <tr className="sticky top-0 bg-slate-100 text-left text-xs font-semibold uppercase tracking-wide text-[#2d66ae]">
-              <th className="px-4 py-3 text-[#2d66ae] w-[60px]">#</th>
-              <th className="px-4 py-3 text-[#2d66ae] w-[40%] cursor-pointer" onClick={() => requestSort('clean_item_name')}>
+            <tr className="bg-slate-50 border-b border-gray-200 select-none">
+              <th className="p-4 font-semibold text-slate-700 w-[60px]">#</th>
+              <th className="p-4 font-semibold text-slate-700 w-[40%] cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => requestSort('clean_item_name')}>
                 Item Name {getSortIcon('clean_item_name')}
               </th>
-              <th className="px-4 py-3 text-[#2d66ae] text-center w-[120px] cursor-pointer" onClick={() => requestSort('count')}>
+              <th className="p-4 font-semibold text-slate-700 text-center w-[120px] cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => requestSort('count')}>
                 Freq. {getSortIcon('count')}
               </th>
-              <th className="px-4 py-3 text-[#2d66ae] text-right w-[160px] cursor-pointer" onClick={() => requestSort('total_spent')}>
+              <th className="p-4 font-semibold text-slate-700 text-right w-[160px] cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => requestSort('total_spent')}>
                 {schema?.metric_label || 'Total Spent'} {getSortIcon('total_spent')}
               </th>
-              <th className="px-4 py-3 text-[#2d66ae] w-[25%] text-center cursor-pointer" onClick={() => requestSort('vendors')}>
+              <th className="p-4 font-semibold text-slate-700 w-[25%] text-center cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => requestSort('vendors')}>
                 {schema?.group_label || 'Vendors'} {getSortIcon('vendors')}
               </th>
             </tr>
@@ -491,7 +512,11 @@ export function TopItemsTable({
                 <React.Fragment key={index}>
                   <tr 
                     onClick={() => hasMultipleVendors && setExpandedRow(isExpanded ? null : index)}
-                    className={`border-b border-slate-100 hover:bg-slate-50 transition-colors ${hasMultipleVendors ? 'cursor-pointer' : ''} ${item.is_high_impact ? 'bg-amber-50 hover:bg-amber-100/60' : ''}`}
+                    className={`group transition-colors ${
+                      item.is_high_impact 
+                        ? 'bg-amber-50 hover:bg-amber-100/60' 
+                        : 'odd:bg-white even:bg-slate-50/20 hover:bg-slate-100'
+                    } ${hasMultipleVendors ? 'cursor-pointer' : ''}`}
                   >
                     <td className="p-4 text-gray-400 font-mono text-xs text-left">
                       <span className={`mr-2 inline-block w-3 ${hasMultipleVendors ? 'text-blue-500' : ''}`}>
