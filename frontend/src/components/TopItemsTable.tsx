@@ -327,21 +327,18 @@ export function TopItemsTable({
   if (hasDynamicRows) {
     return (
       <div className="top-items-table-shell w-full max-w-full min-w-0 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
-        <div className="border-b border-gray-200 bg-slate-50 px-4 py-2 text-xs font-medium text-slate-500">
-          Scroll within this table to view more rows and columns.
-        </div>
         <div className="top-items-table-scroll block max-h-[520px] w-full max-w-full min-w-0 overflow-auto overscroll-contain">
-          <table className="top-items-table top-items-table--dynamic min-w-max text-left text-sm border-collapse">
+          <table className="top-items-table top-items-table--dynamic w-full table-fixed text-left text-sm border-collapse">
             <thead className="sticky top-0 z-30">
               <tr className="sticky top-0 bg-slate-100 text-left text-xs font-semibold uppercase tracking-wide text-[#2d66ae]">
-                <th className="px-4 py-3 text-[#2d66ae] sticky left-0 z-20 bg-slate-100 whitespace-nowrap">#</th>
+                <th className="w-[50px] px-2 py-3 text-[#2d66ae] sticky left-0 z-20 bg-slate-100 whitespace-nowrap">#</th>
                 {schema?.dataset === 'overall' && (
                   <th className="px-4 py-3 text-[#2d66ae] whitespace-nowrap w-[120px]">Dataset</th>
                 )}
                 {activeColumns.map((column) => (
                   <th
                     key={column.canonical_name}
-                    className="px-4 py-3 text-[#2d66ae] whitespace-nowrap w-[200px]"
+                    className="px-4 py-3 text-[#2d66ae] whitespace-nowrap w-[180px]"
                   >
                     {column.canonical_name}
                   </th>
@@ -352,13 +349,13 @@ export function TopItemsTable({
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody className="divide-y divide-slate-100">
               {sortedData.map((item, index) => {
                 const isExpanded = expandedRow === index;
                 const detailRows = item.is_condensed ? (item.raw_rows || []) : [];
                 const hasDetails = detailRows.length > 0;
                 const totalColumns = activeColumns.length + (schema?.dataset === 'overall' ? 1 : 0) + 3;
-                const rowBackgroundClass = index % 2 === 0 ? 'bg-white' : 'bg-slate-50';
+                const rowBackgroundClass = 'bg-white'
 
                 return (
                   <React.Fragment key={`${item.dataset || 'dataset'}-${item.clean_item_name}-${index}`}>
@@ -366,20 +363,20 @@ export function TopItemsTable({
                       onClick={() => hasDetails && setExpandedRow(isExpanded ? null : index)}
                       className={`${rowBackgroundClass} ${hasDetails ? 'cursor-pointer' : ''} border-b border-slate-100 hover:bg-slate-50`}
                     >
-                      <td className={`p-4 text-xs font-mono text-slate-500 sticky left-0 z-10 whitespace-nowrap ${rowBackgroundClass}`}>
-                        <span className={`mr-2 inline-block w-3 ${hasDetails ? 'text-blue-500' : ''}`}>
+                      <td className={`w-[50px] px-2 py-3 text-xs text-slate-950 sticky left-0 z-10 whitespace-nowrap ${rowBackgroundClass}`}>
+                        <span className={`mr-2 inline-block w-3 ${hasDetails ? 'text-[#2d66ae]' : ''}`}>
                           {hasDetails ? (isExpanded ? '▼' : '▶') : '\u00A0'}
                         </span>
                         {index + 1}
                       </td>
                       {schema?.dataset === 'overall' && (
-                        <td className="p-4 font-semibold text-slate-800 whitespace-nowrap">
+                        <td className="p-4 font-xs font-semibold text-slate-950 whitespace-nowrap">
                           {item.dataset || 'Unknown'}
                         </td>
                       )}
                       {activeColumns.map((column) => (
-                        <td key={column.canonical_name} className="p-4 text-slate-700 align-top w-[200px] max-w-[200px]">
-                          <div className="max-w-[200px] overflow-hidden break-words" title={String(getDisplayCellValue(item, column.canonical_name) ?? '')}>
+                        <td key={column.canonical_name} className="p-4 text-slate-950 align-top w-[180px] max-w-[180px]">
+                          <div className="max-w-[180px] overflow-hidden break-words" title={String(getDisplayCellValue(item, column.canonical_name) ?? '')}>
                             {formatDynamicValue(
                               column.canonical_name,
                               getDisplayCellValue(item, column.canonical_name),
@@ -389,11 +386,11 @@ export function TopItemsTable({
                         </td>
                       ))}
                       <td className="p-4 text-center">
-                        <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-bold bg-blue-50 text-blue-700 ring-1 ring-inset ring-blue-700/10">
+                        <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-bold bg-[#2d66ae] text-white ring-1 ring-inset ring-[#2d66ae]">
                           {item.count.toLocaleString()}
                         </span>
                       </td>
-                      <td className="p-4 text-right font-mono font-medium text-slate-900 whitespace-nowrap">
+                      <td className="p-4 text-right text-xs font-semibold text-[#2d66ae] whitespace-nowrap">
                         {schema?.metric_type === 'quantity'
                           ? Number(item.total_spent || 0).toLocaleString()
                           : formatSpendOrNA(item.total_spent)}
@@ -402,31 +399,31 @@ export function TopItemsTable({
 
                     {isExpanded && hasDetails && (
                       <tr className="bg-slate-50 border-b border-gray-200 shadow-inner">
-                        <td colSpan={totalColumns} className="p-4 pl-12">
-                          <div className="overflow-hidden rounded border border-gray-200 bg-white shadow-sm">
-                            <div className="border-b border-gray-200 bg-slate-50 px-4 py-2 text-xs font-medium text-slate-500">
-                              Exact rows included in this grouped item: {detailRows.length}
-                            </div>
-                            <div className="max-h-[320px] w-full max-w-full overflow-auto overscroll-contain">
-                              <table className="min-w-max text-left text-sm border-collapse">
-                                                <thead className="sticky top-0 z-10 bg-slate-100 border-b border-slate-200 text-xs font-semibold uppercase tracking-wide text-[#2d66ae]">
-                                                  <tr>
-                                                    {activeColumns.map((column) => (
-                                                      <th
-                                                        key={column.canonical_name}
-                                                        className="px-4 py-3 text-[#2d66ae] whitespace-nowrap w-[200px]"
-                                                      >
-                                                        {column.canonical_name}
-                                                      </th>
-                                                    ))}
-                                                  </tr>
-                                                </thead>
+                        <td colSpan={totalColumns} className="p-4">
+                          <div className="bg-slate-50 px-4 py-2 text-sm text-slate-500">
+                            Exact rows included in this grouped item: {detailRows.length}
+                          </div>
+                          <div className="w-full overflow-hidden rounded border border-gray-200 bg-white shadow-sm">
+                            <div className="max-h-[320px] w-full overflow-auto overscroll-contain">
+                              <table className="w-full min-w-full text-left text-sm border-collapse">
+                                <thead className="sticky top-0 z-10 bg-slate-100 border-b border-slate-200 text-xs font-semibold uppercase tracking-wide text-[#2d66ae]">
+                                  <tr>
+                                    {activeColumns.map((column) => (
+                                      <th
+                                        key={column.canonical_name}
+                                        className="px-4 py-3 text-[#2d66ae] whitespace-nowrap w-[180px]"
+                                      >
+                                        {column.canonical_name}
+                                      </th>
+                                    ))}
+                                  </tr>
+                                </thead>
                                 <tbody className="divide-y divide-gray-100">
                                   {detailRows.map((detailRow, detailIndex) => (
-                                    <tr key={`${item.clean_item_name}-detail-${detailIndex}`} className={detailIndex % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
+                                    <tr key={`${item.clean_item_name}-detail-${detailIndex}`} className={'bg-white'}>
                                       {activeColumns.map((column) => (
-                                        <td key={`${detailIndex}-${column.canonical_name}`} className="p-3 text-slate-700 align-top w-[200px] max-w-[200px]">
-                                          <div className="max-w-[200px] overflow-hidden break-words" title={String(getRowCellValue(detailRow, column.canonical_name) ?? '')}>
+                                        <td key={`${detailIndex}-${column.canonical_name}`} className="p-3 text-slate-700 align-top w-[180px] max-w-[180px]">
+                                          <div className="max-w-[180px] overflow-hidden break-words" title={String(getRowCellValue(detailRow, column.canonical_name) ?? '')}>
                                             {formatDynamicValue(
                                               column.canonical_name,
                                               getRowCellValue(detailRow, column.canonical_name),
@@ -463,17 +460,17 @@ export function TopItemsTable({
         <table className="top-items-table top-items-table--summary w-full text-left text-sm table-fixed border-collapse">
           <thead>
             <tr className="sticky top-0 bg-slate-100 text-left text-xs font-semibold uppercase tracking-wide text-[#2d66ae]">
-              <th className="px-4 py-3 text-[#2d66ae] w-[60px]">#</th>
-              <th className="px-4 py-3 text-[#2d66ae] w-[40%] cursor-pointer" onClick={() => requestSort('clean_item_name')}>
+              <th className="px-4 py-3 text-[#2d66ae] w-[48px]">#</th>
+              <th className="px-4 py-3 text-[#2d66ae] w-[35%] cursor-pointer" onClick={() => requestSort('clean_item_name')}>
                 Item Name {getSortIcon('clean_item_name')}
               </th>
-              <th className="px-4 py-3 text-[#2d66ae] text-center w-[120px] cursor-pointer" onClick={() => requestSort('count')}>
+              <th className="px-4 py-3 text-[#2d66ae] text-center w-[96px] cursor-pointer" onClick={() => requestSort('count')}>
                 Freq. {getSortIcon('count')}
               </th>
-              <th className="px-4 py-3 text-[#2d66ae] text-right w-[160px] cursor-pointer" onClick={() => requestSort('total_spent')}>
+              <th className="px-4 py-3 text-[#2d66ae] text-right w-[140px] cursor-pointer" onClick={() => requestSort('total_spent')}>
                 {schema?.metric_label || 'Total Spent'} {getSortIcon('total_spent')}
               </th>
-              <th className="px-4 py-3 text-[#2d66ae] w-[25%] text-center cursor-pointer" onClick={() => requestSort('vendors')}>
+              <th className="px-4 py-3 text-[#2d66ae] w-[20%] text-center cursor-pointer" onClick={() => requestSort('vendors')}>
                 {schema?.group_label || 'Vendors'} {getSortIcon('vendors')}
               </th>
             </tr>
@@ -494,7 +491,7 @@ export function TopItemsTable({
                     className={`border-b border-slate-100 hover:bg-slate-50 transition-colors ${hasMultipleVendors ? 'cursor-pointer' : ''} ${item.is_high_impact ? 'bg-amber-50 hover:bg-amber-100/60' : ''}`}
                   >
                     <td className="p-4 text-gray-400 font-mono text-xs text-left">
-                      <span className={`mr-2 inline-block w-3 ${hasMultipleVendors ? 'text-blue-500' : ''}`}>
+                      <span className={`mr-2 inline-block w-3 ${hasMultipleVendors ? 'text-[#2d66ae]' : ''}`}>
                         {hasMultipleVendors ? (isExpanded ? '▼' : '▶') : '\u00A0'}
                       </span>
                       {index + 1}

@@ -48,6 +48,7 @@ export function Dashboard() {
   const [selectedQuarter, setSelectedQuarter]   = useState<QuarterName>('All Quarters');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [searchQuery, setSearchQuery]           = useState('');
+  const [draftSearchQuery, setDraftSearchQuery] = useState('');
   const [minSpend, setMinSpend]                 = useState<number>(0);
   const [draftMinSpend, setDraftMinSpend]       = useState<string>('0');
   const [selectedLimit, setSelectedLimit]       = useState<number>(20);
@@ -65,10 +66,18 @@ export function Dashboard() {
   const activeDatasetKey    = TAB_TO_DATASET[activeTab] || 'overall';
   const planCategories      = useMemo(() => new Set(purchasePlan.map((p) => p.item.category)), [purchasePlan]);
 
+  const applyDraftSearch = () => {
+    setSearchQuery(draftSearchQuery.trim());
+  };
+
   const applyDraftMinSpend = () => {
     const normalized = draftMinSpend.replace(/[^0-9]/g, '');
     setMinSpend(normalized ? Number(normalized) : 0);
   };
+
+  useEffect(() => {
+    setDraftSearchQuery(searchQuery);
+  }, [searchQuery]);
 
   useEffect(() => {
     setDraftMinSpend(String(minSpend || 0));
@@ -354,9 +363,9 @@ export function Dashboard() {
         <section className="w-full min-w-0 overflow-hidden rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
           <h2 className="text-xl font-bold text-[#003c6c]">Amazon Spending Analytics Graphs</h2>
           <p className="mt-1 mb-5 text-sm text-slate-950">
-            The Spending Analytics Graphs encompass various tools and visualizations to aid in analyzing spending trends.
-            They include a Top Purchase Patterns bar chart with a drilldown panel, a High Impact Items scatterplot, a Total Spend Over Time line
-            graph, and Total Spend Over Time on specific items line graph with a built-in search bar.
+            The Spending Analytics Graphs encompass various tools and visualizations to aid in analyzing spending trends:
+            Top Purchase Patterns bar chart (w/ drilldown panel), High Impact Items scatterplot, Total Spend Over Time line
+            graph, and Total Spend Over Time on specific items line graph (w/ built-in search bar).
           </p>
           <ChartCarousel
             slides={chartSlides}
@@ -378,35 +387,48 @@ export function Dashboard() {
       {stickyNav}
 
       {/* Top items table */}
-      <div className="w-full max-w-full min-w-0 overflow-hidden rounded-xl border border-gray-200 bg-white p-8 shadow-sm">
+      <div className="w-full min-w-0 overflow-hidden rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
         {isLoadingTopItems ? (
           <div className="flex min-h-[240px] items-center justify-center">Loading…</div>
         ) : (
           <div className="w-full max-w-full min-w-0 space-y-4 overflow-hidden">
             <div>
-              <h2 className="text-xl font-bold text-slate-900">
+              <h2 className="text-xl font-bold text-[#003c6c]">
                 {activeTab === 'Bookstore' ? 'Current Campus Bookstore Inventory' : 'Top Items'}
               </h2>
-              <p className="text-sm text-slate-500">
+              <p className="mt-1 mb-5 text-sm text-slate-950">
                 {activeTab === 'Bookstore'
                   ? '*Inventory levels approximated based on recent point-of-sale BigQuery data.'
-                  : 'Live BigQuery results'}
+                  : 'Live BigQuery results of most-purchased external items for the current procurement dataset (sorted by purchase frequency by default). Use the search and filter buttons below to limit the results by year, quarter, category, and more. Press the "High-Impact" button to display only high-spend items.'}
               </p>
 
               <div className="mt-4">
                 <h3 className="mb-4 text-lg font-semibold text-[#003c6c]">Search and Filter Tools</h3>
 
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-8">
-                  <div>
-                    <Input
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      placeholder="Search items, merchants, categories..."
-                      className="border-slate-200 bg-slate-50 text-sm font-medium text-slate-950 focus-visible:ring-[#2d66ae]"
-                    />
+                <div className="flex flex-wrap items-end gap-4">
+                  <div className="min-w-[280px] max-w-[460px] flex-1">
+                    <label className="mb-1 block text-xs font-semibold uppercase text-[#2d66ae]">Search</label>
+                    <div className="flex items-end gap-2">
+                      <Input
+                        value={draftSearchQuery}
+                        onChange={(e) => setDraftSearchQuery(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') applyDraftSearch();
+                        }}
+                        placeholder="Search items, merchants, categories..."
+                        className="min-w-0 flex-1 border-slate-200 bg-slate-50 text-sm font-medium text-slate-950 focus-visible:ring-[#2d66ae]"
+                      />
+                      <Button
+                        variant="outline"
+                        onClick={applyDraftSearch}
+                        className="shrink-0 border-[#2d66ae] bg-[#2d66ae] text-white hover:bg-[#003c6c] hover:border-[#003c6c] hover:text-slate-950"
+                      >
+                        Apply
+                      </Button>
+                    </div>
                   </div>
 
-                  <div>
+                  <div className="w-[176px] min-w-[160px]">
                     <label className="mb-1 block text-xs font-semibold uppercase text-[#2d66ae]">Year</label>
                     <Select value={selectedYear} onValueChange={(v) => setSelectedYear(String(v))}>
                       <SelectTrigger className="border-slate-200 bg-slate-50 text-sm text-slate-950">
@@ -421,7 +443,7 @@ export function Dashboard() {
                     </Select>
                   </div>
 
-                  <div>
+                  <div className="w-[176px] min-w-[160px]">
                     <label className="mb-1 block text-xs font-semibold uppercase text-[#2d66ae]">Quarter</label>
                     <Select value={selectedQuarter} onValueChange={(v) => setSelectedQuarter(String(v) as any)}>
                       <SelectTrigger className="border-slate-200 bg-slate-50 text-sm text-slate-950">
@@ -437,34 +459,7 @@ export function Dashboard() {
                     </Select>
                   </div>
 
-                  <div>
-                    <label className="mb-1 block text-xs font-semibold uppercase text-[#2d66ae]">Limit</label>
-                    <Select value={String(selectedLimit)} onValueChange={(v) => setSelectedLimit(Number(v))}>
-                      <SelectTrigger className="border-slate-200 bg-slate-50 text-sm text-slate-950">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="10">10</SelectItem>
-                        <SelectItem value="20">20</SelectItem>
-                        <SelectItem value="50">50</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div>
-                    <label className="mb-1 block text-xs font-semibold uppercase text-[#2d66ae]">Sort</label>
-                    <Select value={selectedSortMode} onValueChange={(v) => setSelectedSortMode(v as any)}>
-                      <SelectTrigger className="border-slate-200 bg-slate-50 text-sm text-slate-950">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="frequency">Frequency</SelectItem>
-                        <SelectItem value="cost">Cost</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div>
+                  <div className="w-[176px] min-w-[160px]">
                     <label className="mb-1 block text-xs font-semibold uppercase text-[#2d66ae]">Category</label>
                     <Select value={selectedCategory} onValueChange={(v) => setSelectedCategory(String(v))}>
                       <SelectTrigger className="border-slate-200 bg-slate-50 text-sm text-slate-950">
@@ -480,9 +475,22 @@ export function Dashboard() {
                     </Select>
                   </div>
 
-                  <div className="flex flex-col gap-1">
+                  <div className="w-[140px] min-w-[140px]">
+                    <label className="mb-1 block text-xs font-semibold uppercase text-[#2d66ae]">Sort</label>
+                    <Select value={selectedSortMode} onValueChange={(v) => setSelectedSortMode(v as any)}>
+                      <SelectTrigger className="border-slate-200 bg-slate-50 text-sm text-slate-950">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="frequency">Frequency</SelectItem>
+                        <SelectItem value="cost">Cost</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="min-w-[190px]">
                     <label className="mb-1 block text-xs font-semibold uppercase text-[#2d66ae]">Min $</label>
-                    <div className="flex gap-2">
+                    <div className="flex items-center gap-2">
                       <Input
                         type="text"
                         inputMode="numeric"
@@ -492,38 +500,36 @@ export function Dashboard() {
                           if (e.key === 'Enter') applyDraftMinSpend();
                         }}
                         placeholder="0"
-                        className="border-slate-200 bg-slate-50 text-sm text-slate-950 focus-visible:ring-[#2d66ae]"
+                        className="w-24 border-slate-200 bg-slate-50 text-sm text-slate-950 focus-visible:ring-[#2d66ae]"
                       />
                       <Button
                         variant="outline"
                         onClick={applyDraftMinSpend}
-                        className="border-[#2d66ae] bg-white text-[#2d66ae] hover:bg-[#2d66ae]/5"
+                        className="shrink-0 border-[#2d66ae] bg-[#2d66ae] text-white hover:bg-[#003c6c] hover:border-[#003c6c] hover:text-slate-950"
                       >
                         Apply
                       </Button>
                     </div>
                   </div>
 
-                  <div className="flex items-end">
+                  <div className="flex items-center gap-2">
                     <button
                       type="button"
                       onClick={() => setHighImpactOnly((prev) => !prev)}
-                      className={`inline-flex items-center gap-1.5 rounded-lg border-2 px-3 py-2 text-sm font-medium transition-all ${
+                      className={`inline-flex items-center gap-1.5 rounded-lg border-2 px-3 py-2 text-sm font-semibold transition-all ${
                         highImpactOnly
-                          ? 'bg-purple-100 border-purple-400 text-purple-700'
-                          : 'bg-white border-gray-300 text-gray-600 hover:border-purple-300'
+                          ? 'bg-[#2d66ae] border-[#2d66ae] text-white'
+                          : 'bg-white border-[#003c6c] text-[#003c6c] hover:border-[#2d66ae]'
                       }`}
                     >
                       <Zap size={16} />
-                      High-Impact
+                      {highImpactOnly ? 'High Impact ON' : 'High Impact OFF'}
                     </button>
-                  </div>
-
-                  <div className="flex items-end gap-2">
                     <Button
                       variant="outline"
                       onClick={() => {
                         setSearchQuery('');
+                        setDraftSearchQuery('');
                         setSelectedCategory('all');
                         setSelectedYear('All Time');
                         setSelectedQuarter('All Quarters');

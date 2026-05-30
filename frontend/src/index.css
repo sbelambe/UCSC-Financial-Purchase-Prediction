@@ -1220,7 +1220,7 @@ html {
 }
 
 .top-items-table--summary {
-  min-width: 68rem;
+  min-width: 0;
 }
 
 .top-items-table thead th {
