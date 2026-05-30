@@ -16,13 +16,22 @@ def normalize_item_name(name: str) -> set:
     Strips punctutation, lowercases, and separates the string into a set of words
     Ignores common filler words
     """
-    # 1. Remove special characters and lowercase the string
-    # We replace with a space ' ' instead of '' so things like "W/Pen" 
-    # become "w pen" instead of "wpen", allowing the alias dict to catch it!
+    # remove special characters and lowercase the string
     clean_str = re.sub(r'[^a-z0-9\s]', ' ', str(name).lower())
+
+    # separate battery numbers
+    # ex) "aa4" -> "aa 4"
+    clean_str = re.sub(r'\baa(\d+)\b', r'aa \1', clean_str)
+    clean_str = re.sub(r'\baaa(\d+)\b', r'aaa \1', clean_str)
+
+    # standardize pack strings
+    clean_str = re.sub(r'(\d+)pk\b', r'\1 pack', clean_str)
+
+    # strip Apple SKUs
+    # ex) "mx532am a"
+    clean_str = re.sub(r'\b[a-z0-9]{5,}\s[a-z]\b', ' ', clean_str)
     
-    # 2. The POS Alias Dictionary 
-    # Built directly from analyzing the high-frequency words in bookstore_clean.csv
+    # built directly from analyzing the high-frequency words in bookstore_clean.csv
     aliases = {
         "jg": "julia gash",
         "ls": "long sleeve",
@@ -35,21 +44,23 @@ def normalize_item_name(name: str) -> set:
         "hood": "hoodie",
         "ua": "under armour",
         "blk": "black",
-        "w": "with"
+        "w": "with",
+        "batteries": "battery", 
+        "airtags": "airtag"    
     }
     
-    # Replace aliases in the string safely using word boundaries (\b)
+    # replace aliases in the string safely using word boundaries (\b)
     for abbreviation, full_word in aliases.items():
         clean_str = re.sub(rf'\b{abbreviation}\b', full_word, clean_str)
         
     words = set(clean_str.split())
     
-    # 3. Discard domain-specific filler words 
-    # School names and fabric types add math noise to the Overlap Coefficient
+    # discard domain-specific filler words 
     filler_words = {
         "ucsc", "uc", "santa", "cruz", 
         "the", "and", "set", "of", "in", "for", 
-        "design", "favorite", "heather"
+        "design", "favorite", "heather",
+        "duracell", "pack", "apple"
     }
     
     for filler in filler_words:
@@ -69,11 +80,11 @@ def is_safe_match(csv_name: str, web_name: str) -> bool:
     if not csv_words or not web_words:
         return False
         
-    # Condition 1: One name is entirely contained within the other
+    # condition 1: One name is entirely contained within the other
     if csv_words.issubset(web_words) or web_words.issubset(csv_words):
         return True
         
-    # Condition 2: Overlap Coefficient
+    # condition 2: Overlap Coefficient
     overlap = csv_words.intersection(web_words)
     match_ratio = len(overlap) / max(min(len(csv_words), len(web_words)), 1)
     
@@ -86,6 +97,7 @@ def extract_search_terms(raw_csv_name: str):
     Example: "iPad : Mc9W4Ll/A" -> ("iPad", "Mc9W4Ll/A")
     """
     name = str(raw_csv_name)
+    name = re.sub(r'\([^)]*\)', '', name).strip()
     
     if ":" in name:
         parts = name.split(":")
@@ -165,7 +177,7 @@ def get_price_from_search(session: requests.Session, clean_item_name: str) -> fl
 
 
 
-def sync_all_catalog_prices(csv_path: str):
+def sync_all_catalog_prices(csv_path: str, retry_rejected: bool = False):
     """
     Reads all unique bookstore items, checks Firestore for existing prices AND rejected items,
     only scrapes BRAND NEW unknown items, and pushes the flagged data to DBs.
@@ -176,7 +188,6 @@ def sync_all_catalog_prices(csv_path: str):
     total_items = len(all_unique_items)
     print(f"[INFO] Found {total_items} unique items in the CSV history.")
 
-    # --- 1. THE READ-BEFORE-WRITE ---
     print("[INFO] Checking Firestore for existing cached states...")
     doc_ref = db.collection("metadata").document("bookstore_full_pricing")
     doc = doc_ref.get()
@@ -189,9 +200,12 @@ def sync_all_catalog_prices(csv_path: str):
         existing_prices = data.get("prices", {})
         existing_rejected = data.get("rejected_items", [])
         print(f"[INFO] Found {len(existing_prices)} valid prices and {len(existing_rejected)} rejected items in Firestore.")
+
+    if retry_rejected:
+        print("[WARN] Override active: Clearing rejected cache in memory to force re-scrape...")
+        existing_rejected = []
     
-    # --- 2. THE STRICT DELTA CALCULATION ---
-    # Only scrape items that are NOT in the prices dict AND NOT in the rejected list
+    # only scrape items that are NOT in the prices dict AND NOT in the rejected list
     items_to_scrape = [
         item for item in all_unique_items 
         if item not in existing_prices and item not in existing_rejected
@@ -232,26 +246,25 @@ def sync_all_catalog_prices(csv_path: str):
             if price is not None and price > 0.0:
                 newly_scraped_prices[raw_item] = price
             else:
-                newly_rejected_items.append(raw_item) # Tag it as discontinued/missing
+                newly_rejected_items.append(raw_item)       # tag it as discontinued/missing
 
-    # --- 3. THE MERGE ---
     final_prices = {**existing_prices, **newly_scraped_prices}
     final_rejected = existing_rejected + newly_rejected_items
 
     if final_prices or final_rejected:
         print(f"[INFO] Uploading {len(final_prices)} valid items and {len(final_rejected)} rejected items...")
         
-        # Upload to Firestore
+        # upload to Firestore
         doc_ref.set({
             "prices": final_prices,
-            "rejected_items": final_rejected, # Cache the failures so we don't retry them!
+            "rejected_items": final_rejected,
             "total_matched": len(final_prices),
             "total_rejected": len(final_rejected),
             "last_updated": pd.Timestamp.now().isoformat()
         })
         print("[SUCCESS] Firestore updated!")
         
-        # Upload to BigQuery
+        # upload to bigquery
         push_prices_to_bigquery(final_prices, final_rejected)
         
     else:
@@ -322,11 +335,23 @@ def push_prices_to_bigquery(scraped_prices: dict, rejected_items: list):
 
 
 if __name__ == "__main__":
-    import os
+    import os, argparse
     
-    # 1. Get the directory this exact script lives in (backend/jobs)
+    # setting up the cli args
+    # overrides the rejected items list so that it can be rescraped by the scraper
+    # with python -m jobs.scrape_bookstore --retry-rejected
+    parser = argparse.ArgumentParser(description="Booktsore Pricing Scraper")
+    parser.add_argument(
+        "--retry-rejected",
+        action="store_true",
+        help="Bypass the Firestore cache and force a re-scrape of all previously rejected items."
+    )
+    args = parser.parse_args()
+
+    # get the directory this exact script lives in (backend/jobs)
     current_dir = os.path.dirname(os.path.abspath(__file__))
     backend_dir = os.path.dirname(current_dir)
+
     # safely build the absolute path to the CSV file
     CLEANED_DATA_PATH = os.path.join(
         backend_dir, 
@@ -339,4 +364,4 @@ if __name__ == "__main__":
     if not os.path.exists(CLEANED_DATA_PATH):
         print("[ERROR] The CSV file does not exist at the resolved path. Run the cleaning pipeline first!")
     else:
-        sync_all_catalog_prices(CLEANED_DATA_PATH)
+        sync_all_catalog_prices(CLEANED_DATA_PATH, retry_rejected=args.retry_rejected)
