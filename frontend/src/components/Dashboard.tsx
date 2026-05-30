@@ -276,17 +276,18 @@ export function Dashboard() {
         <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
           <h1 className="text-3xl font-bold text-[#003c6c]">SlugSmart Overview</h1>
           <p className="mt-2 text-sm leading-6 text-slate-950">
-            <b>Welcome to SlugSmart!</b> SlugSmart is a procurement analytics and financial
+            <b>Welcome to SlugSmart!</b> SlugSmart is a transaction analytics and financial
             decision-support platform for the UCSC Financial Affairs office. With SlugSmart,
             users can upload and view cleaned Amazon, CruzBuy, and OneCard purchase datasets 
-            and Bay Tree Bookstore sales datasets. In addition, they can analyze spending trends, 
-            discover stocking opportunities through predictive insights, and view and export 
-            periodic summary reports.<br /><br />
-            To get started, upload procurement datasets to the Google Drive folder and press
-            the "Refresh Data" button at the top. Then, explore this page to view what needs
-            attention right now: Amazon demand insights, high-impact purchases, the top items
+            and Bay Tree Bookstore sales datasets. In addition, they can analyze transaction 
+            trends, discover stocking opportunities through predictive insights, view and 
+            export periodic summary reports, and more.<br /><br />
+            To get started, upload the datasets to the Google Drive folder and press the 
+            "Refresh Data" button at the top. Then, explore this page to view what needs
+            attention right now: Amazon demand insights, high-impact items, the top items
             appearing across datasets, and Amazon-specific spending analytics graphs. To view
-            a dataset more in-depth, click on its tab at the top.
+            a dataset more in-depth, click on its tab at the top. For additional questions or 
+            assistance, try the "Help" tab at the top, or the Chatbot in the lower right corner. 
           </p>
           <div className="mt-6">
             <MetricsGrid data={overallMetricsData} />
@@ -421,9 +422,9 @@ export function Dashboard() {
                       <Button
                         variant="outline"
                         onClick={applyDraftSearch}
-                        className="shrink-0 border-[#2d66ae] bg-[#2d66ae] text-white hover:bg-[#003c6c] hover:border-[#003c6c] hover:text-slate-950"
+                        className="shrink-0 border-[#2d66ae] bg-[#2d66ae] text-white hover:bg-[#003c6c] hover:border-[#003c6c] hover:text-white"
                       >
-                        Apply
+                        Enter
                       </Button>
                     </div>
                   </div>
@@ -505,9 +506,9 @@ export function Dashboard() {
                       <Button
                         variant="outline"
                         onClick={applyDraftMinSpend}
-                        className="shrink-0 border-[#2d66ae] bg-[#2d66ae] text-white hover:bg-[#003c6c] hover:border-[#003c6c] hover:text-slate-950"
+                        className="shrink-0 border-[#2d66ae] bg-[#2d66ae] text-white hover:bg-[#003c6c] hover:border-[#003c6c] hover:text-white"
                       >
-                        Apply
+                        Enter
                       </Button>
                     </div>
                   </div>
@@ -566,7 +567,7 @@ export function Dashboard() {
       <div className="w-full min-w-0 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
         <h2 className="text-xl font-bold text-[#003c6c]">Spending Analytics Graphs</h2>
         <p className="mt-1 mb-5 text-sm text-slate-950">
-          The Spending Analytics Graphs encompass various tools and visualizations to aid in analyzing spending trends:
+          The Spending Analytics Graphs encompass various tools and visualizations to aid in analyzing spending/sales trends:
           Top Purchase Patterns bar chart (w/ drilldown panel), High Impact Items scatterplot, Total Spend Over Time line
           graph, and Total Spend Over Time on specific items line graph (w/ built-in search bar).
         </p>

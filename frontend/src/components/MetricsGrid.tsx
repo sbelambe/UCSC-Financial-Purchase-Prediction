@@ -14,7 +14,7 @@ export function MetricsGrid({ data }: MetricsGridProps) {
       icon: <DollarSign size={24} />,
       label: 'Total Spend',
       value: `$${data.totalSpend.toLocaleString()}`,
-      subtext: 'All purchases',
+      subtext: 'All external purchases',
     },
     {
       icon: <ShoppingCart size={24} />,
