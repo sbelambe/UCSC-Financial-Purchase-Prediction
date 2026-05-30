@@ -4,6 +4,7 @@
 import { useState, useEffect, useMemo, useDeferredValue } from 'react';
 
 import { TabNavigation }          from './TabNavigation';
+import { Zap }                    from 'lucide-react';
 import TopItemsChart              from './TopItemsChart';
 import HighImpactScatterPlot      from './HighImpactScatterPlot';
 import TransactionsOverTimeChart  from './TransactionsOverTimeChart';
@@ -16,6 +17,7 @@ import { ExternalVendorsPanel }   from './ExternalVendorsPanel';
 import { ChartCarousel, type ChartSlide } from './ChartCarousel';
 
 import { FALLBACK_DATASET_SCHEMAS, type DatasetSchema } from '../lib/datasetConfig';
+import { BROAD_CATEGORIES } from '../lib/categoryMapping';
 import {
   TAB_TO_DATASET, DATASET_PREVIEW_CONFIG,
   shouldExcludeFromCharts, isValidMetricName, getAvailablePatternDimensions,
@@ -47,6 +49,7 @@ export function Dashboard() {
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [searchQuery, setSearchQuery]           = useState('');
   const [minSpend, setMinSpend]                 = useState<number>(0);
+  const [draftMinSpend, setDraftMinSpend]       = useState<string>('0');
   const [selectedLimit, setSelectedLimit]       = useState<number>(20);
   const [selectedSortMode, setSelectedSortMode] = useState<'frequency' | 'cost'>('frequency');
   const [highImpactOnly, setHighImpactOnly]     = useState<boolean>(false);
@@ -61,6 +64,15 @@ export function Dashboard() {
   const deferredSearchQuery = useDeferredValue(searchQuery);
   const activeDatasetKey    = TAB_TO_DATASET[activeTab] || 'overall';
   const planCategories      = useMemo(() => new Set(purchasePlan.map((p) => p.item.category)), [purchasePlan]);
+
+  const applyDraftMinSpend = () => {
+    const normalized = draftMinSpend.replace(/[^0-9]/g, '');
+    setMinSpend(normalized ? Number(normalized) : 0);
+  };
+
+  useEffect(() => {
+    setDraftMinSpend(String(minSpend || 0));
+  }, [minSpend]);
 
   // --- Dataset schema ---
   useEffect(() => {
@@ -384,7 +396,7 @@ export function Dashboard() {
               <div className="mt-4">
                 <h3 className="mb-4 text-lg font-semibold text-[#003c6c]">Search and Filter Tools</h3>
 
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-6">
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-8">
                   <div>
                     <Input
                       value={searchQuery}
@@ -452,6 +464,61 @@ export function Dashboard() {
                     </Select>
                   </div>
 
+                  <div>
+                    <label className="mb-1 block text-xs font-semibold uppercase text-[#2d66ae]">Category</label>
+                    <Select value={selectedCategory} onValueChange={(v) => setSelectedCategory(String(v))}>
+                      <SelectTrigger className="border-slate-200 bg-slate-50 text-sm text-slate-950">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {BROAD_CATEGORIES.map((category) => (
+                          <SelectItem key={category.value} value={category.value}>
+                            {category.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="flex flex-col gap-1">
+                    <label className="mb-1 block text-xs font-semibold uppercase text-[#2d66ae]">Min $</label>
+                    <div className="flex gap-2">
+                      <Input
+                        type="text"
+                        inputMode="numeric"
+                        value={draftMinSpend}
+                        onChange={(e) => setDraftMinSpend(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') applyDraftMinSpend();
+                        }}
+                        placeholder="0"
+                        className="border-slate-200 bg-slate-50 text-sm text-slate-950 focus-visible:ring-[#2d66ae]"
+                      />
+                      <Button
+                        variant="outline"
+                        onClick={applyDraftMinSpend}
+                        className="border-[#2d66ae] bg-white text-[#2d66ae] hover:bg-[#2d66ae]/5"
+                      >
+                        Apply
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div className="flex items-end">
+                    <button
+                      type="button"
+                      onClick={() => setHighImpactOnly((prev) => !prev)}
+                      className={`inline-flex items-center gap-1.5 rounded-lg border-2 px-3 py-2 text-sm font-medium transition-all ${
+                        highImpactOnly
+                          ? 'bg-purple-100 border-purple-400 text-purple-700'
+                          : 'bg-white border-gray-300 text-gray-600 hover:border-purple-300'
+                      }`}
+                    >
+                      <Zap size={16} />
+                      High-Impact
+                    </button>
+                  </div>
+
                   <div className="flex items-end gap-2">
                     <Button
                       variant="outline"
@@ -463,6 +530,7 @@ export function Dashboard() {
                         setSelectedLimit(20);
                         setSelectedSortMode('frequency');
                         setMinSpend(0);
+                        setDraftMinSpend('0');
                         setHighImpactOnly(false);
                       }}
                       className="border-slate-200 bg-white text-sm text-slate-950 hover:bg-slate-50"
