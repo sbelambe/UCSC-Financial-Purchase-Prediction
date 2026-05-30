@@ -4,7 +4,6 @@
 import { useState, useEffect, useMemo, useDeferredValue } from 'react';
 
 import { TabNavigation }          from './TabNavigation';
-import { FilterBar }              from './FilterBar';
 import TopItemsChart              from './TopItemsChart';
 import HighImpactScatterPlot      from './HighImpactScatterPlot';
 import TransactionsOverTimeChart  from './TransactionsOverTimeChart';
@@ -29,6 +28,15 @@ import { useSpendSeries }      from '../hooks/useSpendSeries';
 import { useTopPatterns }      from '../hooks/useTopPatterns';
 import { useOverallSummary }   from '../hooks/useOverallSummary';
 import { useDatasetPreviews }  from '../hooks/useDatasetPreviews';
+import { Input } from '../components/ui/input';
+import { Button } from '../components/ui/button';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '../components/ui/select';
 
 
 export function Dashboard() {
@@ -159,8 +167,8 @@ export function Dashboard() {
           onClick={() => setSelectedPatternDimension(dim)}
           className={`rounded-lg px-3 py-1.5 text-sm font-semibold transition-colors ${
             selectedPatternDimension === dim
-              ? 'bg-white text-slate-900 shadow-sm'
-              : 'text-slate-600 hover:bg-white/70 hover:text-slate-900'
+              ? 'bg-[#2d66ae] text-white shadow-sm'
+              : 'text-[#003c6c] hover:bg-slate-200 hover:text-slate-950'
           }`}
         >
           {patternDimensionLabel(dim)}
@@ -175,7 +183,7 @@ export function Dashboard() {
   const chartSlides: ChartSlide[] = [
     {
       title: 'Top Purchase Patterns',
-      subtitle: 'View the leading items, merchants, or categories for the current dataset.',
+      subtitle: 'View the leading items, merchants, or categories for the current dataset based on transaction amount, total spend, or per-item cost.',
       headerActions: patternDimensionControls,
       content: (
         <TopItemsChart
@@ -278,7 +286,7 @@ export function Dashboard() {
         <section className="w-full min-w-0 overflow-hidden rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
           <h2 className="text-xl font-bold text-[#003c6c]">Top Items Across Datasets</h2>
           <p className="mt-1 text-sm text-slate-950">
-            View the most-bought external items and most-sold Bookstore items across all four data
+            View the most-purchased external items and most-sold Bookstore items across all four data
             sources. To dive deeper into a specific dataset, press the "Open" button on its card.
           </p>
           <div className="mt-5 grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-2">
@@ -312,7 +320,7 @@ export function Dashboard() {
                       {items.slice(0, 10).map((item, i) => (
                         <li key={`${dataset.key}-${item.clean_item_name}-${i}`} className="flex min-w-0 items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm">
                           <div className="min-w-0">
-                            <div className="truncate font-semibold text-slate-800" title={item.clean_item_name}>
+                            <div className="truncate font-semibold text-slate-950" title={item.clean_item_name}>
                               {i + 1}. {item.clean_item_name}
                             </div>
                             <div className="text-xs text-slate-500">{Number(item.count || 0).toLocaleString()} purchases</div>
@@ -334,8 +342,9 @@ export function Dashboard() {
         <section className="w-full min-w-0 overflow-hidden rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
           <h2 className="text-xl font-bold text-[#003c6c]">Amazon Spending Analytics Graphs</h2>
           <p className="mt-1 mb-5 text-sm text-slate-950">
-            Visualizations for analyzing spending trends: Top Purchase Patterns, High Impact Items,
-            Spend Over Time, and Item-level Spend Trends.
+            The Spending Analytics Graphs encompass various tools and visualizations to aid in analyzing spending trends.
+            They include a Top Purchase Patterns bar chart with a drilldown panel, a High Impact Items scatterplot, a Total Spend Over Time line
+            graph, and Total Spend Over Time on specific items line graph with a built-in search bar.
           </p>
           <ChartCarousel
             slides={chartSlides}
@@ -356,29 +365,6 @@ export function Dashboard() {
     <div className="w-full min-w-0 space-y-6">
       {stickyNav}
 
-      <div className="my-6 w-full min-w-0">
-        <FilterBar
-          selectedYear={selectedYear}
-          selectedQuarter={selectedQuarter}
-          selectedCategory={selectedCategory}
-          searchQuery={searchQuery}
-          minSpend={minSpend}
-          selectedLimit={selectedLimit}
-          selectedSortMode={selectedSortMode}
-          highImpactOnly={highImpactOnly}
-          availableYears={availableYears}
-          isLiveMode
-          onYearChange={setSelectedYear}
-          onQuarterChange={setSelectedQuarter}
-          onCategoryChange={setSelectedCategory}
-          onSearchChange={setSearchQuery}
-          onMinSpendChange={setMinSpend}
-          onLimitChange={setSelectedLimit}
-          onSortModeChange={setSelectedSortMode}
-          onHighImpactChange={setHighImpactOnly}
-        />
-      </div>
-
       {/* Top items table */}
       <div className="w-full max-w-full min-w-0 overflow-hidden rounded-xl border border-gray-200 bg-white p-8 shadow-sm">
         {isLoadingTopItems ? (
@@ -394,6 +380,98 @@ export function Dashboard() {
                   ? '*Inventory levels approximated based on recent point-of-sale BigQuery data.'
                   : 'Live BigQuery results'}
               </p>
+
+              <div className="mt-4">
+                <h3 className="mb-4 text-lg font-semibold text-[#003c6c]">Search and Filter Tools</h3>
+
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-6">
+                  <div>
+                    <Input
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      placeholder="Search items, merchants, categories..."
+                      className="border-slate-200 bg-slate-50 text-sm font-medium text-slate-950 focus-visible:ring-[#2d66ae]"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="mb-1 block text-xs font-semibold uppercase text-[#2d66ae]">Year</label>
+                    <Select value={selectedYear} onValueChange={(v) => setSelectedYear(String(v))}>
+                      <SelectTrigger className="border-slate-200 bg-slate-50 text-sm text-slate-950">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="All Time">All Time</SelectItem>
+                        {availableYears?.map((y) => (
+                          <SelectItem key={y} value={String(y)}>{String(y)}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <label className="mb-1 block text-xs font-semibold uppercase text-[#2d66ae]">Quarter</label>
+                    <Select value={selectedQuarter} onValueChange={(v) => setSelectedQuarter(String(v) as any)}>
+                      <SelectTrigger className="border-slate-200 bg-slate-50 text-sm text-slate-950">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="All Quarters">All Quarters</SelectItem>
+                        <SelectItem value="Q1">Q1</SelectItem>
+                        <SelectItem value="Q2">Q2</SelectItem>
+                        <SelectItem value="Q3">Q3</SelectItem>
+                        <SelectItem value="Q4">Q4</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <label className="mb-1 block text-xs font-semibold uppercase text-[#2d66ae]">Limit</label>
+                    <Select value={String(selectedLimit)} onValueChange={(v) => setSelectedLimit(Number(v))}>
+                      <SelectTrigger className="border-slate-200 bg-slate-50 text-sm text-slate-950">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="10">10</SelectItem>
+                        <SelectItem value="20">20</SelectItem>
+                        <SelectItem value="50">50</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <label className="mb-1 block text-xs font-semibold uppercase text-[#2d66ae]">Sort</label>
+                    <Select value={selectedSortMode} onValueChange={(v) => setSelectedSortMode(v as any)}>
+                      <SelectTrigger className="border-slate-200 bg-slate-50 text-sm text-slate-950">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="frequency">Frequency</SelectItem>
+                        <SelectItem value="cost">Cost</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="flex items-end gap-2">
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setSearchQuery('');
+                        setSelectedCategory('all');
+                        setSelectedYear('All Time');
+                        setSelectedQuarter('All Quarters');
+                        setSelectedLimit(20);
+                        setSelectedSortMode('frequency');
+                        setMinSpend(0);
+                        setHighImpactOnly(false);
+                      }}
+                      className="border-slate-200 bg-white text-sm text-slate-950 hover:bg-slate-50"
+                    >
+                      Clear Filters
+                    </Button>
+                  </div>
+                </div>
+              </div>
             </div>
             {topItemsError && (
               <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">

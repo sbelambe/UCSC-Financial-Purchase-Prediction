@@ -358,10 +358,10 @@ const ItemSpendTrendChart: React.FC<ItemSpendTrendChartProps> = ({
               <tbody className="divide-y divide-slate-100 bg-white">
                 {(trendData?.matched_items || []).map((item) => (
                   <tr key={`${item.dataset}-${item.item_name}`}>
-                    <td className="max-w-[340px] truncate px-3 py-2 font-medium text-slate-800">
+                    <td className="max-w-[340px] truncate px-3 py-2 font-medium text-slate-950">
                       {item.item_name}
                     </td>
-                    <td className="px-3 py-2 text-slate-500">{datasetLabel(item.dataset)}</td>
+                    <td className="px-3 py-2 text-slate-950">{datasetLabel(item.dataset)}</td>
                     <td className="px-3 py-2 text-right font-semibold text-[#2d66ae]">
                       {formatMetric(item.total_spend, metricType)}
                     </td>

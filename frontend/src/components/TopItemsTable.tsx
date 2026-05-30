@@ -333,21 +333,21 @@ export function TopItemsTable({
         <div className="top-items-table-scroll block max-h-[520px] w-full max-w-full min-w-0 overflow-auto overscroll-contain">
           <table className="top-items-table top-items-table--dynamic min-w-max text-left text-sm border-collapse">
             <thead className="sticky top-0 z-30">
-              <tr className="bg-slate-50 border-b border-gray-200">
-                <th className="p-4 font-semibold text-slate-700 sticky left-0 z-20 bg-slate-50 whitespace-nowrap">#</th>
+              <tr className="sticky top-0 bg-slate-100 text-left text-xs font-semibold uppercase tracking-wide text-[#2d66ae]">
+                <th className="px-4 py-3 text-[#2d66ae] sticky left-0 z-20 bg-slate-100 whitespace-nowrap">#</th>
                 {schema?.dataset === 'overall' && (
-                  <th className="p-4 font-semibold text-slate-700 whitespace-nowrap w-[120px]">Dataset</th>
+                  <th className="px-4 py-3 text-[#2d66ae] whitespace-nowrap w-[120px]">Dataset</th>
                 )}
                 {activeColumns.map((column) => (
                   <th
                     key={column.canonical_name}
-                    className="p-4 font-semibold text-slate-700 whitespace-nowrap w-[200px]"
+                    className="px-4 py-3 text-[#2d66ae] whitespace-nowrap w-[200px]"
                   >
                     {column.canonical_name}
                   </th>
                 ))}
-                <th className="p-4 font-semibold text-slate-700 text-center whitespace-nowrap w-[100px]">Freq.</th>
-                <th className="p-4 font-semibold text-slate-700 text-right whitespace-nowrap w-[150px]">
+                <th className="px-4 py-3 text-[#2d66ae] text-center whitespace-nowrap w-[100px]">Freq.</th>
+                <th className="px-4 py-3 text-[#2d66ae] text-right whitespace-nowrap w-[150px]">
                   {schema?.metric_label || 'Total Metric'}
                 </th>
               </tr>
@@ -364,7 +364,7 @@ export function TopItemsTable({
                   <React.Fragment key={`${item.dataset || 'dataset'}-${item.clean_item_name}-${index}`}>
                     <tr
                       onClick={() => hasDetails && setExpandedRow(isExpanded ? null : index)}
-                      className={`${rowBackgroundClass} ${hasDetails ? 'cursor-pointer hover:bg-slate-100' : ''}`}
+                      className={`${rowBackgroundClass} ${hasDetails ? 'cursor-pointer' : ''} border-b border-slate-100 hover:bg-slate-50`}
                     >
                       <td className={`p-4 text-xs font-mono text-slate-500 sticky left-0 z-10 whitespace-nowrap ${rowBackgroundClass}`}>
                         <span className={`mr-2 inline-block w-3 ${hasDetails ? 'text-blue-500' : ''}`}>
@@ -409,18 +409,18 @@ export function TopItemsTable({
                             </div>
                             <div className="max-h-[320px] w-full max-w-full overflow-auto overscroll-contain">
                               <table className="min-w-max text-left text-sm border-collapse">
-                                <thead className="sticky top-0 z-10 bg-gray-50 border-b border-gray-200">
-                                  <tr>
-                                    {activeColumns.map((column) => (
-                                      <th
-                                        key={column.canonical_name}
-                                        className="p-3 font-semibold text-slate-700 whitespace-nowrap w-[200px]"
-                                      >
-                                        {column.canonical_name}
-                                      </th>
-                                    ))}
-                                  </tr>
-                                </thead>
+                                                <thead className="sticky top-0 z-10 bg-slate-100 border-b border-slate-200 text-xs font-semibold uppercase tracking-wide text-[#2d66ae]">
+                                                  <tr>
+                                                    {activeColumns.map((column) => (
+                                                      <th
+                                                        key={column.canonical_name}
+                                                        className="px-4 py-3 text-[#2d66ae] whitespace-nowrap w-[200px]"
+                                                      >
+                                                        {column.canonical_name}
+                                                      </th>
+                                                    ))}
+                                                  </tr>
+                                                </thead>
                                 <tbody className="divide-y divide-gray-100">
                                   {detailRows.map((detailRow, detailIndex) => (
                                     <tr key={`${item.clean_item_name}-detail-${detailIndex}`} className={detailIndex % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
@@ -462,18 +462,18 @@ export function TopItemsTable({
       <div className="top-items-table-scroll overflow-x-auto">
         <table className="top-items-table top-items-table--summary w-full text-left text-sm table-fixed border-collapse">
           <thead>
-            <tr className="bg-slate-50 border-b border-gray-200 select-none">
-              <th className="p-4 font-semibold text-slate-700 w-[60px]">#</th>
-              <th className="p-4 font-semibold text-slate-700 w-[40%] cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => requestSort('clean_item_name')}>
+            <tr className="sticky top-0 bg-slate-100 text-left text-xs font-semibold uppercase tracking-wide text-[#2d66ae]">
+              <th className="px-4 py-3 text-[#2d66ae] w-[60px]">#</th>
+              <th className="px-4 py-3 text-[#2d66ae] w-[40%] cursor-pointer" onClick={() => requestSort('clean_item_name')}>
                 Item Name {getSortIcon('clean_item_name')}
               </th>
-              <th className="p-4 font-semibold text-slate-700 text-center w-[120px] cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => requestSort('count')}>
+              <th className="px-4 py-3 text-[#2d66ae] text-center w-[120px] cursor-pointer" onClick={() => requestSort('count')}>
                 Freq. {getSortIcon('count')}
               </th>
-              <th className="p-4 font-semibold text-slate-700 text-right w-[160px] cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => requestSort('total_spent')}>
+              <th className="px-4 py-3 text-[#2d66ae] text-right w-[160px] cursor-pointer" onClick={() => requestSort('total_spent')}>
                 {schema?.metric_label || 'Total Spent'} {getSortIcon('total_spent')}
               </th>
-              <th className="p-4 font-semibold text-slate-700 w-[25%] text-center cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => requestSort('vendors')}>
+              <th className="px-4 py-3 text-[#2d66ae] w-[25%] text-center cursor-pointer" onClick={() => requestSort('vendors')}>
                 {schema?.group_label || 'Vendors'} {getSortIcon('vendors')}
               </th>
             </tr>
@@ -491,11 +491,7 @@ export function TopItemsTable({
                 <React.Fragment key={index}>
                   <tr 
                     onClick={() => hasMultipleVendors && setExpandedRow(isExpanded ? null : index)}
-                    className={`group transition-colors ${
-                      item.is_high_impact 
-                        ? 'bg-amber-50 hover:bg-amber-100/60' 
-                        : 'odd:bg-white even:bg-slate-50/20 hover:bg-slate-100'
-                    } ${hasMultipleVendors ? 'cursor-pointer' : ''}`}
+                    className={`border-b border-slate-100 hover:bg-slate-50 transition-colors ${hasMultipleVendors ? 'cursor-pointer' : ''} ${item.is_high_impact ? 'bg-amber-50 hover:bg-amber-100/60' : ''}`}
                   >
                     <td className="p-4 text-gray-400 font-mono text-xs text-left">
                       <span className={`mr-2 inline-block w-3 ${hasMultipleVendors ? 'text-blue-500' : ''}`}>
