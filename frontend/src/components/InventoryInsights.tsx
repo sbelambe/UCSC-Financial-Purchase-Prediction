@@ -389,6 +389,7 @@ export function InventoryInsights({ activeTab, onAddToPlan, planCategories }: Pr
       <ItemHistoryDrawer
         item={selectedItem}
         devMode={devMode}
+        datasetType={isAmazon ? 'amazon' : 'bookstore'}
         onClose={() => setSelectedItem(null)}
       />
 

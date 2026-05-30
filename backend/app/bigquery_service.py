@@ -2113,16 +2113,28 @@ def fetch_amazon_forecast_from_bigquery(time_period: str, dev_mode: bool = False
 
 
 @lru_cache(maxsize=50)
-def fetch_item_history(item_name: str, dev_mode: bool = False):
+def fetch_item_history(item_name: str, dev_mode: bool = False, dataset_type: str = "bookstore"):
     """
-    Returns monthly aggregated purchase quantities for a single bookstore item.
+    Returns monthly aggregated purchase quantities for an item.
+    Supports both Bookstore and Amazon datasets.
     Used to render the time-series chart in the ItemHistoryDrawer.
+    
+    Args:
+        item_name: The item description/name to search for
+        dev_mode: Whether to use dev data tables
+        dataset_type: Either "bookstore" or "amazon"
     """
     from google.cloud import bigquery as bq_lib
     bq_project = os.getenv("VITE_FIREBASE_PROJECT_ID", "")
     bq_dataset = os.getenv("BIGQUERY_DATASET", "")
     suffix = "_dev" if dev_mode else ""
-    data_table = f"{bq_project}.{bq_dataset}.bookstore_cleaned{suffix}"
+    
+    # Select table and column names based on dataset type
+    if dataset_type == "amazon":
+        data_table = f"{bq_project}.{bq_dataset}.amazon_cleaned{suffix}"
+    else:  # bookstore (default)
+        data_table = f"{bq_project}.{bq_dataset}.bookstore_cleaned{suffix}"
+    
     col_date = "Transaction_Date" if dev_mode else "`Transaction Date`"
     col_item = "Item_Description"  if dev_mode else "`Item Description`"
     col_qty  = "SAFE_CAST(Quantity AS INT64)" if dev_mode else "Quantity"

@@ -39,11 +39,12 @@ def get_amazon_insights(
 
 @router.get("/item-history")
 def get_item_history(
-    item_name: str = Query(..., description="Exact Item Description from bookstore_cleaned"),
+    item_name: str = Query(..., description="Exact Item Description"),
     dev_mode: bool = Query(False),
+    dataset_type: str = Query("bookstore", description="Either 'bookstore' or 'amazon'"),
 ):
     try:
-        history = fetch_item_history(item_name, dev_mode)
+        history = fetch_item_history(item_name, dev_mode, dataset_type)
         return {"item_name": item_name, "history": history}
     except Exception as e:
         print(f"[ERROR] Item History ({item_name}): {e}")

@@ -562,8 +562,14 @@ export function Dashboard() {
         )}
       </div>
 
-      {/* Chart carousel + ML insights */}
-      <div className="w-full min-w-0 rounded-xl border border-gray-200 bg-white p-8 shadow-sm">
+      {/* Spending analytics charts */}
+      <div className="w-full min-w-0 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+        <h2 className="text-xl font-bold text-[#003c6c]">Spending Analytics Graphs</h2>
+        <p className="mt-1 mb-5 text-sm text-slate-950">
+          The Spending Analytics Graphs encompass various tools and visualizations to aid in analyzing spending trends:
+          Top Purchase Patterns bar chart (w/ drilldown panel), High Impact Items scatterplot, Total Spend Over Time line
+          graph, and Total Spend Over Time on specific items line graph (w/ built-in search bar).
+        </p>
         <ChartCarousel
           slides={chartSlides}
           activeSlide={activeChartSlide}
@@ -571,22 +577,23 @@ export function Dashboard() {
           isLoading={isLoadingTopPatterns}
           error={displayedPatternError}
         />
-
-        {(activeTab === 'Amazon' || activeTab === 'Bookstore') && (
-          <div className="mt-8 space-y-4">
-            <InventoryInsights
-              activeTab={activeTab}
-              onAddToPlan={handleAddToPlan}
-              planCategories={planCategories}
-            />
-            <PurchasePlan
-              items={purchasePlan.filter((p) => p.dataset === activeDatasetKey)}
-              onRemove={(cat) => setPurchasePlan((prev) => prev.filter((p) => p.item.category !== cat))}
-              onClearAll={() => setPurchasePlan((prev) => prev.filter((p) => p.dataset !== activeDatasetKey))}
-            />
-          </div>
-        )}
       </div>
+
+      {/* ML insights + purchase plan */}
+      {(activeTab === 'Amazon' || activeTab === 'Bookstore') && (
+        <div className="space-y-4">
+          <InventoryInsights
+            activeTab={activeTab}
+            onAddToPlan={handleAddToPlan}
+            planCategories={planCategories}
+          />
+          <PurchasePlan
+            items={purchasePlan.filter((p) => p.dataset === activeDatasetKey)}
+            onRemove={(cat) => setPurchasePlan((prev) => prev.filter((p) => p.item.category !== cat))}
+            onClearAll={() => setPurchasePlan((prev) => prev.filter((p) => p.dataset !== activeDatasetKey))}
+          />
+        </div>
+      )}
     </div>
   );
 }
