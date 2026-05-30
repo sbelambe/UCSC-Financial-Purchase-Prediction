@@ -185,8 +185,6 @@ const TopItemsChart = ({
                 }}
               />
 
-              <Legend wrapperStyle={{ paddingTop: '10px' }} />
-
               <Bar
                 dataKey={metric === 'count' ? "count" : (metric === 'cost_per_item' ? 'cost_per_item' : "total_spent")}
                 name={

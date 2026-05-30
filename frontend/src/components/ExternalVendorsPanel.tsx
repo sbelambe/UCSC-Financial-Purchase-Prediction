@@ -87,7 +87,7 @@ export function ExternalVendorsPanel({ limit = 10 }: Props) {
             <h2 className="text-xl font-bold text-[#003c6c]">Top External Vendors</h2>
           </div>
           <p className="mt-1 text-sm text-slate-950">
-            Frequent vendors identified across Amazon, CruzBuy, and OneCard/ProCard purchase history.
+            Top-spend vendors identified across Amazon, CruzBuy, and OneCard/ProCard purchase history.
           </p>
         </div>
         {!loading && !error && vendors.length > 0 && (
