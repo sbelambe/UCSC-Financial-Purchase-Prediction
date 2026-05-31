@@ -21,15 +21,13 @@ interface Message {
 interface GuidedQuestionGroup {
   id: string;
   title: string;
-  description: string;
   questions: string[];
 }
 
 const GUIDED_QUESTION_GROUPS: GuidedQuestionGroup[] = [
   {
     id: 'past',
-    title: 'Questions about the past',
-    description: 'Historical purchase patterns and trend discovery.',
+    title: 'Questions About the Past',
     questions: [
       'What items were bought the most from this vendor?',
       'What items were bought the most in the spring quarter?',
@@ -38,8 +36,7 @@ const GUIDED_QUESTION_GROUPS: GuidedQuestionGroup[] = [
   },
   {
     id: 'vendor',
-    title: 'Vendor questions',
-    description: 'Demand patterns tied to a specific vendor.',
+    title: 'Vendor Questions',
     questions: [
       'What items will be bought the most from this vendor?',
       'Which items from this vendor are likely to repeat next quarter?',
@@ -48,8 +45,7 @@ const GUIDED_QUESTION_GROUPS: GuidedQuestionGroup[] = [
   },
   {
     id: 'seasonal',
-    title: 'Seasonal questions',
-    description: 'Quarterly and seasonal forecasting questions.',
+    title: 'Seasonal Questions',
     questions: [
       'What items are bought the most in the spring quarter?',
       'How does demand change between spring and fall quarters?',
@@ -58,8 +54,7 @@ const GUIDED_QUESTION_GROUPS: GuidedQuestionGroup[] = [
   },
   {
     id: 'bookstore',
-    title: 'Bookstore stocking questions',
-    description: 'Inventory and stocking frequency guidance.',
+    title: 'Bookstore Stocking Questions',
     questions: [
       'What items in the bookstore do not need to be stocked as often?',
       'Which bookstore items have low turnover and can be stocked less frequently?',
@@ -199,11 +194,11 @@ export function Chatbot({
             style={{ backgroundColor: '#003c6c' }}
           >
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ backgroundColor: '#fdc700' }}>
-                <Bot size={20} style={{ color: '#003c6c' }} />
+              <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ backgroundColor: '#2d66ae' }}>
+                <Bot size={20} style={{ color: 'white' }} />
               </div>
               <div>
-                <h3 className="font-semibold">AI Sales Assistant</h3>
+                <h3 className="font-semibold">SlugSmart Assistant</h3>
                 <p className="text-xs opacity-90">Online</p>
               </div>
             </div>
@@ -216,7 +211,7 @@ export function Chatbot({
           </div>
 
           <div className="border-b border-gray-100 bg-slate-50 px-4 py-3">
-            <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-600">
+            <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-[#2d66ae]">
               <Sparkles size={14} />
               Guided questions
             </div>
@@ -224,8 +219,7 @@ export function Chatbot({
               {suggestedQuestions.map((group) => (
                 <div key={group.id} className="space-y-2">
                   <div>
-                    <p className="text-sm font-semibold text-slate-800">{group.title}</p>
-                    <p className="text-xs text-slate-500">{group.description}</p>
+                    <p className="text-sm font-semibold text-[#003c6c]">{group.title}</p>
                   </div>
                   <div className="flex flex-wrap gap-2">
                     {group.questions.map((question) => (
@@ -233,7 +227,7 @@ export function Chatbot({
                         key={question}
                         type="button"
                         onClick={() => void handleSend(question)}
-                        className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-left text-xs text-slate-700 transition hover:border-[#003c6c] hover:text-[#003c6c]"
+                        className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-left text-xs text-slate-950 transition hover:border-[#2d66ae] hover:text-[#2d66ae]"
                       >
                         {question}
                       </button>
@@ -255,7 +249,7 @@ export function Chatbot({
                   className={`max-w-[80%] rounded-2xl px-4 py-2 ${
                     message.sender === 'user'
                       ? 'text-white'
-                      : 'bg-gray-100 text-gray-800'
+                      : 'bg-[#2d66ae] text-white border border-[#2d66ae]'
                   }`}
                   style={message.sender === 'user' ? { backgroundColor: '#003c6c' } : {}}
                 >
@@ -278,7 +272,7 @@ export function Chatbot({
                 onChange={(e) => setInputValue(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleSend()}
                 placeholder="Ask about vendor demand, spring quarter trends, or bookstore stocking..."
-                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-opacity-50"
+                className="flex-1 px-4 py-2 border border-gray-300 text-sm test-slate-500 rounded-lg focus:outline-none focus:ring-2 focus:ring-opacity-50"
                 style={{ outlineColor: '#003c6c' }}
               />
               <button
@@ -290,7 +284,7 @@ export function Chatbot({
                 <Send size={20} />
               </button>
             </div>
-            <p className="text-xs text-gray-500 mt-2 text-center">
+            <p className="text-xs text-slate-950 mt-2 text-center">
               Gemini guidance is used when configured; otherwise the chatbot falls back to curated guidance.
             </p>
           </div>
