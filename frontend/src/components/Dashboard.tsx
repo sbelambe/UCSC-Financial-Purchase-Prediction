@@ -203,7 +203,7 @@ export function Dashboard() {
 
   const chartSlides: ChartSlide[] = [
     {
-      title: 'Top Purchase Patterns',
+      title: 'Top Transaction Patterns',
       subtitle: 'View the leading items, merchants, or categories for the current dataset based on transaction amount, total spend, or per-item cost.',
       headerActions: patternDimensionControls,
       content: (
@@ -220,7 +220,7 @@ export function Dashboard() {
     },
     {
       title: 'High Impact Items',
-      subtitle: 'Compare high-frequency and high-spend purchases.',
+      subtitle: 'Compare high-frequency and high-spend/sold purchases.',
       headerActions: null,
       content: (
         <HighImpactScatterPlot
@@ -232,7 +232,7 @@ export function Dashboard() {
     },
     {
       title: 'Total Spend Over Time',
-      subtitle: 'Track spending trends across the selected time period.',
+      subtitle: 'Track spending/revenue trends across the selected time period.',
       headerActions: null,
       content: (
         <TransactionsOverTimeChart
@@ -246,7 +246,7 @@ export function Dashboard() {
     },
     {
       title: 'Item Spend Trends',
-      subtitle: 'Search for an item keyword and track its spending trends over time.',
+      subtitle: 'Search for an item keyword and track its spending/revenue trends over time.',
       headerActions: null,
       content: (
         <ItemSpendTrendChart
@@ -364,9 +364,9 @@ export function Dashboard() {
         <section className="w-full min-w-0 overflow-hidden rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
           <h2 className="text-xl font-bold text-[#003c6c]">Amazon Spending Analytics Graphs</h2>
           <p className="mt-1 mb-5 text-sm text-slate-950">
-            The Spending Analytics Graphs encompass various tools and visualizations to aid in analyzing spending trends:
-            Top Purchase Patterns bar chart (w/ drilldown panel), High Impact Items scatterplot, Total Spend Over Time line
-            graph, and Total Spend Over Time on specific items line graph (w/ built-in search bar).
+          The Spending Analytics Graphs encompass various tools and visualizations to aid in analyzing spending trends 
+          for the Amazon dataset: Top Purchase Patterns bar chart (w/ drilldown panel), High Impact Items scatterplot, Total 
+          Spend Over Time line graph, and Total Spend Over Time on specific items line graph (w/ built-in search bar).
           </p>
           <ChartCarousel
             slides={chartSlides}
@@ -399,7 +399,7 @@ export function Dashboard() {
               </h2>
               <p className="mt-1 mb-5 text-sm text-slate-950">
                 {activeTab === 'Bookstore'
-                  ? '*Inventory levels approximated based on recent point-of-sale BigQuery data.'
+                  ? 'Live BigQuery results of most-sold campus Bookstore items (sorted by purchase frequency by default). Use the search and filter buttons below to limit the results by year, quarter, category, and more. Press the "High-Impact" button to display only high-sold items. *Inventory levels approximated based on recent point-of-sale BigQuery data.'
                   : 'Live BigQuery results of most-purchased external items for the current procurement dataset (sorted by purchase frequency by default). Use the search and filter buttons below to limit the results by year, quarter, category, and more. Press the "High-Impact" button to display only high-spend items.'}
               </p>
 
@@ -565,10 +565,10 @@ export function Dashboard() {
 
       {/* Spending analytics charts */}
       <div className="w-full min-w-0 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h2 className="text-xl font-bold text-[#003c6c]">Spending Analytics Graphs</h2>
+        <h2 className="text-xl font-bold text-[#003c6c]">Transaction Analytics Graphs</h2>
         <p className="mt-1 mb-5 text-sm text-slate-950">
-          The Spending Analytics Graphs encompass various tools and visualizations to aid in analyzing spending/sales trends:
-          Top Purchase Patterns bar chart (w/ drilldown panel), High Impact Items scatterplot, Total Spend Over Time line
+          The Transaction Analytics Graphs encompass various tools and visualizations to aid in analyzing trends:
+          Top Transaction Patterns bar chart (w/ drilldown panel), High Impact Items scatterplot, Total Spend Over Time line
           graph, and Total Spend Over Time on specific items line graph (w/ built-in search bar).
         </p>
         <ChartCarousel

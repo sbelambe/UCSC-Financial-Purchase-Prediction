@@ -116,10 +116,10 @@ function SummaryCard({
   detail?: string;
 }) {
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-      <div className="text-sm font-medium text-[#2d66ae]">{label}</div>
+    <div className="bg-slate-50 from-white to-gray-50 rounded-lg border-2 p-4 shadow-sm">
+      <div className="text-sm font-semibold  text-[#2d66ae]">{label}</div>
       <div className="mt-2 truncate text-2xl font-bold text-slate-900">{value}</div>
-      {detail && <div className="mt-1 truncate text-sm text-slate-600">{detail}</div>}
+      {detail && <div className="mt-1 truncate text-sm text-slate-500">{detail}</div>}
     </div>
   );
 }
@@ -134,19 +134,18 @@ function RankedTable({
   metricType: MetricType;
 }) {
   return (
-    <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+    <section className="bg-slate-50 from-white to-gray-50 rounded-lg border-2 p-4 shadow-sm">
       <h3 className="text-lg font-bold text-[#003c6c]">{title}</h3>
-      <p className="mt-1 text-sm text-slate-600">Top performers for the selected reporting period.</p>
-      <div className="mt-4 overflow-x-auto">
+      <div className="mt-4 overflow-x-auto border border-slate-200 rounded-lg bg-white">
         <table className="w-full min-w-[420px] text-left text-sm">
-          <thead className="border-b border-slate-200 text-xs uppercase text-[#2d66ae]">
+          <thead className="border-b border-slate-200 bg-slate-100 text-xs uppercase text-[#2d66ae]">
             <tr>
-              <th className="py-2 pr-4 font-semibold">Name</th>
+              <th className="py-2 pl-4 pr-4 font-semibold">Name</th>
               <th className="py-2 pr-4 text-right font-semibold">Transactions</th>
-              <th className="py-2 text-right font-semibold">Total</th>
+              <th className="py-2 pr-4 text-right font-semibold">Total</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100">
+          <tbody className="divide-y bg-white divide-slate-100">
             {rows.length === 0 ? (
               <tr>
                 <td className="py-4 text-slate-500" colSpan={3}>
@@ -156,11 +155,11 @@ function RankedTable({
             ) : (
               rows.map((row) => (
                 <tr key={`${title}-${row.name}`}>
-                  <td className="max-w-[320px] truncate py-3 pr-4 font-medium text-slate-800">
+                  <td className="max-w-[320px] truncate py-3 pl-4 pr-4 font-medium text-slate-800">
                     {row.name}
                   </td>
                   <td className="py-3 pr-4 text-right text-slate-600">{formatNumber(row.count)}</td>
-                  <td className="py-3 text-right font-semibold text-slate-900">
+                  <td className="py-3 pr-4 text-right font-semibold text-slate-900">
                     {formatMetric(row.total_spent, metricType)}
                   </td>
                 </tr>
@@ -234,23 +233,20 @@ export default function Reports() {
   );
 
   return (
-    <div className="w-full min-w-0 space-y-6">
+    <div className="w-full min-w-0 overflow-hidden rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
       <section className="space-y-4">
-        <div className="flex items-center gap-2 text-sm font-semibold text-[#003c6c]">
-          <FileText size={18} />
-          Summary Reports
-        </div>
         <div>
-          <h1 className="text-3xl font-bold text-[#003c6c]">Generate and Export Reports</h1>
-          <p className="mt-3 text-slate-600">
+          <h1 className="text-3xl font-bold text-[#003c6c]">Periodic Reports</h1>
+          <p className="mt-2 text-sm leading-6 text-slate-95">
             Generate and export weekly or monthly transaction summary reports for Amazon, CruzBuy,
-            OneCard, Bookstore, or combined procurement activity. Reports provide key metrics, top
+            OneCard, Bookstore, or combined dataset activity. Reports provide key metrics, top
             items, leading merchants, and category trends for the selected reporting period.
+            The default report is the most recent month for Amazon).<br /> ⠀
           </p>
         </div>
       </section>
 
-      <section className="space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-6">
+      <section className="bg-slate-50 from-white to-gray-50 rounded-lg border-2 p-4">
         <h2 className="text-lg font-semibold text-[#003c6c]">Report Configuration</h2>
         <div className="flex flex-wrap items-end gap-3">
           <label className="space-y-1">
@@ -289,8 +285,8 @@ export default function Reports() {
             <span className="text-xs font-semibold uppercase text-[#2d66ae]">
               {period === 'month' ? 'Month' : 'Week'}
             </span>
-            <div className="flex h-10 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3">
-              <CalendarDays size={16} className="text-slate-500" />
+            <div className="flex h-10 min-w-36 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3">
+              <CalendarDays size={16} className="text-[#003c6c]" />
               <input
                 type={period}
                 value={date}
@@ -324,10 +320,10 @@ export default function Reports() {
         </div>
       )}
 
-      <section className="space-y-4">
+      <section className="space-y-4 mt-6">
         <div>
           <h2 className="text-lg font-semibold text-[#003c6c]">Report Overview</h2>
-          <p className="mt-1 text-sm text-slate-600">
+          <p className="mt-1 text-sm text-slate-950">
             Key metrics and highlights for the selected reporting period.
           </p>
         </div>
@@ -363,7 +359,7 @@ export default function Reports() {
         </div>
       </section>
 
-      <section className="space-y-4">
+      <section className="space-y-4 mt-6">
         <div>
           <h2 className="text-lg font-semibold text-[#003c6c]">Report Rankings</h2>
           <p className="text-sm text-slate-600">
