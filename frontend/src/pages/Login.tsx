@@ -53,21 +53,18 @@ try {
 };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col justify-center items-center p-4">
-      <div className="max-w-md w-full bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
+    <div className="min-h-screen flex flex-col justify-center items-center p-4" style={{ backgroundColor: '#003c6c' }}>
+      <div className="max-w-md w-full bg-white rounded-xl shadow-md border border-slate-200 overflow-hidden">
         
         {/* Header Section */}
-        <div className="p-8 text-center bg-gray-50 border-b border-gray-100">
-          <div 
-            className="w-20 h-20 bg-white rounded-full flex items-center justify-center mx-auto mb-4 border-4 shadow-sm"
-            style={{ borderColor: '#003c6c' }}
+        <div className="p-8 text-center bg-slate-50 border-b border-gray-100">
+          <div
+            className="w-20 h-20 bg-white rounded-full flex items-center justify-center mx-auto mb-2 shadow-sm overflow-hidden"
           >
-            <span className="text-2xl font-bold" style={{ color: '#003c6c' }}>
-              UCSC
-            </span>
+            <img src="/slugsmart.png" alt="SlugSmart logo" className="w-full h-full object-cover" />
           </div>
-          <h2 className="text-2xl font-bold text-gray-800">Finance Dashboard</h2>
-          <p className="text-sm text-gray-500 mt-2">
+          <h2 className="text-4xl font-bold text-[#003c6c]">SlugSmart</h2>
+          <p className="text-sm text-slate-950 mt-1">
             Secure access for Staff & Faculty
           </p>
         </div>

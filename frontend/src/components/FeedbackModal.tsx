@@ -74,24 +74,30 @@ export function FeedbackModal({ item, onClose }: FeedbackModalProps) {
         }}>
         <DialogContent>
             <DialogHeader>
-            <DialogTitle>Report Prediction Issue</DialogTitle>
-            <DialogDescription className="sr-only">
+            <DialogTitle className="text-lg font-semibold" style={{ color: '#003c6c' }}>
+                Report Prediction Issue</DialogTitle>
+            <DialogDescription className="text-sm text-slate-950">
                 Submit correction feedback for the machine learning inventory forecast.
             </DialogDescription>
             </DialogHeader>
             
             {item && (
-            <div className="py-4 space-y-4">
-                <p className="text-sm text-slate-600">
-                Flagging prediction for <strong>{item.category}</strong>. 
+            <div className="space-y-4">
+                <p className="text-sm text-slate-950">
+                Flagging prediction for <strong className = "text-[#2d66ae]">{item.category}</strong>. 
                 (Target: {item.predicted_demand}, Stock: {item.current_stock})
                 </p>
                 <Textarea 
                 placeholder="Why is this prediction misleading? (e.g., Seasonal change, discontinued item...)"
                 value={comment}
                 onChange={(e) => setComment(e.target.value)}
+                className="placeholder-slate-200"
                 />
-                <Button onClick={handleSubmit} disabled={isSubmitting || !comment}>
+                <Button 
+                  onClick={handleSubmit} 
+                  disabled={isSubmitting || !comment}
+                  className="bg-[#003c6c] border border-[#003c6c] text-white hover:bg-[#002a4d] disabled:opacity-60"
+                >
                 {isSubmitting ? "Submitting..." : "Submit Feedback"}
                 </Button>
             </div>

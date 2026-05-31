@@ -21,6 +21,7 @@ interface ItemHistoryDrawerProps {
   item: InsightRow | null;
   devMode: boolean;
   onClose: () => void;
+  datasetType?: 'bookstore' | 'amazon';
 }
 
 interface HistoryPoint {
@@ -71,12 +72,12 @@ function MetricTile({ label, value, sub }: { label: string; value: string | numb
   );
 }
 
-export function ItemHistoryDrawer({ item, devMode, onClose }: ItemHistoryDrawerProps) {
+export function ItemHistoryDrawer({ item, devMode, onClose, datasetType = 'bookstore' }: ItemHistoryDrawerProps) {
   const { data, isLoading } = useQuery<{ item_name: string; history: HistoryPoint[] }>({
-    queryKey: ['item-history', item?.category, devMode],
+    queryKey: ['item-history', item?.category, devMode, datasetType],
     queryFn: async ({ signal }) => {
       if (!item) throw new Error('No item selected');
-      const url = `/api/analytics/item-history?item_name=${encodeURIComponent(item.category)}&dev_mode=${devMode}`;
+      const url = `/api/analytics/item-history?item_name=${encodeURIComponent(item.category)}&dev_mode=${devMode}&dataset_type=${datasetType}`;
       const res = await fetch(url, { signal });
       if (!res.ok) throw new Error('Failed to load history');
       return res.json();

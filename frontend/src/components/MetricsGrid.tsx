@@ -14,7 +14,7 @@ export function MetricsGrid({ data }: MetricsGridProps) {
       icon: <DollarSign size={24} />,
       label: 'Total Spend',
       value: `$${data.totalSpend.toLocaleString()}`,
-      subtext: 'All purchases',
+      subtext: 'All external purchases',
     },
     {
       icon: <ShoppingCart size={24} />,
@@ -30,7 +30,7 @@ export function MetricsGrid({ data }: MetricsGridProps) {
     },
     {
       icon: <Package size={24} />,
-      label: 'Top Vendor Transactions',
+      label: 'Top Vendor by Transactions',
       value: data.topVendorTransactions.name,
       subtext: `${data.topVendorTransactions.count} transactions`,
     },

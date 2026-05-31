@@ -61,8 +61,8 @@ const DATASET_OPTIONS: { key: DatasetKey; label: string }[] = [
 ];
 
 const SEARCH_OPTIONS: { value: SearchField; label: string }[] = [
-  { value: 'all', label: 'All columns' },
-  { value: 'item', label: 'Item name/details' },
+  { value: 'all', label: 'All Columns' },
+  { value: 'item', label: 'Item' },
   { value: 'merchant', label: 'Merchant' },
   { value: 'category', label: 'Category' },
 ];
@@ -296,10 +296,10 @@ export default function DatasetExplorer() {
               </label>
               <Select value={categoryFilter} onValueChange={setCategoryFilter}>
                 <SelectTrigger className="border-slate-200 bg-slate-50 text-sm text-slate-950">
-                  <SelectValue placeholder="All categories" />
+                  <SelectValue placeholder="All Categories" />
                 </SelectTrigger>
                 <SelectContent className="max-h-80 overflow-y-auto">
-                  <SelectItem value="all">All categories</SelectItem>
+                  <SelectItem value="all">All Categories</SelectItem>
                   {(data?.available_filters.categories || []).map((category) => (
                     <SelectItem key={category} value={category}>
                       {category}

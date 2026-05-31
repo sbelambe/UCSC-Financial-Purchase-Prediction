@@ -116,8 +116,8 @@ function SummaryCard({
   detail?: string;
 }) {
   return (
-    <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-      <div className="text-sm font-medium text-slate-500">{label}</div>
+    <div className="bg-slate-50 from-white to-gray-50 rounded-lg border-2 p-4 shadow-sm">
+      <div className="text-sm font-semibold  text-[#2d66ae]">{label}</div>
       <div className="mt-2 truncate text-2xl font-bold text-slate-900">{value}</div>
       {detail && <div className="mt-1 truncate text-sm text-slate-500">{detail}</div>}
     </div>
@@ -134,18 +134,18 @@ function RankedTable({
   metricType: MetricType;
 }) {
   return (
-    <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-      <h2 className="text-lg font-bold text-slate-900">{title}</h2>
-      <div className="mt-4 overflow-x-auto">
+    <section className="bg-slate-50 from-white to-gray-50 rounded-lg border-2 p-4 shadow-sm">
+      <h3 className="text-lg font-bold text-[#003c6c]">{title}</h3>
+      <div className="mt-4 overflow-x-auto border border-slate-200 rounded-lg bg-white">
         <table className="w-full min-w-[420px] text-left text-sm">
-          <thead className="border-b border-slate-200 text-xs uppercase text-slate-500">
+          <thead className="border-b border-slate-200 bg-slate-100 text-xs uppercase text-[#2d66ae]">
             <tr>
-              <th className="py-2 pr-4 font-semibold">Name</th>
+              <th className="py-2 pl-4 pr-4 font-semibold">Name</th>
               <th className="py-2 pr-4 text-right font-semibold">Transactions</th>
-              <th className="py-2 text-right font-semibold">Total</th>
+              <th className="py-2 pr-4 text-right font-semibold">Total</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100">
+          <tbody className="divide-y bg-white divide-slate-100">
             {rows.length === 0 ? (
               <tr>
                 <td className="py-4 text-slate-500" colSpan={3}>
@@ -155,11 +155,11 @@ function RankedTable({
             ) : (
               rows.map((row) => (
                 <tr key={`${title}-${row.name}`}>
-                  <td className="max-w-[320px] truncate py-3 pr-4 font-medium text-slate-800">
+                  <td className="max-w-[320px] truncate py-3 pl-4 pr-4 font-medium text-slate-800">
                     {row.name}
                   </td>
                   <td className="py-3 pr-4 text-right text-slate-600">{formatNumber(row.count)}</td>
-                  <td className="py-3 text-right font-semibold text-slate-900">
+                  <td className="py-3 pr-4 text-right font-semibold text-slate-900">
                     {formatMetric(row.total_spent, metricType)}
                   </td>
                 </tr>
@@ -233,78 +233,78 @@ export default function Reports() {
   );
 
   return (
-    <div className="w-full min-w-0 space-y-6">
-      <section className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
-        <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
-          <div>
-            <div className="flex items-center gap-2 text-sm font-semibold text-slate-500">
-              <FileText size={18} />
-              Summary Reports
+    <div className="w-full min-w-0 overflow-hidden rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+      <section className="space-y-4">
+        <div>
+          <h1 className="text-3xl font-bold text-[#003c6c]">Periodic Reports</h1>
+          <p className="mt-2 text-sm leading-6 text-slate-95">
+            Generate and export weekly or monthly transaction summary reports for Amazon, CruzBuy,
+            OneCard, Bookstore, or combined dataset activity. Reports provide key metrics, top
+            items, leading merchants, and category trends for the selected reporting period.
+            The default report is the most recent month for Amazon).<br /> ⠀
+          </p>
+        </div>
+      </section>
+
+      <section className="bg-slate-50 from-white to-gray-50 rounded-lg border-2 p-4">
+        <h2 className="text-lg font-semibold text-[#003c6c]">Report Configuration</h2>
+        <div className="flex flex-wrap items-end gap-3">
+          <label className="space-y-1">
+            <span className="text-xs font-semibold uppercase text-[#2d66ae]">Dataset</span>
+            <Select value={dataset} onValueChange={(value) => setDataset(value as ReportDataset)}>
+              <SelectTrigger className="h-10 min-w-40 border-slate-200 bg-white">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {datasetOptions.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </label>
+
+          <label className="space-y-1">
+            <span className="text-xs font-semibold uppercase text-[#2d66ae]">Period</span>
+            <Select value={period} onValueChange={(value) => setPeriod(value as ReportPeriod)}>
+              <SelectTrigger className="h-10 min-w-36 border-slate-200 bg-white">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {periodOptions.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </label>
+
+          <label className="space-y-1">
+            <span className="text-xs font-semibold uppercase text-[#2d66ae]">
+              {period === 'month' ? 'Month' : 'Week'}
+            </span>
+            <div className="flex h-10 min-w-36 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3">
+              <CalendarDays size={16} className="text-[#003c6c]" />
+              <input
+                type={period}
+                value={date}
+                onChange={(event) => setDate(event.target.value)}
+                className="w-40 bg-transparent text-sm outline-none"
+              />
             </div>
-            <h1 className="mt-2 text-2xl font-bold text-slate-900">Period Summary Report</h1>
-            <p className="mt-1 text-sm text-slate-500">
-              Review weekly or monthly purchasing totals and export the visible report as CSV.
-            </p>
-          </div>
+          </label>
 
-          <div className="flex flex-wrap items-end gap-3">
-            <label className="space-y-1">
-              <span className="text-xs font-semibold uppercase text-slate-500">Dataset</span>
-              <Select value={dataset} onValueChange={(value) => setDataset(value as ReportDataset)}>
-                <SelectTrigger className="h-10 min-w-40">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {datasetOptions.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </label>
-
-            <label className="space-y-1">
-              <span className="text-xs font-semibold uppercase text-slate-500">Period</span>
-              <Select value={period} onValueChange={(value) => setPeriod(value as ReportPeriod)}>
-                <SelectTrigger className="h-10 min-w-36">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {periodOptions.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </label>
-
-            <label className="space-y-1">
-              <span className="text-xs font-semibold uppercase text-slate-500">
-                {period === 'month' ? 'Month' : 'Week'}
-              </span>
-              <div className="flex h-10 items-center gap-2 rounded-lg border border-slate-300 bg-white px-3">
-                <CalendarDays size={16} className="text-slate-500" />
-                <input
-                  type={period}
-                  value={date}
-                  onChange={(event) => setDate(event.target.value)}
-                  className="w-40 bg-transparent text-sm outline-none"
-                />
-              </div>
-            </label>
-
-            <Button
-              type="button"
-              onClick={() => report && downloadCsv(report)}
-              disabled={!report || isLoading}
-              className="h-10 bg-[#003c6c] text-white hover:bg-[#003c6c]/90"
-            >
-              <Download size={16} />
-              Export CSV
-            </Button>
-          </div>
+          <Button
+            type="button"
+            onClick={() => report && downloadCsv(report)}
+            disabled={!report || isLoading}
+            className="h-10 border border-[#2d66ae] bg-[#2d66ae] text-white hover:bg-[#003c6c]"
+          >
+            <Download size={16} />
+            Export CSV
+          </Button>
         </div>
       </section>
 
@@ -320,7 +320,14 @@ export default function Reports() {
         </div>
       )}
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <section className="space-y-4 mt-6">
+        <div>
+          <h2 className="text-lg font-semibold text-[#003c6c]">Report Overview</h2>
+          <p className="mt-1 text-sm text-slate-950">
+            Key metrics and highlights for the selected reporting period.
+          </p>
+        </div>
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <SummaryCard
           label={`${selectedDatasetLabel} ${metricLabel}`}
           value={isLoading ? 'Loading...' : formatMetric(report?.summary.total_spend || 0, metricType)}
@@ -349,13 +356,22 @@ export default function Reports() {
               : undefined
           }
         />
-      </div>
+        </div>
+      </section>
 
+      <section className="space-y-4 mt-6">
+        <div>
+          <h2 className="text-lg font-semibold text-[#003c6c]">Report Rankings</h2>
+          <p className="text-sm text-slate-600">
+            Review the most significant items, merchants, and categories during the selected reporting period.
+          </p>
+        </div>
       <div className="grid gap-6 xl:grid-cols-3">
         <RankedTable title="Top Items" rows={report?.top_items || []} metricType={metricType} />
         <RankedTable title="Top Merchants" rows={report?.top_merchants || []} metricType={metricType} />
         <RankedTable title="Top Categories" rows={report?.top_categories || []} metricType={metricType} />
       </div>
+    </section>
 
       {!isLoading && report && report.summary.transaction_count === 0 && (
         <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600">
@@ -363,6 +379,6 @@ export default function Reports() {
           No transactions matched this period. Try clearing the date field to load the latest available period.
         </div>
       )}
-    </div>
-  );
-}
+      </div>
+    );
+  }

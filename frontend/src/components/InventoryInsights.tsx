@@ -160,10 +160,10 @@ export function InventoryInsights({ activeTab, onAddToPlan, planCategories }: Pr
     ? insights
     : insights.filter(row => getDisplayLabel(row.action) === actionFilter);
 
-  const title = isAmazon ? 'Amazon Demand Insights' : 'Inventory Insights';
+  const title = isAmazon ? 'Amazon Demand Insights' : 'Bookstore Inventory Insights';
   const subtitle = isAmazon
     ? 'Amazon Demand Insights uses AI-powered forecasting to highlight historical Amazon spending trends and drive campus bookstore stocking decisions, including identifying overstocked or understocked items. Press the buttons below to toggle between real/synthetic data or adjust historical forecast windows. Create a purchase plan by pressing "Add to Plan" under each desired item and exporting the list below.'
-    : 'Bookstore stock overview via ML forecasting.';
+    : 'Bookstore Inventory Insights uses AI-powered forecasting to give insight into current stock overview and drive future stocking decisions, including identifying overstocked or understocked items. Press the buttons below to toggle between real/synthetic data or adjust historical forecast windows. Create a purchase plan by pressing "Add to Plan" under each desired item and exporting the list below.';
   const currentLabel = 'Inventory';
   const forecastLabel = isAmazon ? 'ML Forecast' : 'ML Forecast';
   const emptyMessage = isAmazon
@@ -375,7 +375,7 @@ export function InventoryInsights({ activeTab, onAddToPlan, planCategories }: Pr
                         e.stopPropagation();
                         setFeedbackItem(item);
                       }}
-                      className="text-[10px] font-medium text-slate-500 underline transition-colors hover:text-[#003c6c]"
+                      className="text-[10px] font-medium text-[#2d66ae] underline transition-colors hover:text-[#003c6c]"
                     >
                       Flag Issue
                     </button>
@@ -412,6 +412,7 @@ export function InventoryInsights({ activeTab, onAddToPlan, planCategories }: Pr
       <ItemHistoryDrawer
         item={selectedItem}
         devMode={devMode}
+        datasetType={isAmazon ? 'amazon' : 'bookstore'}
         onClose={() => setSelectedItem(null)}
       />
 

@@ -4,6 +4,7 @@
 import { useState, useEffect, useMemo, useDeferredValue } from 'react';
 
 import { TabNavigation }          from './TabNavigation';
+import { Zap }                    from 'lucide-react';
 import TopItemsChart              from './TopItemsChart';
 import HighImpactScatterPlot      from './HighImpactScatterPlot';
 import TransactionsOverTimeChart  from './TransactionsOverTimeChart';
@@ -16,6 +17,7 @@ import { ExternalVendorsPanel }   from './ExternalVendorsPanel';
 import { ChartCarousel, type ChartSlide } from './ChartCarousel';
 
 import { FALLBACK_DATASET_SCHEMAS, type DatasetSchema } from '../lib/datasetConfig';
+import { BROAD_CATEGORIES } from '../lib/categoryMapping';
 import {
   TAB_TO_DATASET, DATASET_PREVIEW_CONFIG,
   shouldExcludeFromCharts, isValidMetricName, getAvailablePatternDimensions,
@@ -46,7 +48,9 @@ export function Dashboard() {
   const [selectedQuarter, setSelectedQuarter]   = useState<QuarterName>('All Quarters');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [searchQuery, setSearchQuery]           = useState('');
+  const [draftSearchQuery, setDraftSearchQuery] = useState('');
   const [minSpend, setMinSpend]                 = useState<number>(0);
+  const [draftMinSpend, setDraftMinSpend]       = useState<string>('0');
   const [selectedLimit, setSelectedLimit]       = useState<number>(20);
   const [selectedSortMode, setSelectedSortMode] = useState<'frequency' | 'cost'>('frequency');
   const [highImpactOnly, setHighImpactOnly]     = useState<boolean>(false);
@@ -61,6 +65,23 @@ export function Dashboard() {
   const deferredSearchQuery = useDeferredValue(searchQuery);
   const activeDatasetKey    = TAB_TO_DATASET[activeTab] || 'overall';
   const planCategories      = useMemo(() => new Set(purchasePlan.map((p) => p.item.category)), [purchasePlan]);
+
+  const applyDraftSearch = () => {
+    setSearchQuery(draftSearchQuery.trim());
+  };
+
+  const applyDraftMinSpend = () => {
+    const normalized = draftMinSpend.replace(/[^0-9]/g, '');
+    setMinSpend(normalized ? Number(normalized) : 0);
+  };
+
+  useEffect(() => {
+    setDraftSearchQuery(searchQuery);
+  }, [searchQuery]);
+
+  useEffect(() => {
+    setDraftMinSpend(String(minSpend || 0));
+  }, [minSpend]);
 
   // --- Dataset schema ---
   useEffect(() => {
@@ -197,7 +218,7 @@ export function Dashboard() {
 
   const chartSlides: ChartSlide[] = [
     {
-      title: 'Top Purchase Patterns',
+      title: 'Top Transaction Patterns',
       subtitle: 'View the leading items, merchants, or categories for the current dataset based on transaction amount, total spend, or per-item cost.',
       headerActions: patternDimensionControls,
       content: (
@@ -214,7 +235,7 @@ export function Dashboard() {
     },
     {
       title: 'High Impact Items',
-      subtitle: 'Compare high-frequency and high-spend purchases.',
+      subtitle: 'Compare high-frequency and high-spend/sold purchases.',
       headerActions: null,
       content: (
         <HighImpactScatterPlot
@@ -226,7 +247,7 @@ export function Dashboard() {
     },
     {
       title: 'Total Spend Over Time',
-      subtitle: 'Track spending trends across the selected time period.',
+      subtitle: 'Track spending/revenue trends across the selected time period.',
       headerActions: null,
       content: (
         <TransactionsOverTimeChart
@@ -240,7 +261,7 @@ export function Dashboard() {
     },
     {
       title: 'Item Spend Trends',
-      subtitle: 'Search for an item keyword and track its spending trends over time.',
+      subtitle: 'Search for an item keyword and track its spending/revenue trends over time.',
       headerActions: null,
       content: (
         <ItemSpendTrendChart
@@ -270,17 +291,18 @@ export function Dashboard() {
         <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
           <h1 className="text-3xl font-bold text-[#003c6c]">SlugSmart Overview</h1>
           <p className="mt-2 text-sm leading-6 text-slate-950">
-            <b>Welcome to SlugSmart!</b> SlugSmart is a procurement analytics and financial
+            <b>Welcome to SlugSmart!</b> SlugSmart is a transaction analytics and financial
             decision-support platform for the UCSC Financial Affairs office. With SlugSmart,
             users can upload and view cleaned Amazon, CruzBuy, and OneCard purchase datasets 
-            and Bay Tree Bookstore sales datasets. In addition, they can analyze spending trends, 
-            discover stocking opportunities through predictive insights, and view and export 
-            periodic summary reports.<br /><br />
-            To get started, upload procurement datasets to the Google Drive folder and press
-            the "Refresh Data" button at the top. Then, explore this page to view what needs
-            attention right now: Amazon demand insights, high-impact purchases, the top items
+            and Bay Tree Bookstore sales datasets. In addition, they can analyze transaction 
+            trends, discover stocking opportunities through predictive insights, view and 
+            export periodic summary reports, and more.<br /><br />
+            To get started, upload the datasets to the Google Drive folder and press the 
+            "Refresh Data" button at the top. Then, explore this page to view what needs
+            attention right now: Amazon demand insights, high-impact items, the top items
             appearing across datasets, and Amazon-specific spending analytics graphs. To view
-            a dataset more in-depth, click on its tab at the top.
+            a dataset more in-depth, click on its tab at the top. For additional questions or 
+            assistance, try the "Help" tab at the top, or the Chatbot in the lower right corner. 
           </p>
           <div className="mt-6">
             <MetricsGrid data={overallMetricsData} />
@@ -357,9 +379,9 @@ export function Dashboard() {
         <section className="w-full min-w-0 overflow-hidden rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
           <h2 className="text-xl font-bold text-[#003c6c]">Amazon Spending Analytics Graphs</h2>
           <p className="mt-1 mb-5 text-sm text-slate-950">
-            The Spending Analytics Graphs encompass various tools and visualizations to aid in analyzing spending trends.
-            They include a Top Purchase Patterns bar chart with a drilldown panel, a High Impact Items scatterplot, a Total Spend Over Time line
-            graph, and Total Spend Over Time on specific items line graph with a built-in search bar.
+          The Spending Analytics Graphs encompass various tools and visualizations to aid in analyzing spending trends 
+          for the Amazon dataset: Top Purchase Patterns bar chart (w/ drilldown panel), High Impact Items scatterplot, Total 
+          Spend Over Time line graph, and Total Spend Over Time on specific items line graph (w/ built-in search bar).
           </p>
           <ChartCarousel
             slides={chartSlides}
@@ -381,35 +403,48 @@ export function Dashboard() {
       {stickyNav}
 
       {/* Top items table */}
-      <div className="w-full max-w-full min-w-0 overflow-hidden rounded-xl border border-gray-200 bg-white p-8 shadow-sm">
+      <div className="w-full min-w-0 overflow-hidden rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
         {isLoadingTopItems ? (
           <div className="flex min-h-[240px] items-center justify-center">Loading…</div>
         ) : (
           <div className="w-full max-w-full min-w-0 space-y-4 overflow-hidden">
             <div>
-              <h2 className="text-xl font-bold text-slate-900">
+              <h2 className="text-xl font-bold text-[#003c6c]">
                 {activeTab === 'Bookstore' ? 'Current Campus Bookstore Inventory' : 'Top Items'}
               </h2>
-              <p className="text-sm text-slate-500">
+              <p className="mt-1 mb-5 text-sm text-slate-950">
                 {activeTab === 'Bookstore'
-                  ? '*Inventory levels approximated based on recent point-of-sale BigQuery data.'
-                  : 'Live BigQuery results'}
+                  ? 'Live BigQuery results of most-sold campus Bookstore items (sorted by purchase frequency by default). Use the search and filter buttons below to limit the results by year, quarter, category, and more. Press the "High-Impact" button to display only high-sold items. *Inventory levels approximated based on recent point-of-sale BigQuery data.'
+                  : 'Live BigQuery results of most-purchased external items for the current procurement dataset (sorted by purchase frequency by default). Use the search and filter buttons below to limit the results by year, quarter, category, and more. Press the "High-Impact" button to display only high-spend items.'}
               </p>
 
               <div className="mt-4">
                 <h3 className="mb-4 text-lg font-semibold text-[#003c6c]">Search and Filter Tools</h3>
 
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-6">
-                  <div>
-                    <Input
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      placeholder="Search items, merchants, categories..."
-                      className="border-slate-200 bg-slate-50 text-sm font-medium text-slate-950 focus-visible:ring-[#2d66ae]"
-                    />
+                <div className="flex flex-wrap items-end gap-4">
+                  <div className="min-w-[280px] max-w-[460px] flex-1">
+                    <label className="mb-1 block text-xs font-semibold uppercase text-[#2d66ae]">Search</label>
+                    <div className="flex items-end gap-2">
+                      <Input
+                        value={draftSearchQuery}
+                        onChange={(e) => setDraftSearchQuery(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') applyDraftSearch();
+                        }}
+                        placeholder="Search items, merchants, categories..."
+                        className="min-w-0 flex-1 border-slate-200 bg-slate-50 text-sm font-medium text-slate-950 focus-visible:ring-[#2d66ae]"
+                      />
+                      <Button
+                        variant="outline"
+                        onClick={applyDraftSearch}
+                        className="shrink-0 border-[#2d66ae] bg-[#2d66ae] text-white hover:bg-[#003c6c] hover:border-[#003c6c] hover:text-white"
+                      >
+                        Enter
+                      </Button>
+                    </div>
                   </div>
 
-                  <div>
+                  <div className="w-[176px] min-w-[160px]">
                     <label className="mb-1 block text-xs font-semibold uppercase text-[#2d66ae]">Year</label>
                     <Select value={selectedYear} onValueChange={(v) => setSelectedYear(String(v))}>
                       <SelectTrigger className="border-slate-200 bg-slate-50 text-sm text-slate-950">
@@ -424,7 +459,7 @@ export function Dashboard() {
                     </Select>
                   </div>
 
-                  <div>
+                  <div className="w-[176px] min-w-[160px]">
                     <label className="mb-1 block text-xs font-semibold uppercase text-[#2d66ae]">Quarter</label>
                     <Select value={selectedQuarter} onValueChange={(v) => setSelectedQuarter(String(v) as any)}>
                       <SelectTrigger className="border-slate-200 bg-slate-50 text-sm text-slate-950">
@@ -440,21 +475,23 @@ export function Dashboard() {
                     </Select>
                   </div>
 
-                  <div>
-                    <label className="mb-1 block text-xs font-semibold uppercase text-[#2d66ae]">Limit</label>
-                    <Select value={String(selectedLimit)} onValueChange={(v) => setSelectedLimit(Number(v))}>
+                  <div className="w-[176px] min-w-[160px]">
+                    <label className="mb-1 block text-xs font-semibold uppercase text-[#2d66ae]">Category</label>
+                    <Select value={selectedCategory} onValueChange={(v) => setSelectedCategory(String(v))}>
                       <SelectTrigger className="border-slate-200 bg-slate-50 text-sm text-slate-950">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="10">10</SelectItem>
-                        <SelectItem value="20">20</SelectItem>
-                        <SelectItem value="50">50</SelectItem>
+                        {BROAD_CATEGORIES.map((category) => (
+                          <SelectItem key={category.value} value={category.value}>
+                            {category.label}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
 
-                  <div>
+                  <div className="w-[140px] min-w-[140px]">
                     <label className="mb-1 block text-xs font-semibold uppercase text-[#2d66ae]">Sort</label>
                     <Select value={selectedSortMode} onValueChange={(v) => setSelectedSortMode(v as any)}>
                       <SelectTrigger className="border-slate-200 bg-slate-50 text-sm text-slate-950">
@@ -467,17 +504,55 @@ export function Dashboard() {
                     </Select>
                   </div>
 
-                  <div className="flex items-end gap-2">
+                  <div className="min-w-[190px]">
+                    <label className="mb-1 block text-xs font-semibold uppercase text-[#2d66ae]">Min $</label>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        type="text"
+                        inputMode="numeric"
+                        value={draftMinSpend}
+                        onChange={(e) => setDraftMinSpend(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') applyDraftMinSpend();
+                        }}
+                        placeholder="0"
+                        className="w-24 border-slate-200 bg-slate-50 text-sm text-slate-950 focus-visible:ring-[#2d66ae]"
+                      />
+                      <Button
+                        variant="outline"
+                        onClick={applyDraftMinSpend}
+                        className="shrink-0 border-[#2d66ae] bg-[#2d66ae] text-white hover:bg-[#003c6c] hover:border-[#003c6c] hover:text-white"
+                      >
+                        Enter
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setHighImpactOnly((prev) => !prev)}
+                      className={`inline-flex items-center gap-1.5 rounded-lg border-2 px-3 py-2 text-sm font-semibold transition-all ${
+                        highImpactOnly
+                          ? 'bg-[#2d66ae] border-[#2d66ae] text-white'
+                          : 'bg-white border-[#003c6c] text-[#003c6c] hover:border-[#2d66ae]'
+                      }`}
+                    >
+                      <Zap size={16} />
+                      {highImpactOnly ? 'High Impact ON' : 'High Impact OFF'}
+                    </button>
                     <Button
                       variant="outline"
                       onClick={() => {
                         setSearchQuery('');
+                        setDraftSearchQuery('');
                         setSelectedCategory('all');
                         setSelectedYear('All Time');
                         setSelectedQuarter('All Quarters');
                         setSelectedLimit(20);
                         setSelectedSortMode('frequency');
                         setMinSpend(0);
+                        setDraftMinSpend('0');
                         setHighImpactOnly(false);
                       }}
                       className="border-slate-200 bg-white text-sm text-slate-950 hover:bg-slate-50"
@@ -503,8 +578,14 @@ export function Dashboard() {
         )}
       </div>
 
-      {/* Chart carousel + ML insights */}
-      <div className="w-full min-w-0 rounded-xl border border-gray-200 bg-white p-8 shadow-sm">
+      {/* Spending analytics charts */}
+      <div className="w-full min-w-0 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+        <h2 className="text-xl font-bold text-[#003c6c]">Transaction Analytics Graphs</h2>
+        <p className="mt-1 mb-5 text-sm text-slate-950">
+          The Transaction Analytics Graphs encompass various tools and visualizations to aid in analyzing trends:
+          Top Transaction Patterns bar chart (w/ drilldown panel), High Impact Items scatterplot, Total Spend Over Time line
+          graph, and Total Spend Over Time on specific items line graph (w/ built-in search bar).
+        </p>
         <ChartCarousel
           slides={chartSlides}
           activeSlide={activeChartSlide}
@@ -512,22 +593,23 @@ export function Dashboard() {
           isLoading={isLoadingTopPatterns}
           error={displayedPatternError}
         />
-
-        {(activeTab === 'Amazon' || activeTab === 'Bookstore') && (
-          <div className="mt-8 space-y-4">
-            <InventoryInsights
-              activeTab={activeTab}
-              onAddToPlan={handleAddToPlan}
-              planCategories={planCategories}
-            />
-            <PurchasePlan
-              items={purchasePlan.filter((p) => p.dataset === activeDatasetKey)}
-              onRemove={(cat) => setPurchasePlan((prev) => prev.filter((p) => p.item.category !== cat))}
-              onClearAll={() => setPurchasePlan((prev) => prev.filter((p) => p.dataset !== activeDatasetKey))}
-            />
-          </div>
-        )}
       </div>
+
+      {/* ML insights + purchase plan */}
+      {(activeTab === 'Amazon' || activeTab === 'Bookstore') && (
+        <div className="space-y-4">
+          <InventoryInsights
+            activeTab={activeTab}
+            onAddToPlan={handleAddToPlan}
+            planCategories={planCategories}
+          />
+          <PurchasePlan
+            items={purchasePlan.filter((p) => p.dataset === activeDatasetKey)}
+            onRemove={(cat) => setPurchasePlan((prev) => prev.filter((p) => p.item.category !== cat))}
+            onClearAll={() => setPurchasePlan((prev) => prev.filter((p) => p.dataset !== activeDatasetKey))}
+          />
+        </div>
+      )}
     </div>
   );
 }
