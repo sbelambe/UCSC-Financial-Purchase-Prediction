@@ -10,9 +10,10 @@ import ProtectedRoute from './components/ProtectedRoute';
 import Login from './pages/Login';
 import DatasetExplorer from './pages/DatasetExplorer';
 import Reports from './pages/Reports';
+import Help from './pages/Help';
 
 type AuthenticatedLayoutProps = {
-  currentView: 'dashboard' | 'dataset-explorer' | 'reports';
+  currentView: 'dashboard' | 'dataset-explorer' | 'reports' | 'help';
   children: ReactNode;
 };
 
@@ -235,6 +236,14 @@ function ReportsPage() {
   );
 }
 
+function HelpPage() {
+  return (
+    <AuthenticatedLayout currentView="help">
+      <Help />
+    </AuthenticatedLayout>
+  );
+}
+
 export default function App() {
   // Fire-and-forget: pre-warm the QueryClient cache with all four datasets
   // in priority order as soon as the app mounts.
@@ -252,6 +261,7 @@ export default function App() {
                 <Route path="/dashboard" element={<DashboardPage />} />
                 <Route path="/dataset-explorer" element={<DatasetExplorerPage />} />
                 <Route path="/reports" element={<ReportsPage />} />
+                <Route path="/help" element={<HelpPage />} />
                 <Route path="/" element={<Navigate to="/dashboard" replace />} />
               </Route>
             </Routes>
