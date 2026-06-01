@@ -68,8 +68,8 @@ export default function Help() {
         </p>
 
         <p className="mt-4 text-sm text-slate-950">
-          Once you are done, press the "Refresh Data" button at the
-          top of the page to activate the data pipeline.
+          Once the files have been uploaded, press the "Refresh Data" button at the top of 
+          the page to begin the data pipeline.
         </p>
       </section>
 
@@ -183,7 +183,7 @@ export default function Help() {
 
           <div className="rounded-lg border border-slate-200 p-4">
             <p className="mb-2 text-sm font-bold text-slate-950">
-              Dataset Pages: Deep dive into a specific dataset
+              Dataset Pages: Detailed analysis and insights for an individual dataset
             </p>
 
             <ul className="list-disc pl-6 text-sm text-slate-950">
@@ -195,14 +195,13 @@ export default function Help() {
 
           <div className="rounded-lg border border-slate-200 p-4">
             <p className="mb-2 text-sm text-slate-950">
-              Dataset Explorer: View, manipulate, and export cleaned transaction
-              data
+              Dataset Explorer: Search, filter, inspect, and export cleaned transaction data
             </p>
           </div>
 
           <div className="rounded-lg border border-slate-200 p-4">
             <p className="mb-2 text-sm text-slate-950">
-              Reports: Generate summary reports for personal use or meetings and
+              Reports: Generate exportable summary reports for analysis, meetings, and 
               presentations
             </p>
           </div>
@@ -468,12 +467,13 @@ export default function Help() {
         </p>
 
         <p className="mb-4 text-sm text-slate-950">
-          Given this was a senior capstone project, the original developers are not
-          actively working on the website and may not always be available for help.
+          SlugSmart was originally developed as a senior capstone project. As a result, 
+          the original development team may not always be available to provide support.
         </p>
 
         <p className="text-sm text-slate-950">
-          However, you can contact developer Joe at hargonbren@gmail.com.
+          For questions related to the original development of SlugSmart, contact Joe at
+          hargonbren@gmail.com.
         </p>
 
         <p className="mt-8 text-xs text-slate-500">
