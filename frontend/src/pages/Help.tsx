@@ -3,7 +3,7 @@ import React from 'react';
 export default function Help() {
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-      <h1 className="mb-8 text-4xl font-bold text-[#003c6c]">Help</h1>
+      <h1 className="mb-4 text-4xl font-bold text-[#003c6c]">Help</h1>
 
       <p className="mb-8 text-sm text-slate-950">
         If you are a procurement analyst who has recently logged in and are unsure 
@@ -68,7 +68,7 @@ export default function Help() {
         </p>
 
         <p className="mt-4 text-sm text-slate-950">
-          Once you are done, press the <strong>"Refresh Data"</strong> button at the
+          Once you are done, press the "Refresh Data" button at the
           top of the page to activate the data pipeline.
         </p>
       </section>
@@ -83,10 +83,13 @@ export default function Help() {
           Sit back while SlugSmart fetches the datasets. SlugSmart's data pipeline
           automatically detects new files, cleans and standardizes the data,
           updates database storage, and retrains forecasting models when
-          applicable.
+          applicable. <br /><br />
+          Processing may take several minutes depending on dataset size. 
+          Once complete, all dashboards, analytics, and forecasts will automatically 
+          reflect the newest information.
         </p>
 
-        <h3 className="text-lg font-semibold mb-4 text-[#003c6c]">
+        <h3 className="text-lg font-semibold mb-2 text-[#003c6c]">
           Data Cleaning
         </h3>
 
@@ -97,12 +100,11 @@ export default function Help() {
           Price, Quantity, Merchant Name, Merchant State, Merchant City,
           Transaction Type, and Merchant Type. The cleaned datasets may not have all 
           of these columns due to the different formats of the raw datasets.
-          This schema mostly helped to determine which columns to keep or remove.
+          This schema mostly helps to determine which columns to keep or remove.
 
         </p>
 
-        <div className="mb-6 rounded-lg border border-slate-200 bg-slate-50 p-4">
-          <p className="mb-3 text-sm font-bold text-slate-950">
+          <p className="mb-4 text-sm font-bold text-slate-950">
             The cleaning pipeline does the following:
           </p>
 
@@ -110,7 +112,7 @@ export default function Help() {
             <li>Removes sparse and unnecessary columns</li>
             <li>Normalizes missing values to NaN</li>
             <li>Renames column names to match schema names</li>
-            <li>Adds new, appropriate columns</li>
+            <li>Adds new, appropriate columns (Transaction Type, Merchant Type)</li>
             <li>Cleans and standardizes column names</li>
             <li>Removes non-items (CruzBuy, OneCard)</li>
             <li>Removes rows where Total Price or Subtotal are $0.00</li>
@@ -121,30 +123,27 @@ export default function Help() {
             <li>Sorts rows by Transaction Date</li>
             <li>Standardizes column values and formatting</li>
           </ul>
-        </div>
 
-        <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 p-4">
-          <p className="text-sm text-slate-950">
+          <p className="mt-4 mb-4 text-sm text-slate-950">
             Since SlugSmart is built to work with tangible goods only and many rows
             are removed from the datasets during the cleaning process, SlugSmart is
             not a reflection of overall UCSC spending/sales data and should not be
             used for such.
           </p>
-        </div>
 
-        <h3 className="text-lg font-semibold mb-4 text-[#003c6c]">Storage</h3>
+        <h3 className="text-lg font-semibold mb-2 text-[#003c6c]">Storage</h3>
 
         <p className="mb-6 text-sm text-slate-950">
           The cleaned data is uploaded to the Firestore database. SlugSmart pulls
           from the most recent data upload.
         </p>
 
-        <h3 className="text-lg font-semibold mb-4 text-[#003c6c]">
+        <h3 className="text-lg font-semibold mb-2 text-[#003c6c]">
           ML Retraining
         </h3>
 
         <p className="text-sm text-slate-950">
-          Pressing the <strong>"Refresh Data"</strong> button activates retraining
+          Pressing the "Refresh Data" button activates retraining
           of the ML model. This ensures predictions and insights are based on the
           most up-to-date data.
         </p>
@@ -154,16 +153,16 @@ export default function Help() {
       <section className="mb-10">
         <h2 className="mb-4 text-3xl font-bold text-[#003c6c]">3. USE</h2>
 
-        <p className="mb-8 text-sm text-slate-950">
+        <p className="mb-4 text-sm text-slate-950">
           Explore purchase/sales activity, identify spending trends, forecast
           future purchases, monitor inventory-related insights, and more.
         </p>
 
-        <h3 className="text-lg font-semibold mb-4 text-[#003c6c]">WHERE</h3>
+        <h3 className="text-2xl font-semibold mb-2 text- text-[#003c6c]">WHERE</h3>
 
-        <p className="mb-4 text-sm text-slate-950">Where can I find X?</p>
+        <p className="mb-4 text-sm text-slate-950 italic">Where can I find X?</p>
 
-        <h4 className="mb-4 text-lg font-semibold text-[#003c6c]">Sitemap</h4>
+        <h4 className="mb-2 text-lg font-semibold text-[#003c6c]">Sitemap</h4>
 
         <div className="grid gap-4 md:grid-cols-2">
           <div className="rounded-lg border border-slate-200 p-4">
@@ -195,14 +194,14 @@ export default function Help() {
           </div>
 
           <div className="rounded-lg border border-slate-200 p-4">
-            <p className="mb-2 text-sm font-bold text-slate-950">
+            <p className="mb-2 text-sm text-slate-950">
               Dataset Explorer: View, manipulate, and export cleaned transaction
               data
             </p>
           </div>
 
           <div className="rounded-lg border border-slate-200 p-4">
-            <p className="mb-2 text-sm font-bold text-slate-950">
+            <p className="mb-2 text-sm text-slate-950">
               Reports: Generate summary reports for personal use or meetings and
               presentations
             </p>
@@ -214,7 +213,10 @@ export default function Help() {
           what it is and its purpose.
         </p>
 
-        <h3 className="mt-8 text-lg font-semibold mb-4 text-[#003c6c]">HOW</h3>
+        <h3 className="mt-8 text-2xl font-semibold mb-2 text-[#003c6c]">HOW</h3>
+
+        <p className="mb-4 text-sm text-slate-950 italic">How do I do X?</p>
+
         <div className="space-y-4">
           <div>
             <h4 className="text-base font-semibold text-[#003c6c]">
@@ -223,20 +225,160 @@ export default function Help() {
             </h4>
 
             <p className="mt-2 text-sm text-slate-950">
-              <strong>Recommended:</strong> Key Metrics, Top Items Across Datasets,
-              Top External Vendors, Dataset Explorer
+              <strong>Recommended: Key Metrics, Top Items Across Datasets,
+              Top External Vendors, Dataset Explorer</strong>
+            </p>
+
+            <p className="mt-2 text-sm text-slate-950 mb-6">
+              Check that Key Metrics reflect expected transaction counts and spending 
+              totals. Review Top Items Across Datasets and Top External Vendors to 
+              confirm newly uploaded purchases appear. Use the Dataset Explorer to inspect 
+              the cleaned data directly.
             </p>
           </div>
 
           <div>
             <h4 className="text-base font-semibold text-[#003c6c]">
-              Where is UCSC spending the most money on tangible goods?
+              Where is UCSC spending the most money?
             </h4>
 
             <p className="mt-2 text-sm text-slate-950">
-              <strong>Recommended:</strong> Top Items Across Datasets, Top External
-              Vendors, BigQuery Top Items, Top Transaction Patterns, Total Spend
-              Over Time
+              <strong>Recommended: Top Items Across Datasets, Top External Vendors,  
+                BigQuery Top Items, Top Transaction Patterns, Total Spend Over Time</strong>
+            </p>
+
+            <p className="mt-2 text-sm text-slate-950 mb-6">
+              These help identify the largest spending areas for future procurement plans. 
+              Top Items Across Datasets and Top External Vendors list overall leading items, 
+              merchants, and categories. Top Transaction Patterns and BigQuery Top Items lists 
+              leading attributes for a specific dataset. Use Total Spend Over Time to analyze 
+              month-to-month spending trends.
+            </p>
+          </div>
+
+          <div>
+            <h4 className="text-base font-semibold text-[#003c6c]">
+              What frequent external purchases could be stocked in the campus Bookstore?
+            </h4>
+
+            <p className="mt-2 text-sm text-slate-950">
+              <strong>Recommended: Amazon Demand Insights, Bookstore Inventory Insights, 
+              Top Items Across Datasets (or others, see previous question), Purchase Plan</strong>
+            </p>
+
+            <p className="mt-2 text-sm text-slate-950 mb-6">
+              These help use external procurement activity to drive bookstore stocking 
+              decisions and reduce off-campus purchasing. Review forecasted demand from 
+              Amazon Demand Insights. Compare external purchasing patterns against Bookstore 
+              sales activity. Identify products with strong external demand but limited 
+              bookstore availability. Add promising items to a Purchase Plan. Export the 
+              plan for procurement review.
+            </p>
+          </div>
+
+                    <div>
+            <h4 className="text-base font-semibold text-[#003c6c]">
+              What should we stock next quarter?
+            </h4>
+
+            <p className="mt-2 text-sm text-slate-950">
+              <strong>Recommended: Amazon Demand Insights, Bookstore Inventory Insights, 
+                Purchase Plan, BigQuery Top Items</strong>
+            </p>
+
+            <p className="mt-2 text-sm text-slate-950 mb-6">
+              These provide seasonal stocking recommendations before upcoming purchasing cycles. 
+              Review forecast recommendations. Open individual insight cards for AI-generated 
+              analysis. Evaluate projected demand, certainty scores, and inventory status. Add 
+              selected products to a Purchase Plan and export final list. Review top items for 
+              a specific quarter using the BigQuery Top Items filters for Amazon and Bookstore 
+              (and CruzBuy or OneCard, if needed). 
+            </p>
+          </div>
+
+          <div>
+            <h4 className="text-base font-semibold text-[#003c6c]">
+              Which items may be overstocked or understocked?
+            </h4>
+
+            <p className="mt-2 text-sm text-slate-950">
+              <strong>Recommended: Amazon Demand Insights, Bookstore Inventory Insights</strong>
+            </p>
+
+            <p className="mt-2 text-sm text-slate-950 mb-6">
+              Review AI-generated inventory recommendations. Open the inventory insight panel and 
+              examine inventory levels, forecast ranges, and historical purchasing trends. Use 
+              these recommendations to adjust inventory levels.
+            </p>
+          </div>
+
+          <div>
+            <h4 className="text-base font-semibold text-[#003c6c]">
+              How are transaction patterns changing over time?
+            </h4>
+
+            <p className="mt-2 text-sm text-slate-950">
+              <strong>Recommended: Total Spend Over Time, Item Spend Trends, Reports</strong>
+            </p>
+
+            <p className="mt-2 text-sm text-slate-950 mb-6">
+              These help evaluate how purchasing or sales patterns change throughout the 
+              academic year. Review spending trends across the available data range. Compare 
+              changes across procurement sources. Search for individual items trends using 
+              Item Spend Trends, if needed. Generate reports for longer-term trend analysis.
+            </p>
+          </div>
+
+          <div>
+            <h4 className="text-base font-semibold text-[#003c6c]">
+              Which purchases have the greatest financial impact?
+            </h4>
+
+            <p className="mt-2 text-sm text-slate-950">
+              <strong>Recommended: High Impact Items, BigQuery Top Items, Top Transaction 
+                Patterns</strong>
+            </p>
+
+            <p className="mt-2 text-sm text-slate-950 mb-6">
+              These help find areas where cost savings or inventory optimization could have 
+              the greatest effect. Identify items with high spend and high frequency using the 
+              High Impact Items plot. Filter BigQuery Top Items for high-impact products. 
+              Prioritize analysis on purchases that represent the largest financial 
+              opportunities.
+            </p>
+          </div>
+
+          <div>
+            <h4 className="text-base font-semibold text-[#003c6c]">
+              I need the data attributes behind a chart or recommendation. I need to look for 
+              something in the datasets.
+            </h4>
+
+            <p className="mt-2 text-sm text-slate-950">
+              <strong>Recommended: Dataset Explorer, BigQuery Top Items, Top Transaction Patterns 
+                (Detailed Breakdown)</strong>
+            </p>
+
+            <p className="mt-2 text-sm text-slate-950 mb-6">
+              Open Dataset Explorer and search for desired items, vendors, or categories. Apply 
+              filters for date ranges or categories, if needed. Export cleaned data for additional 
+              analysis. If it is a top item, its data can also be viewed through the BigQuery Top 
+              Items or Detailed Breakdown section.
+            </p>
+          </div>
+
+          <div>
+            <h4 className="text-base font-semibold text-[#003c6c]">
+              I need a report for a meeting.
+            </h4>
+
+            <p className="mt-2 text-sm text-slate-950">
+              <strong>Recommended: Reports</strong>
+            </p>
+
+            <p className="mt-2 text-sm text-slate-950 mb-6">
+              Select the desired dataset. Choose a weekly or monthly reporting period. Generate 
+              the report. Export the results for sharing.
             </p>
           </div>
 
@@ -266,6 +408,50 @@ export default function Help() {
               available.
             </p>
           </div>
+
+          <div>
+            <h4 className="text-base font-semibold text-[#003c6c]">
+              Why does SlugSmart recommend certain items for the bookstore?
+            </h4>
+            <p className="mt-1 text-sm text-slate-950">
+              Recommendations are generated using historical purchasing patterns, demand 
+              forecasting models, inventory indicators, and purchasing trends identified 
+              across procurement datasets.
+            </p>
+          </div>
+
+          <div>
+            <h4 className="text-base font-semibold text-[#003c6c]">
+              What is the difference between Amazon Demand Insights and Bookstore Inventory 
+              Insights?
+            </h4>
+            <p className="mt-1 text-sm text-slate-950">
+              Amazon Demand Insights focuses on identifying external purchasing trends that 
+              may represent opportunities for bookstore stocking. Bookstore Inventory Insights 
+              focuses on current bookstore inventory performance and future demand forecasts.
+            </p>
+          </div>
+
+          <div>
+            <h4 className="text-base font-semibold text-[#003c6c]">
+              Why do some items appear in multiple sections?
+            </h4>
+            <p className="mt-1 text-sm text-slate-950">
+              Different visualizations answer different questions. The same item may appear in 
+              forecasting, spending analysis, vendor analysis, and inventory recommendations because 
+              it is significant from multiple perspectives.
+            </p>
+          </div>
+
+          <div>
+            <h4 className="text-base font-semibold text-[#003c6c]">
+              What is the Purchase Plan used for?
+            </h4>
+            <p className="mt-1 text-sm text-slate-950">
+              The Purchase Plan allows users to collect recommended products from forecasting insights 
+              and export them as a procurement planning document for future bookstore stocking decisions.
+            </p>
+          </div>
         </div>
       </section>
 
@@ -287,8 +473,7 @@ export default function Help() {
         </p>
 
         <p className="text-sm text-slate-950">
-          However, you can contact developer Joe at
-          <strong> hargonbren@gmail.com</strong>.
+          However, you can contact developer Joe at hargonbren@gmail.com.
         </p>
 
         <p className="mt-8 text-xs text-slate-500">

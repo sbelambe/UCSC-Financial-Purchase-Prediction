@@ -282,12 +282,12 @@ export function Dashboard() {
             and Bay Tree Bookstore sales datasets. In addition, they can analyze transaction 
             trends, discover stocking opportunities through predictive insights, view and 
             export periodic summary reports, and more.<br /><br />
-            To get started, upload the datasets to the Google Drive folder and press the 
-            "Refresh Data" button at the top. Then, explore this page to view what needs
-            attention right now: Amazon demand insights, high-impact items, the top items
-            appearing across datasets, and Amazon-specific spending analytics graphs. To view
-            a dataset more in-depth, click on its tab at the top. For additional questions or 
-            assistance, try the "Help" tab at the top, or the Chatbot in the lower right corner. 
+            New to SlugSmart? Visit the Help page for setup instructions, workflow guides, 
+            and frequently asked questions. Returning users can use this dashboard as a starting 
+            point for monitoring procurement activity, reviewing demand forecasts, identifying 
+            high-impact purchases, and exploring spending trends across datasets. For deeper 
+            analysis, select a dataset tab at the top of the page or use the chatbot in the 
+            lower-right corner for additional assistance. 
           </p>
           <div className="mt-6">
             <MetricsGrid data={overallMetricsData} />
