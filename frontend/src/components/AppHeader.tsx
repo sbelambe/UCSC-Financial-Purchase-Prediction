@@ -1,9 +1,9 @@
-import { ChartPie, FileText, HelpCircle, LogOut, RefreshCw, TableProperties } from 'lucide-react'
+import { ChartPie, FileText, HelpCircle, Info, LogOut, RefreshCw, TableProperties } from 'lucide-react'
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 type AppHeaderProps = {
-  currentView: 'dashboard' | 'dataset-explorer' | 'reports' | 'help';
+  currentView: 'dashboard' | 'dataset-explorer' | 'reports' | 'help' | 'about';
   isRefreshing: boolean;
   refreshMsg: string | null;
   onRefresh: () => Promise<void>;
@@ -86,6 +86,15 @@ export function AppHeader({ currentView, isRefreshing, refreshMsg, onRefresh }: 
           >
             <HelpCircle size={20} />
             <span>Help</span>
+          </button>
+
+          <button
+            onClick={() => navigate('/about')}
+            className={navButtonClass}
+            style={navButtonStyle(currentView === 'about')}
+          >
+            <Info size={20} />
+            <span>About</span>
           </button>
 
           <button
