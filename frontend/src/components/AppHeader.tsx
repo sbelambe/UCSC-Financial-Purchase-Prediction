@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 type AppHeaderProps = {
-  currentView: 'dashboard' | 'dataset-explorer' | 'reports';
+  currentView: 'dashboard' | 'dataset-explorer' | 'reports' | 'help';
   isRefreshing: boolean;
   refreshMsg: string | null;
   onRefresh: () => Promise<void>;
@@ -80,9 +80,9 @@ export function AppHeader({ currentView, isRefreshing, refreshMsg, onRefresh }: 
           </button>
 
           <button
-            onClick={() => alert('Help information will be displayed here')}
+            onClick={() => navigate('/help')}
             className={navButtonClass}
-            style={navButtonStyle(false)}
+            style={navButtonStyle(currentView === 'help')}
           >
             <HelpCircle size={20} />
             <span>Help</span>

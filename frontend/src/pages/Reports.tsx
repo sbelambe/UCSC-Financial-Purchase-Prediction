@@ -241,7 +241,7 @@ export default function Reports() {
             Generate and export weekly or monthly transaction summary reports for Amazon, CruzBuy,
             OneCard, Bookstore, or combined dataset activity. Reports provide key metrics, top
             items, leading merchants, and category trends for the selected reporting period.
-            The default report is the most recent month for Amazon).<br /> ⠀
+            The default report is the most recent month for Overall).<br /> ⠀
           </p>
         </div>
       </section>
