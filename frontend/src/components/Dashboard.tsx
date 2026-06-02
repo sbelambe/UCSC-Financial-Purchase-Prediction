@@ -204,9 +204,24 @@ export function Dashboard() {
         return n.includes(catLower) || catLower.includes(n);
       });
       const unitPrice      = match && match.count > 0 ? match.total_spent / match.count : null;
-      const recommendedQty = activeDatasetKey === 'bookstore'
-        ? Math.max(0, item.predicted_demand - Math.max(0, item.current_stock))
-        : item.predicted_demand;
+      let recommendedQty   = 0;
+
+      // use predicted demand for bookstore for specific conditions
+      if (activeDatasetKey === 'bookstore') {
+        // if item stock is dead or declining
+        if (item.action === 'Dead Stock Risk' || item.action === 'Declining Signal') {
+          recommendedQty   = Math.max(0, item.current_stock - item.upper_bound);
+        }
+        // otherwise, item stock is healthy
+        else {
+          recommendedQty   = Math.max(0, item.predicted_demand - Math.max(0, item.current_stock));
+        }
+      }
+
+      // otherwise, just use the predicted demand for amazon
+      else {
+        recommendedQty = item.predicted_demand;
+      }
       return [...prev, { item, dataset: activeDatasetKey, unitPrice, recommendedQty }];
     });
   };

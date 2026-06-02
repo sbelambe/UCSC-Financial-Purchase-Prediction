@@ -127,24 +127,34 @@ export function PurchasePlan({ items, onRemove, onClearAll }: Props) {
           <tbody className="divide-y divide-slate-50">
             {enriched.map(({ item, dataset, recommendedQty, estimatedCost, unitPrice }) => (
               <tr key={item.category} className="hover:bg-[#F5F9FF] transition-colors">
+
+                {/* col 1: item */}
                 <td className="px-5 py-4 font-medium text-[#003c6c] max-w-[200px]">
                   <div className="truncate" title={item.category}>{item.category}</div>
                   <div className="text-xs text-slate-500 capitalize mt-0.5">{dataset}</div>
                 </td>
+
+                {/* col 2: status */}
                 <td className="px-5 py-4 text-center">
                   <span className={`inline-flex items-center text-[11px] font-medium px-2.5 py-1 rounded-full whitespace-nowrap ${ACTION_COLORS[item.action] ?? 'text-slate-700 bg-slate-100'}`}>
                     {item.action}
                   </span>
                 </td>
+
+                {/* col 3: recommended quantity */}
                 <td className="px-5 py-4 text-right text-xs font-normal text-slate-950">
                   {recommendedQty.toLocaleString()}
                 </td>
+
+                {/* col 4: estimated spend */}
                 <td className="px-5 py-4 text-right text-xs font-normal text-slate-950">
                   {estimatedCost != null
                     ? formatCurrency(estimatedCost)
                     : <span className="text-slate-500 text-xs font-normal italic">Price unavailable</span>
                   }
                 </td>
+
+                {/* col 5: impact */}
                 <td className="px-5 py-4 text-left text-xs font-normal text-slate-950">
                   {dataset === 'bookstore'
                     ? estimatedCost != null
@@ -155,6 +165,8 @@ export function PurchasePlan({ items, onRemove, onClearAll }: Props) {
                       : 'Budget allocation recommended'
                   }
                 </td>
+
+                {/* col 6: action/delete */}
                 <td className="px-5 py-4">
                   <Button
                     variant="ghost"
@@ -168,6 +180,8 @@ export function PurchasePlan({ items, onRemove, onClearAll }: Props) {
               </tr>
             ))}
           </tbody>
+
+          {/* footer for total spend */}
           {hasAnyPrice && (
             <tfoot>
               <tr className="bg-slate-50 border-t border-slate-200">

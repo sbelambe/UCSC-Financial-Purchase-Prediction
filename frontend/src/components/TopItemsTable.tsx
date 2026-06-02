@@ -331,6 +331,12 @@ export function TopItemsTable({
 
 
   if (hasDynamicRows) {
+    // count total num. of columns in the table
+    const totalColumns = activeColumns.length + (schema?.dataset === 'overall' ? 1 : 0) + 3;
+
+    // reserve 4% for the # col. and split the remaining 96% equally
+    const equalColWidth = `${96 / (totalColumns - 1)}%`;
+
     return (
       <div className="top-items-table-shell w-full max-w-full min-w-0 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
         <div className="top-items-table-scroll block max-h-[520px] w-full max-w-full min-w-0 overflow-auto overscroll-contain">
@@ -339,7 +345,7 @@ export function TopItemsTable({
               <tr className="sticky top-0 bg-slate-100 text-left text-xs font-semibold uppercase tracking-wide text-[#2d66ae]">
                 <th className="w-[50px] px-2 py-3 text-[#2d66ae] sticky left-0 z-20 bg-slate-100 whitespace-nowrap">#</th>
                 {schema?.dataset === 'overall' && (
-                  <th className="px-4 py-3 text-[#2d66ae] whitespace-nowrap w-[120px]">Dataset</th>
+                  <th className="p-4 font-semibold text-slate-700 whitespace-nowrap overflow-hidden">Dataset</th>
                 )}
                 {activeColumns.map((column) => (
                   <th
@@ -349,9 +355,11 @@ export function TopItemsTable({
                     {column.canonical_name}
                   </th>
                 ))}
-                <th className="px-4 py-3 text-[#2d66ae] text-center whitespace-nowrap w-[100px]">Freq.</th>
-                <th className="px-4 py-3 text-[#2d66ae] text-right whitespace-nowrap w-[150px]">
-                  {schema?.metric_label || 'Total Metric'}
+                <th className="p-4 font-semibold text-slate-700 text-center whitespace-nowrap overflow-hidden">Freq.</th>
+                <th className="p-4 font-semibold text-slate-700 text-right whitespace-nowrap overflow-hidden">
+                  <div className="truncate" title={schema?.metric_label || 'Total Metric'}>
+                    {schema?.metric_label || 'Total Metric'}
+                  </div>
                 </th>
               </tr>
             </thead>
@@ -367,7 +375,7 @@ export function TopItemsTable({
                   <React.Fragment key={`${item.dataset || 'dataset'}-${item.clean_item_name}-${index}`}>
                     <tr
                       onClick={() => hasDetails && setExpandedRow(isExpanded ? null : index)}
-                      className={`${rowBackgroundClass} ${hasDetails ? 'cursor-pointer' : ''} border-b border-slate-100 hover:bg-slate-50`}
+                      className={`${rowBackgroundClass} ${hasDetails ? 'cursor-pointer hover:bg-slate-100' : ''}`}
                     >
                       <td className={`w-[50px] px-2 py-3 text-xs text-slate-950 sticky left-0 z-10 whitespace-nowrap ${rowBackgroundClass}`}>
                         <span className={`mr-2 inline-block w-3 ${hasDetails ? 'text-[#2d66ae]' : ''}`}>
@@ -390,7 +398,7 @@ export function TopItemsTable({
                             )}
                           </div>
                         </td>
-                      ))}
+                      ))}  
                       <td className="p-4 text-center">
                         <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-bold bg-[#2d66ae] text-white ring-1 ring-inset ring-[#2d66ae]">
                           {item.count.toLocaleString()}
@@ -495,7 +503,11 @@ export function TopItemsTable({
                 <React.Fragment key={index}>
                   <tr 
                     onClick={() => hasMultipleVendors && setExpandedRow(isExpanded ? null : index)}
-                    className={`border-b border-slate-100 hover:bg-slate-50 transition-colors ${hasMultipleVendors ? 'cursor-pointer' : ''} ${item.is_high_impact ? 'bg-amber-50 hover:bg-amber-100/60' : ''}`}
+                    className={`group transition-colors ${
+                      item.is_high_impact 
+                        ? 'bg-amber-50 hover:bg-amber-100/60' 
+                        : 'odd:bg-white even:bg-slate-50/20 hover:bg-slate-100'
+                    } ${hasMultipleVendors ? 'cursor-pointer' : ''}`}
                   >
                     <td className="p-4 text-gray-400 font-mono text-xs text-left">
                       <span className={`mr-2 inline-block w-3 ${hasMultipleVendors ? 'text-[#2d66ae]' : ''}`}>

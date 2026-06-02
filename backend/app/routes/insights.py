@@ -11,6 +11,39 @@ router = APIRouter(
     tags=["insights"]
 )
 
+def sanitize_forecast_data(forecast_rows, historical_max_spend):
+    """
+    Validates and sanitizes ML predictions before sending them to the frontend
+    Ensures no negative spend/stock and flags extreme anomalies
+    """
+    sanitized_data = []
+
+    # define an anomaly as a prediction that is greater than 200% of the historical max
+    ANOMALY_THRESHOLD = historical_max_spend * 2.0
+
+    for row in forecast_rows:
+        # floor negative predictions to exactly 0
+        safe_prediction = max(0.0, float(row.get("predicted_spend", 0.0)))
+
+        # floor confidence intervals (so the lower bound isn't negative)
+        safe_lower_bound = max(0.0, float(row.get("prediction_interval_lower_bound", 0.0)))
+        safe_upper_bound = max(0.0, float(row.get("prediction_interval_upper_bound", 0.0)))
+
+        is_anomaly = safe_prediction > ANOMALY_THRESHOLD
+
+        sanitized_data.append({
+            "date": row["forecast_timestamp"],
+            "predicted_spend": safe_prediction,
+            "lower_bound": safe_lower_bound,
+            "upper_bound": safe_upper_bound,
+            "is_anomaly": is_anomaly,
+            "warning": "Unusually high projection" if is_anomaly else None
+        })
+
+    return sanitized_data
+
+
+
 @router.get("/bookstore-insights")
 def get_bookstore_insights(
     time_period: str = Query("1_quarter", description="Time horizon for forecast"),

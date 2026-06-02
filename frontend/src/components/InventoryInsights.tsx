@@ -40,6 +40,8 @@ export interface InsightRow {
   trend_direction: 'growing' | 'declining' | 'stable';
   action: 'Critical Reorder' | 'Reorder Soon' | 'Monitor Closely' | 'Adequate Stock' | 'Dead Stock Risk' | 'Declining Signal' | 'High Demand Signal';
   reasoning: string;
+  cost_per_item?: number | null;
+  is_online?: boolean;
 }
 
 interface Props {
@@ -288,7 +290,28 @@ export function InventoryInsights({ activeTab, onAddToPlan, planCategories }: Pr
                   <div className="flex justify-between items-start gap-4">
                     <CardTitle className="flex items-start gap-3 font-sans text-lg font-bold leading-tight text-[#003c6c]">
                       <span className="shrink-0">{renderTrendIcon(item.trend_direction)}</span>
-                      <span>{item.category}</span>
+                      <div className="flex flex-col">
+                        <span>{item.category}</span>
+                        
+                        {!isAmazon && item.is_online !== undefined && (
+                          <div className="mt-1 flex items-center gap-2">
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border ${
+                              item.is_online 
+                                ? 'bg-emerald-50 text-emerald-700 border-emerald-200' 
+                                : 'bg-slate-100 text-slate-500 border-slate-200'
+                            }`}>
+                              {item.is_online ? 'Active Online' : 'Not Online'}
+                            </span>
+                            
+                            {item.cost_per_item !== null && (
+                              <span className="text-xs font-semibold text-slate-500">
+                                ${item.cost_per_item.toFixed(2)}
+                              </span>
+                            )}
+                          </div>
+                        )}
+                        
+                      </div>
                     </CardTitle>
                   </div>
                 </CardHeader>

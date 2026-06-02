@@ -1803,10 +1803,16 @@ def fetch_bookstore_forecast_from_bigquery(time_period: str, dev_mode: bool = Fa
         e.avg_trend,
         e.yearly_seasonality,
         COALESCE(CAST(c.stock  AS INT64), 0)                AS current_stock,
-        CAST(COALESCE(h.historical_avg, 0) AS INT64)        AS historical_avg
+        CAST(COALESCE(h.historical_avg, 0) AS INT64)        AS historical_avg,
+        scraped.current_price                               AS cost_per_item,
+        scraped.is_online
+        
     FROM Explanations e
     LEFT JOIN CurrentStock      c ON e.item_name = c.item_name
     LEFT JOIN HistoricalContext h ON e.item_name = h.item_name
+    LEFT JOIN `{bq_project}.{bq_dataset}.bookstore_current_pricing` scraped 
+      ON e.item_name = scraped.item_description
+      
     WHERE e.item_name IS NOT NULL
       AND CAST(e.predicted_qty AS INT64) > 0
     ORDER BY ABS(CAST(c.stock AS INT64) - CAST(e.predicted_qty AS INT64)) DESC
@@ -1919,7 +1925,9 @@ def fetch_bookstore_forecast_from_bigquery(time_period: str, dev_mode: bool = Fa
             "action": action,
             "historical_avg": historical_avg,
             "reasoning": f"{reasoning} Model reliability is {reliability} ({certainty_score}% certainty) based on prediction variance.",
-            "trend_direction": trend_direction
+            "trend_direction": trend_direction,
+            "cost_per_item": dict(row).get("cost_per_item", None),
+            "is_online": dict(row).get("is_online", None)
         })
 
     return results
