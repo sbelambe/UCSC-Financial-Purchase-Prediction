@@ -1,6 +1,11 @@
 import { useEffect, useState } from 'react';
 import { ArrowDown, ArrowUp, CalendarDays, ChevronLeft, ChevronRight, Download } from 'lucide-react';
 import { Button } from '../components/ui/button';
+
+// -----------------------------------------------------------------------------
+// DATASET EXPLORER PAGE
+// Browse, filter, sort, and export cleaned dataset rows for each procurement source.
+// -----------------------------------------------------------------------------
 import { Input } from '../components/ui/input';
 import {
   Select,
@@ -67,6 +72,10 @@ const SEARCH_OPTIONS: { value: SearchField; label: string }[] = [
   { value: 'category', label: 'Category' },
 ];
 
+// -----------------------------------------------------------------------------
+// UTILITY HELPERS
+// Formats dataset values for display in the filterable table.
+// -----------------------------------------------------------------------------
 function formatCellValue(column: string, value: string | number | null) {
   if (value === null || value === '') return '-';
 
@@ -221,6 +230,11 @@ export default function DatasetExplorer() {
     }
   };
   
+  // ---------------------------------------------------------------------------
+  // PAGE RENDER
+  // Main Dataset Explorer layout with dataset selection, filters, export controls,
+  // and the data table.
+  // ---------------------------------------------------------------------------
   return (
     <div className="w-full min-w-0 space-y-6">
       <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -258,6 +272,7 @@ export default function DatasetExplorer() {
 
           <div>
             <h3 className="mb-4 text-lg font-semibold text-[#003c6c]">Search and Filter Tools</h3>
+            {/* Search and filter controls */}
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-6">
             <div>
               <label className="mb-1 block text-xs font-semibold uppercase text-[#2d66ae]">
@@ -333,6 +348,7 @@ export default function DatasetExplorer() {
         </div>
       </section>
 
+      {/* Data table, sorting, and pagination controls */}
       <section className="rounded-xl border border-slate-200 bg-white shadow-sm">
         <div className="flex flex-col gap-5 border-b border-slate-200 px-6 py-5">
           <div className="text-left">

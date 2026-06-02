@@ -29,6 +29,12 @@ interface HistoryPoint {
   quantity: number;
 }
 
+// -----------------------------------------------------------------------------
+// ITEM HISTORY DRAWER
+// Drawer that shows a selected item's recent purchase history, forecast range,
+// and AI reasoning used for the prediction.
+// -----------------------------------------------------------------------------
+
 const ACTION_STYLES: Record<string, { bg: string; text: string; icon: React.ReactNode }> = {
   'Critical Reorder': {
     bg: 'bg-[#FFDAD6]', text: 'text-[#410002]',
@@ -101,9 +107,11 @@ export function ItemHistoryDrawer({ item, devMode, onClose, datasetType = 'books
             {/* Header */}
             <SheetHeader className="px-6 pt-6 pb-4 border-b border-[#DBEAFE]">
               <div className="flex flex-col gap-2 min-w-0">
+                {/* Title */}
                 <SheetTitle className="text-lg font-sans font-bold text-[#003c6c] leading-snug">
                   {item.category}
                 </SheetTitle>
+                {/* Action Badge */}
                 <ActionBadge action={item.action} />
               </div>
             </SheetHeader>

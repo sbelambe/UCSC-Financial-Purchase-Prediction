@@ -1,5 +1,10 @@
 import React from 'react';
 
+// -----------------------------------------------------------------------------
+// HELP PAGE
+// Provides user guidance for uploading data, refreshing the pipeline, and using
+// the SlugSmart dashboard workflows.
+// -----------------------------------------------------------------------------
 export default function Help() {
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">

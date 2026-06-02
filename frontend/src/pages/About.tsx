@@ -1,5 +1,9 @@
 import React from 'react';
 
+// -----------------------------------------------------------------------------
+// ABOUT + TERMS PAGE
+// Describes the SlugSmart project, acknowledgements, and platform terms.
+// -----------------------------------------------------------------------------
 export default function AboutTerms() {
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">

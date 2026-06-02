@@ -1,6 +1,10 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { MessageCircle, X, Send, Bot, Sparkles } from 'lucide-react';
 
+// -----------------------------------------------------------------------------
+// COMPONENT PROPERTIES
+// Defines the data passed into the Chatbot component.
+// -----------------------------------------------------------------------------
 interface ChatbotProps {
   isOpen: boolean;
   onToggle: () => void;
@@ -11,6 +15,10 @@ interface ChatbotProps {
   selectedTimePeriod?: string;
 }
 
+// -----------------------------------------------------------------------------
+// MESSAGE AND GUIDED QUESTION TYPES
+// Defines the structure of a chat message and guided question groups.
+// -----------------------------------------------------------------------------
 interface Message {
   id: string;
   text: string;
@@ -24,6 +32,10 @@ interface GuidedQuestionGroup {
   questions: string[];
 }
 
+// -----------------------------------------------------------------------------
+// GUIDED QUESTIONS
+// Predefined questions for the Guided Questions at the top of the chatbot.
+// -----------------------------------------------------------------------------
 const GUIDED_QUESTION_GROUPS: GuidedQuestionGroup[] = [
   {
     id: 'past',
@@ -63,6 +75,10 @@ const GUIDED_QUESTION_GROUPS: GuidedQuestionGroup[] = [
   },
 ];
 
+// -----------------------------------------------------------------------------
+// CHATBOT GUIDANCE RESPONSE TYPE
+// Defines the expected structure of the response from the chatbot API.
+// -----------------------------------------------------------------------------
 interface ChatbotGuidanceResponse {
   answer: string;
   suggested_questions: string[];
@@ -70,6 +86,10 @@ interface ChatbotGuidanceResponse {
   source?: string;
 }
 
+// -----------------------------------------------------------------------------
+// CHATBOT COMPONENT
+// Chatbot interface.
+// -----------------------------------------------------------------------------
 export function Chatbot({
   isOpen,
   onToggle,
@@ -79,6 +99,8 @@ export function Chatbot({
   selectedCategory = '',
   selectedTimePeriod = '',
 }: ChatbotProps) {
+
+  // Define state for messages, input value, and sending status
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
@@ -89,8 +111,11 @@ export function Chatbot({
   ]);
   const [inputValue, setInputValue] = useState('');
   const [isSending, setIsSending] = useState(false);
+
+  // Ref for scrolling to the bottom of the messages
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  // Memoized context payload to send with each chatbot request
   const contextPayload = useMemo(
     () => ({
       current_view: currentView,
@@ -103,14 +128,17 @@ export function Chatbot({
     [currentView, dataset, selectedVendor, selectedCategory, selectedTimePeriod]
   );
 
+  // Function to scroll to the bottom of the messages
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
+  // Scroll to bottom whenever messages change
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
 
+  // Function to append a bot message to the chat
   const appendBotMessage = (text: string) => {
     const botMessage: Message = {
       id: (Date.now() + Math.random()).toString(),
@@ -121,6 +149,7 @@ export function Chatbot({
     setMessages((prev) => [...prev, botMessage]);
   };
 
+  // Function to handle sending a message
   const handleSend = async (overrideValue?: string) => {
     const question = (overrideValue ?? inputValue).trim();
     if (!question || isSending) return;
@@ -170,8 +199,13 @@ export function Chatbot({
     }
   };
 
+  // Variable for guided questions
   const suggestedQuestions = GUIDED_QUESTION_GROUPS;
 
+
+  // ---------------------------------------------------------------------------
+  // RENDER
+  // ---------------------------------------------------------------------------
   return (
     <>
       {/* Chatbot Button */}
@@ -210,6 +244,7 @@ export function Chatbot({
             </button>
           </div>
 
+          {/* Guided Questions */}
           <div className="border-b border-gray-100 bg-slate-50 px-4 py-3">
             <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-[#2d66ae]">
               <Sparkles size={14} />
@@ -263,7 +298,7 @@ export function Chatbot({
             <div ref={messagesEndRef} />
           </div>
 
-          {/* Input */}
+          {/* Input and Send Buttons */}
           <div className="p-4 border-t border-gray-200">
             <div className="flex gap-2">
               <input
@@ -284,6 +319,7 @@ export function Chatbot({
                 <Send size={20} />
               </button>
             </div>
+            { /* Message at bottom */}
             <p className="text-xs text-slate-950 mt-2 text-center">
               Gemini guidance is used when configured; otherwise the chatbot falls back to curated guidance.
             </p>

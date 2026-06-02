@@ -163,6 +163,10 @@ async function prefetchAllDatasets() {
   ]);
 }
 
+// ---------------------------------------------------------------------------
+// AUTHENTICATED LAYOUT
+// Wrapper used on every protected page to render the header, main content, and chatbot.
+// ---------------------------------------------------------------------------
 function AuthenticatedLayout({ currentView, children }: AuthenticatedLayoutProps) {
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -253,6 +257,10 @@ function AboutPage() {
   );
 }
 
+// ---------------------------------------------------------------------------
+// APPLICATION ROOT
+// Sets up query caching, authentication, routing, and protected page layout.
+// ---------------------------------------------------------------------------
 export default function App() {
   // Fire-and-forget: pre-warm the QueryClient cache with all four datasets
   // in priority order as soon as the app mounts.

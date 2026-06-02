@@ -1,5 +1,10 @@
 import type { CondensedDrilldownItem, TopItem, VendorStat } from './TopItemsTable';
 
+// -----------------------------------------------------------------------------
+// TOP ITEM DRILLDOWN PANEL TYPES
+// Types and helpers for the item drilldown side panel.
+// -----------------------------------------------------------------------------
+
 type MetricType = 'currency' | 'quantity' | 'mixed';
 
 interface TopItemDrilldownPanelProps {
@@ -11,6 +16,10 @@ interface TopItemDrilldownPanelProps {
 const PROJECT_DETAIL_KEYWORDS = /(project|fund|account|department|dept|cost center|program|chartstring|index|foapal|allocation)/i;
 const CURRENCY_KEYWORDS = /(amount|total|subtotal|tax|price|cost|spend)/i;
 
+// -----------------------------------------------------------------------------
+// FORMATTERS
+// Number and currency formatting helpers for the drilldown panel.
+// -----------------------------------------------------------------------------
 const formatCurrency = (value: number) => {
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
@@ -95,6 +104,7 @@ export default function TopItemDrilldownPanel({
 
   return (
     <div className="h-full rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+      {/* Header */}
       <h4 className="text-sm font-bold text-[#003c6c]">Detailed Breakdown</h4>
       <p className="mt-1 text-xs text-slate-500">{selectedItem.clean_item_name}</p>
       {selectedItem.is_condensed && (
@@ -103,6 +113,7 @@ export default function TopItemDrilldownPanel({
         </p>
       )}
 
+      {/* Summary cards */}
       <div className="mt-4 grid grid-cols-2 gap-2">
         <div className="rounded-lg border border-slate-200 bg-slate-50 p-2">
           <p className="text-[11px] font-semibold uppercase tracking-wide text-[#2d66ae]">Frequency</p>
@@ -120,6 +131,7 @@ export default function TopItemDrilldownPanel({
         </div>
       </div>
 
+      {/* Condensed group drilldown */}
       {selectedItem.is_condensed && (
         <div className="mt-4">
           <h5 className="text-xs font-semibold uppercase tracking-wide text-[#2d66ae]">Underlying Purchases</h5>
@@ -154,6 +166,7 @@ export default function TopItemDrilldownPanel({
         </div>
       )}
 
+      {/* Vendor breakdown */}
       <div className="mt-4">
         <h5 className="text-xs font-semibold uppercase tracking-wide text-[#2d66ae]">Vendor Breakdown</h5>
         {vendors.length === 0 ? (
@@ -173,6 +186,7 @@ export default function TopItemDrilldownPanel({
         )}
       </div>
 
+      {/* Project and allocation fields */}
       {projectEntries.length > 0 && (
         <div className="mt-4">
           <h5 className="text-xs font-semibold uppercase tracking-wide text-[#2d66ae]">Project and Allocation Fields</h5>
@@ -187,6 +201,7 @@ export default function TopItemDrilldownPanel({
         </div>
       )}
 
+      {/* Other dataset details */}
       {otherEntries.length > 0 && (
         <div className="mt-4">
           <h5 className="text-xs font-semibold uppercase tracking-wide text-[#2d66ae]">Other Dataset Details</h5>

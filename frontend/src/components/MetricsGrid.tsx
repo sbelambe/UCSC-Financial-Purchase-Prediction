@@ -1,13 +1,21 @@
-// Renders the grid of key metrics at the top of the dashboard
+// -----------------------------------------------------------------------------
+// METRICS GRID
+// Displays a set of dashboard summary cards for the selected dataset.
+// -----------------------------------------------------------------------------
 import { DollarSign, ShoppingCart, TrendingUp, Package, Tag, BarChart3 } from 'lucide-react';
 
-// Define props for the MetricsGrid component
+// -----------------------------------------------------------------------------
+// COMPONENT PROPS
+// Props accepted by the MetricsGrid component.
+// -----------------------------------------------------------------------------
 interface MetricsGridProps {
   data: any;
 }
 
-// The MetricsGrid component takes in a `data` prop containing all the key 
-// metrics to display
+// -----------------------------------------------------------------------------
+// METRICS GRID COMPONENT
+// Render the summary cards showing spend, transactions, top vendor, and category metrics.
+// -----------------------------------------------------------------------------
 export function MetricsGrid({ data }: MetricsGridProps) {
   const metrics = [
     {
@@ -50,6 +58,7 @@ export function MetricsGrid({ data }: MetricsGridProps) {
 
   return (
     <div>
+      {/* Title */}
       <h2 className="text-lg font-semibold mb-4" style={{ color: '#003c6c' }}>
         Key Metrics
       </h2>

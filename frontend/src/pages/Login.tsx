@@ -1,16 +1,13 @@
-// Login Page Component
+// -----------------------------------------------------------------------------
+// LOGIN PAGE
+// Handles Google authentication and redirects authenticated users to the dashboard.
+// -----------------------------------------------------------------------------
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { signInWithPopup } from 'firebase/auth';
 import { auth, googleProvider } from '../lib/firebase';
 
-
-/**
- * Login Page
- * Handles Google OAuth authentication using Supabase.
- * Checks for existing sessions and displays error messages from URL fragments.
- */
 export default function Login() {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -25,7 +22,7 @@ export default function Login() {
   }, [user, navigate]);
 
   // 2. Parse URL Hash for Error Messages
-  // Supabase redirects back with errors in the URL hash (e.g., #error_description=User+blocked)
+  // Firebase redirects back with errors in the URL hash (e.g., #error_description=User+blocked)
   useEffect(() => {
     const hashParams = new URLSearchParams(window.location.hash.substring(1));
     const errorDescription = hashParams.get('error_description');
@@ -37,20 +34,22 @@ export default function Login() {
     }
   }, []);
 
+  // ---------------------------------------------------------------------------
+  // OAUTH SIGN-IN
+  // Initiates the OAuth flow with Google via Firebase authentication.
+  // ---------------------------------------------------------------------------
+  const handleLogin = async (e: React.MouseEvent<HTMLButtonElement>) => {
+    setLoading(true);
 
-/**
-   * Initiates the OAuth flow with Google.
-   */
-const handleLogin = async (e: React.MouseEvent<HTMLButtonElement>) => {
-  setLoading(true);
-  
-try {
-    await signInWithPopup(auth, googleProvider);
-    // Firebase automatically handles the redirect/popup logic
-  } catch (error) {
-    console.error(error);
-  }
-};
+    try {
+      await signInWithPopup(auth, googleProvider);
+      // Firebase automatically handles the redirect/popup logic
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="min-h-screen flex flex-col justify-center items-center p-4" style={{ backgroundColor: '#003c6c' }}>

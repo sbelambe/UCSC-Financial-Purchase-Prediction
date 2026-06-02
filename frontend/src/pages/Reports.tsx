@@ -1,5 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { BarChart3, CalendarDays, Download, FileText } from 'lucide-react';
+
+// -----------------------------------------------------------------------------
+// REPORTS PAGE
+// Generates dataset summary reports with configurable period, dataset, and export.
+// -----------------------------------------------------------------------------
 import {
   Select,
   SelectContent,
@@ -58,6 +63,10 @@ const periodOptions: { value: ReportPeriod; label: string }[] = [
 const formatNumber = (value: number) =>
   new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 }).format(value || 0);
 
+// -----------------------------------------------------------------------------
+// METRIC FORMATTERS
+// Converts numeric values into currency or quantity display strings.
+// -----------------------------------------------------------------------------
 const formatMetric = (
   value: number,
   metricType: MetricType = 'currency'
@@ -78,6 +87,10 @@ const csvCell = (value: string | number | null | undefined) => {
   return `"${raw.replace(/"/g, '""')}"`;
 };
 
+// -----------------------------------------------------------------------------
+// CSV EXPORT HELPERS
+// Build and download a report summary CSV from the fetched report data.
+// -----------------------------------------------------------------------------
 const downloadCsv = (report: PeriodSummaryReport) => {
   const rows = [
     ['Section', 'Name', 'Count', 'Total'],
@@ -106,6 +119,10 @@ const downloadCsv = (report: PeriodSummaryReport) => {
   URL.revokeObjectURL(url);
 };
 
+// -----------------------------------------------------------------------------
+// SUMMARY CARD
+// Displays a key metric summary card for the report overview.
+// -----------------------------------------------------------------------------
 function SummaryCard({
   label,
   value,
@@ -124,6 +141,10 @@ function SummaryCard({
   );
 }
 
+// -----------------------------------------------------------------------------
+// RANKED TABLE
+// Shows top items, merchants, or categories in a sortable summary table.
+// -----------------------------------------------------------------------------
 function RankedTable({
   title,
   rows,
@@ -172,6 +193,10 @@ function RankedTable({
   );
 }
 
+// ---------------------------------------------------------------------------
+// REPORTS PAGE COMPONENT
+// Fetches summary data and renders exportable report insights.
+// ---------------------------------------------------------------------------
 export default function Reports() {
   const [dataset, setDataset] = useState<ReportDataset>('overall');
   const [period, setPeriod] = useState<ReportPeriod>('month');
@@ -241,7 +266,7 @@ export default function Reports() {
             Generate and export weekly or monthly transaction summary reports for Amazon, CruzBuy,
             OneCard, Bookstore, or combined dataset activity. Reports provide key metrics, top
             items, leading merchants, and category trends for the selected reporting period.
-            The default report is the most recent month for Overall).<br /> ⠀
+            The default report is the most recent month for Overall.<br /> ⠀
           </p>
         </div>
       </section>

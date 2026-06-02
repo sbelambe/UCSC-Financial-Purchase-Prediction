@@ -1,13 +1,12 @@
-// Component for displaying a bar chart of the top 5 most frequently purchased
-// items, with a dropdown to switch between frequency and total spend metrics.
+// ---------------------------------------------------------------------------
+// TOP ITEMS CHART
+// Renders the Top 5 item bar chart with metric selection and optional drilldown.
+// ---------------------------------------------------------------------------
 import React, { useState, useMemo, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell, Legend } from 'recharts';
 import type { TopItem } from './TopItemsTable';
 import TopItemDrilldownPanel from './TopItemDrilldownPanel';
 
-// TopItems Chart Component
-// This component takes in an array of purchase data and visualizes the top 5 most
-// frequently purchased items using a bar chart
 const TopItemsChart = ({
   data,
   metricLabel = 'Total Spend',
@@ -25,7 +24,10 @@ const TopItemsChart = ({
   enableDrilldown?: boolean;
   enableCostMetric?: boolean;
 }) => {
-  // state to track which metric is selected from the dropdown
+  // -------------------------------------------------------------------------
+  // COMPONENT STATE
+  // Tracks metric selection and drilldown selection state.
+  // -------------------------------------------------------------------------
   const [metric, setMetric] = useState<'count' | 'spend' | 'cost_per_item'>('count');
   const [selectedItem, setSelectedItem] = useState<TopItem | null>(null);
 
@@ -87,7 +89,10 @@ const TopItemsChart = ({
 
   const COLORS = ['#003c6c', '#2d66ae', '#4f8fd0', '#7baee8', '#9cc6ee'];
 
-  //Currency Formatter for the tooltip and y-axis
+  // -------------------------------------------------------------------------
+  // FORMATTERS
+  // Provides currency formatting for tooltip and axis labels.
+  // -------------------------------------------------------------------------
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
@@ -108,8 +113,7 @@ const TopItemsChart = ({
 
   return (
     <div className="w-full min-w-0 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-      
-      {/* Flex Header with Dropdown */}
+      {/* Header and metric selector */}
       <div className="mb-4 flex flex-col gap-3 px-4 sm:items-center">
         <h3 className="text-lg font-bold leading-tight text-[#003c6c]">
           {title}
@@ -213,6 +217,7 @@ const TopItemsChart = ({
           </div>
         </div>
 
+        {/* Drilldown panel */}
         {enableDrilldown && (
           <TopItemDrilldownPanel
             selectedItem={selectedItem}

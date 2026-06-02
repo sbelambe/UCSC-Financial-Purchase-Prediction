@@ -3,6 +3,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 
+// -----------------------------------------------------------------------------
+// FEEDBACK MODAL TYPES
+// Props and data shapes used by the feedback modal component.
+// -----------------------------------------------------------------------------
+
 interface FeedbackModalProps {
     item: {
         category: string;
@@ -23,86 +28,87 @@ interface FeedbackModalProps {
  * @returns {JSX.Element} The rendered Dialog component.
  */
 export function FeedbackModal({ item, onClose }: FeedbackModalProps) {
-    // setting default states
+    // -----------------------------------------------------------------------
+    // COMPONENT STATE
+    // Local UI state for the feedback textarea and submission status.
+    // -----------------------------------------------------------------------
     const [comment, setComment] = useState("");
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    /**
-     * Handles the submission of the feedback form.
-     * Prevents submission if no item is selected. 
-     * Sends a POST request to the backend API (/api/analytics/feedback) with the item details and user comment. 
-     * On success, it clears the form and triggers the onClose callback.
-     * @async
-     * @function handleSubmit
-     * @returns {Promise<void>}
-    */
+    // -----------------------------------------------------------------------
+    // FORM HANDLER
+    // Handle form submission: POST feedback to backend and manage local state.
+    // -----------------------------------------------------------------------
     const handleSubmit = async () => {
         if (!item) return;
         
         setIsSubmitting(true);
         try {
-        const response = await fetch('/api/analytics/feedback', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-            item_category: item.category,
-            predicted_demand: item.predicted_demand,
-            current_stock: item.current_stock,
-            user_comment: comment
-            })
-        });
+            const response = await fetch('/api/analytics/feedback', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    item_category: item.category,
+                    predicted_demand: item.predicted_demand,
+                    current_stock: item.current_stock,
+                    user_comment: comment
+                })
+            });
 
-        if (!response.ok) throw new Error('Failed to submit feedback');
+            if (!response.ok) throw new Error('Failed to submit feedback');
 
-        setComment("");
-        onClose(); // Close the modal on success
+            setComment("");
+            onClose(); // Close the modal on success
         } catch (error) {
-        console.error("Feedback failed", error);
+            console.error("Feedback failed", error);
         } finally {
-        setIsSubmitting(false);
+            setIsSubmitting(false);
         }
     };
 
+    // -----------------------------------------------------------------------
+    // RENDER
+    // Dialog opens when `item` is non-null. Clears state on close.
+    // -----------------------------------------------------------------------
     return (
-        // The Dialog opens whenever 'item' is not null. 
-        // When the user clicks the X or background, it triggers onClose().
         <Dialog open={!!item} onOpenChange={(open) => {
-        if (!open) {
-            setComment("");
-            onClose();
-        }
+            if (!open) {
+                setComment("");
+                onClose();
+            }
         }}>
-        <DialogContent>
-            <DialogHeader>
-            <DialogTitle className="text-lg font-semibold" style={{ color: '#003c6c' }}>
-                Report Prediction Issue</DialogTitle>
-            <DialogDescription className="text-sm text-slate-950">
-                Submit correction feedback for the machine learning inventory forecast.
-            </DialogDescription>
-            </DialogHeader>
-            
-            {item && (
-            <div className="space-y-4">
-                <p className="text-sm text-slate-950">
-                Flagging prediction for <strong className = "text-[#2d66ae]">{item.category}</strong>. 
-                (Target: {item.predicted_demand}, Stock: {item.current_stock})
-                </p>
-                <Textarea 
-                placeholder="Why is this prediction misleading? (e.g., Seasonal change, discontinued item...)"
-                value={comment}
-                onChange={(e) => setComment(e.target.value)}
-                className="placeholder-slate-200"
-                />
-                <Button 
-                  onClick={handleSubmit} 
-                  disabled={isSubmitting || !comment}
-                  className="bg-[#003c6c] border border-[#003c6c] text-white hover:bg-[#002a4d] disabled:opacity-60"
-                >
-                {isSubmitting ? "Submitting..." : "Submit Feedback"}
-                </Button>
-            </div>
-            )}
-        </DialogContent>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle className="text-lg font-semibold" style={{ color: '#003c6c' }}>
+                        Report Prediction Issue
+                    </DialogTitle>
+                    <DialogDescription className="text-sm text-slate-950">
+                        Submit correction feedback for the machine learning inventory forecast.
+                    </DialogDescription>
+                </DialogHeader>
+
+                {item && (
+                    <div className="space-y-4">
+                        <p className="text-sm text-slate-950">
+                            Flagging prediction for <strong className = "text-[#2d66ae]">{item.category}</strong>.
+                            (Target: {item.predicted_demand}, Stock: {item.current_stock})
+                        </p>
+                        <Textarea 
+                            placeholder="Why is this prediction misleading? (e.g., Seasonal change, discontinued item...)"
+                            value={comment}
+                            onChange={(e) => setComment(e.target.value)}
+                            className="placeholder-slate-200"
+                        />
+                        <Button 
+                            onClick={handleSubmit} 
+                            disabled={isSubmitting || !comment}
+                            className="bg-[#003c6c] border border-[#003c6c] text-white hover:bg-[#002a4d] disabled:opacity-60"
+                        >
+                            {isSubmitting ? "Submitting..." : "Submit Feedback"}
+                        </Button>
+                    </div>
+                )}
+            </DialogContent>
         </Dialog>
     );
 }

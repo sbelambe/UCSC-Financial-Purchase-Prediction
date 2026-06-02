@@ -1,11 +1,16 @@
-// Renders a table of top items with sorting, expandable vendor details, and 
-// support for projected data in a staging sandbox environment
+// -----------------------------------------------------------------------------
+// TOP ITEMS TABLE
+// Displays the top items table with sorting, vendor expansion, and projected data.
+// -----------------------------------------------------------------------------
 import React, { useEffect, useState, useMemo } from 'react';
 import type { DatasetSchema } from '../lib/datasetConfig';
 
-// --- Interfaces ---
+// -----------------------------------------------------------------------------
+// TYPES & INTERFACES
+// Data definitions used by the top items table and its expandable rows.
+// -----------------------------------------------------------------------------
 // VendorStat represents the aggregated stats for a single vendor associated
-//  with an item
+// with an item
 export interface VendorStat {
   name: string;
   count: number;
@@ -54,7 +59,10 @@ type SortConfig = {
 } | null;
 
 
-// --- Helper Functions ---
+// -----------------------------------------------------------------------------
+// HELPER FUNCTIONS
+// Reusable formatting helpers for vendor tags, badges, and numeric display.
+// -----------------------------------------------------------------------------
 /**
  * Formats the vendor tags in the main table row.
  * Handles filtering of empty/unknown vendors and displays a "+X" badge for overflow.
@@ -182,15 +190,10 @@ const formatDynamicValue = (
   return value;
 };
 
-// --- Main Component ---
-
-/**
- * TopItemsTable
- * Features:
- * 1. Staging Sandbox: Displays purple badges for pending CSV data.
- * 2. Combined Sorting: Ranks items based on the sum of current + projected data.
- * 3. Expandable Rows: Shows a detailed, sortable vendor breakdown.
- */
+// -----------------------------------------------------------------------------
+// TOP ITEMS TABLE COMPONENT
+// Main table component with sorting state, expandable rows, and dynamic metrics.
+// -----------------------------------------------------------------------------
 export function TopItemsTable({
   data,
   showProjected = false,
@@ -222,7 +225,10 @@ export function TopItemsTable({
     });
   }, [sortMode]);
 
-  // --- Sorting Logic ---
+  // ---------------------------------------------------------------------------
+  // SORTING LOGIC
+  // Computes the sorted display order for items and projected totals.
+  // ---------------------------------------------------------------------------
 
   const sortedData = useMemo(() => {
     const sortableItems = [...(data || [])];
@@ -453,6 +459,7 @@ export function TopItemsTable({
 
   return (
     <div className="top-items-table-shell overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+      {/* Summary table with optional expandable vendor details */}
       <div className="border-b border-gray-200 bg-slate-50 px-4 py-2 text-xs font-medium text-slate-500">
         Scroll within this table to view more rows and columns.
       </div>

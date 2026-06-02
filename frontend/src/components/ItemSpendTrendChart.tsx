@@ -19,6 +19,11 @@ import {
   SelectValue,
 } from './ui/select';
 
+// -----------------------------------------------------------------------------
+// ITEM SPEND TREND TYPES
+// Data types and shapes used by the spend trend chart component.
+// -----------------------------------------------------------------------------
+
 type DatasetKey = 'overall' | 'amazon' | 'cruzbuy' | 'onecard' | 'bookstore';
 type TimePeriod = 'month' | 'quarter' | 'year';
 
@@ -76,6 +81,11 @@ const TIME_PERIOD_OPTIONS: Array<{ value: TimePeriod; label: string }> = [
 const datasetLabel = (dataset: string) =>
   DATASET_OPTIONS.find((option) => option.value === dataset)?.label || dataset;
 
+// -----------------------------------------------------------------------------
+// FORMATTERS
+// Display helpers for currencies and quantities used in the chart.
+// -----------------------------------------------------------------------------
+
 const formatCurrency = (value: number) =>
   new Intl.NumberFormat('en-US', {
     style: 'currency',
@@ -129,6 +139,10 @@ const ItemSpendTrendChart: React.FC<ItemSpendTrendChartProps> = ({
   selectedYear,
   selectedQuarter,
 }) => {
+  // -------------------------------------------------------------------------
+  // COMPONENT STATE
+  // Track selected dataset, query text, API results, and load/error UI state.
+  // -------------------------------------------------------------------------
   const normalizedActiveDataset = DATASET_OPTIONS.some((option) => option.value === activeDatasetKey)
     ? (activeDatasetKey as DatasetKey)
     : 'overall';
@@ -185,6 +199,10 @@ const ItemSpendTrendChart: React.FC<ItemSpendTrendChartProps> = ({
       });
   }, [dataset, selectedQuarter, selectedYear, submittedQuery, timePeriod]);
 
+  // -------------------------------------------------------------------------
+  // DERIVED VALUES
+  // Memoize chart data and schema values from the latest API response.
+  // -------------------------------------------------------------------------
   const chartData = useMemo(
     () => rollupSeries(trendData?.series || [], timePeriod),
     [trendData?.series, timePeriod]
@@ -200,6 +218,7 @@ const ItemSpendTrendChart: React.FC<ItemSpendTrendChartProps> = ({
 
   return (
     <div className="w-full min-w-0 space-y-5">
+      {/* Search & controls */}
       <form
         onSubmit={handleSubmit}
         className="flex flex-col gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm lg:flex-row lg:items-end"
@@ -260,6 +279,7 @@ const ItemSpendTrendChart: React.FC<ItemSpendTrendChartProps> = ({
         </div>
       </form>
 
+      {/* Summary cards */}
       {summary && (
         <div className="grid gap-3 md:grid-cols-3">
           <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
@@ -281,6 +301,7 @@ const ItemSpendTrendChart: React.FC<ItemSpendTrendChartProps> = ({
         </div>
       )}
 
+      {/* Trend chart */}
       <div className="min-h-[320px] rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
         {loading ? (
           <div className="flex h-[300px] items-center justify-center text-sm text-slate-500">
@@ -335,6 +356,7 @@ const ItemSpendTrendChart: React.FC<ItemSpendTrendChartProps> = ({
         </div>
       )}
 
+      {/* Matched items table */}
       <div className="space-y-2">
         <div className="flex items-center justify-between gap-3">
           <h3 className="text-sm font-bold text-[#003c6c]">Matched Items</h3>

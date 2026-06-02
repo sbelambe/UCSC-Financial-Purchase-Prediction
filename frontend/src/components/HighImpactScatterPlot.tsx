@@ -36,6 +36,10 @@ export function HighImpactScatterPlot({
   metricLabel = 'Total Spend',
   metricType = 'currency',
 }: HighImpactScatterPlotProps) {
+  // -------------------------------------------------------------------------
+  // PREPARE CHART DATA
+  // Map incoming items to the chart data structure and compute averages.
+  // -------------------------------------------------------------------------
   const chartData = useMemo(
     () =>
       (data || []).map((item) => ({
@@ -55,6 +59,10 @@ export function HighImpactScatterPlot({
       ? chartData.reduce((sum, item) => sum + item.metric, 0) / chartData.length
       : 0;
 
+  // -------------------------------------------------------------------------
+  // ITEM CLASSIFICATION
+  // Small helper to label points relative to dataset averages.
+  // -------------------------------------------------------------------------
   const classifyItem = (frequency: number, metric: number) => {
     if (frequency >= averageFrequency && metric >= averageMetric) {
       return 'High Impact Item';
@@ -78,6 +86,7 @@ export function HighImpactScatterPlot({
 
   return (
     <div className="w-full min-w-0 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+      {/* Title & Controls */}
       <div className="mb-4 px-4">
       </div>
       <div className="flex justify-center overflow-x-auto">

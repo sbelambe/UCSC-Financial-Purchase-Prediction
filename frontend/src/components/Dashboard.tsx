@@ -1,6 +1,3 @@
-// Dashboard — main view. All data-fetching lives in the hooks imported below;
-// this file is responsible for wiring state together and rendering the two
-// tab layouts (Home and the per-dataset drill-down).
 import { useState, useEffect, useMemo, useDeferredValue } from 'react';
 
 import { TabNavigation }          from './TabNavigation';
@@ -42,7 +39,14 @@ import {
 
 
 export function Dashboard() {
-  // --- Tab & filter state ---
+// -----------------------------------------------------------------------------
+// DASHBOARD COMPONENT
+// Main dashboard page that switches between the Home overview and dataset tabs.
+// -----------------------------------------------------------------------------
+  // ---------------------------------------------------------------------------
+  // DASHBOARD STATE
+  // Active tab selection, filters, chart state, and purchase plan data.
+  // ---------------------------------------------------------------------------
   const [activeTab, setActiveTab]               = useState<DashboardTab>('Home');
   const [selectedYear, setSelectedYear]         = useState('All Time');
   const [selectedQuarter, setSelectedQuarter]   = useState<QuarterName>('All Quarters');
@@ -62,10 +66,18 @@ export function Dashboard() {
     item: InsightRow; dataset: string; unitPrice: number | null; recommendedQty: number;
   }[]>([]);
 
+  // ---------------------------------------------------------------------------
+  // MEMOIZED VALUES
+  // Derive stable values from state and avoid unnecessary re-renders.
+  // ---------------------------------------------------------------------------
   const deferredSearchQuery = useDeferredValue(searchQuery);
   const activeDatasetKey    = TAB_TO_DATASET[activeTab] || 'overall';
   const planCategories      = useMemo(() => new Set(purchasePlan.map((p) => p.item.category)), [purchasePlan]);
 
+  // ---------------------------------------------------------------------------
+  // FORM HELPERS
+  // Apply draft field values to the active search and filter state.
+  // ---------------------------------------------------------------------------
   const applyDraftSearch = () => {
     setSearchQuery(draftSearchQuery.trim());
   };
@@ -83,7 +95,10 @@ export function Dashboard() {
     setDraftMinSpend(String(minSpend || 0));
   }, [minSpend]);
 
-  // --- Dataset schema ---
+  // ---------------------------------------------------------------------------
+  // DATA SCHEMA EFFECT
+  // Load dataset-specific schema metadata when the active dataset changes.
+  // ---------------------------------------------------------------------------
   useEffect(() => {
     fetch(`/api/analytics/dataset-config?dataset=${activeDatasetKey}`)
       .then((r) => r.json())
@@ -94,7 +109,10 @@ export function Dashboard() {
   // Reset chart to slide 0 on tab change
   useEffect(() => { setActiveChartSlide(0); }, [activeTab]);
 
-  // --- Data hooks ---
+  // ---------------------------------------------------------------------------
+  // DATA HOOKS
+  // Fetch BigQuery-backed datasets, summaries, and preview data for rendering.
+  // ---------------------------------------------------------------------------
   const { topItems, isLoading: isLoadingTopItems, error: topItemsError, schema: topItemsSchema } =
     useTopItems({ activeDatasetKey, selectedYear, selectedQuarter, deferredSearchQuery, minSpend, selectedLimit, selectedSortMode, selectedCategory, highImpactOnly });
 
@@ -110,10 +128,16 @@ export function Dashboard() {
   const { previews: datasetPreviews, isLoading: datasetPreviewsLoading } =
     useDatasetPreviews(activeTab);
 
-  // Sync schema from top-items response
+  // ---------------------------------------------------------------------------
+  // SCHEMA SYNC
+  // Keep the active dataset schema aligned with the latest top-items response.
+  // ---------------------------------------------------------------------------
   useEffect(() => { if (topItemsSchema) setActiveSchema(topItemsSchema); }, [topItemsSchema]);
 
-  // Keep pattern dimension valid when dataset changes
+  // ---------------------------------------------------------------------------
+  // PATTERN DIMENSION VALIDATION
+  // Ensure the selected pattern dimension is valid for the current dataset.
+  // ---------------------------------------------------------------------------
   const availablePatternDimensions = useMemo(
     () => getAvailablePatternDimensions(activeSchema, activeDatasetKey),
     [activeSchema, activeDatasetKey],
@@ -123,7 +147,10 @@ export function Dashboard() {
       setSelectedPatternDimension(availablePatternDimensions[0] || 'item');
   }, [availablePatternDimensions, selectedPatternDimension]);
 
-  // Fetch baseline top-items for purchase plan unit-price estimation
+  // ---------------------------------------------------------------------------
+  // BACKGROUND INSIGHT DATA
+  // Load baseline item data used by the purchase plan and ML insights sections.
+  // ---------------------------------------------------------------------------
   useEffect(() => {
     if (!['Home', 'Amazon', 'Bookstore'].includes(activeTab)) return;
     Promise.all([
@@ -134,7 +161,10 @@ export function Dashboard() {
       .catch(console.error);
   }, [activeTab]);
 
-  // --- Derived data ---
+  // ---------------------------------------------------------------------------
+  // DERIVED DATA
+  // Compute filtered item lists and chart-ready datasets from fetched values.
+  // ---------------------------------------------------------------------------
   const filteredTopItems = useMemo(() => topItems || [], [topItems]);
   const chartTopItems    = useMemo(
     () => filteredTopItems.filter((item) => !shouldExcludeFromCharts(item, activeDatasetKey)),
@@ -160,7 +190,10 @@ export function Dashboard() {
     };
   }, [overallCombinedSpend, overallMerchants, overallTopCategory, topItems]);
 
-  // --- Handlers ---
+  // ---------------------------------------------------------------------------
+  // EVENT HANDLERS
+  // Actions triggered by user interactions in the inventory and chart sections.
+  // ---------------------------------------------------------------------------
   const handleAddToPlan = (item: InsightRow) => {
     setPurchasePlan((prev) => {
       if (prev.some((p) => p.item.category === item.category)) return prev;
@@ -178,7 +211,14 @@ export function Dashboard() {
     });
   };
 
-  // --- Chart slides (shared between both tab layouts) ---
+  // ---------------------------------------------------------------------------
+  // RENDER
+  // ---------------------------------------------------------------------------
+
+  // ---------------------------------------------------------------------------
+  // CHART SLIDES CONFIGURATION
+  // Build the carousel slides and shared chart UI controls.
+  // ---------------------------------------------------------------------------
   const patternDimensionControls = (
     <div className="inline-flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 p-1">
       {availablePatternDimensions.map((dim) => (
@@ -258,21 +298,25 @@ export function Dashboard() {
     },
   ];
 
+  // ---------------------------------------------------------------------------
+  // SHARED UI FRAGMENTS
+  // Reusable component fragments used in both the Home and dataset tab layouts.
+  // ---------------------------------------------------------------------------
   const stickyNav = (
     <div className="sticky top-0 z-40 bg-gray-50/95 backdrop-blur py-2">
       <TabNavigation activeTab={activeTab} onTabChange={setActiveTab} />
     </div>
   );
 
-  // =========================================================================
+  // ---------------------------------------------------------------------------
   // HOME TAB
-  // =========================================================================
+  // ---------------------------------------------------------------------------
   if (activeTab === 'Home') {
     return (
       <div className="w-full min-w-0 space-y-6">
         {stickyNav}
 
-        {/* SlugSmart overview + MetricsGrid */}
+        {/* SlugSmart Overview  + MetricsGrid */}
         <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
           <h1 className="text-3xl font-bold text-[#003c6c]">SlugSmart Overview</h1>
           <p className="mt-2 text-sm leading-6 text-slate-950">
@@ -294,7 +338,7 @@ export function Dashboard() {
           </div>
         </section>
 
-        {/* Amazon ML insights + purchase plan */}
+        {/* Amazon Demand Insights and Purchase Plan */}
         <section className="space-y-3">
           <InventoryInsights activeTab="Amazon" onAddToPlan={handleAddToPlan} planCategories={planCategories} />
           <PurchasePlan
@@ -304,7 +348,7 @@ export function Dashboard() {
           />
         </section>
 
-        {/* Top items across all datasets */}
+        {/* Top Items Across Datasets */}
         <section className="w-full min-w-0 overflow-hidden rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
           <h2 className="text-xl font-bold text-[#003c6c]">Top Items Across Datasets</h2>
           <p className="mt-1 text-sm text-slate-950">
@@ -358,9 +402,10 @@ export function Dashboard() {
           </div>
         </section>
 
+        { /* External Vendors */}
         <ExternalVendorsPanel limit={10} />
 
-        {/* Spending analytics charts */}
+        {/* Amazon Spending Analytics Graphs */}
         <section className="w-full min-w-0 overflow-hidden rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
           <h2 className="text-xl font-bold text-[#003c6c]">Amazon Spending Analytics Graphs</h2>
           <p className="mt-1 mb-5 text-sm text-slate-950">
@@ -380,23 +425,25 @@ export function Dashboard() {
     );
   }
 
-  // =========================================================================
+  // ---------------------------------------------------------------------------
   // DATASET TABS (Amazon, Bookstore, CruzBuy, OneCard)
-  // =========================================================================
+  // ---------------------------------------------------------------------------
   return (
     <div className="w-full min-w-0 space-y-6">
       {stickyNav}
 
-      {/* Top items table */}
+      {/* Top Items Table */}
       <div className="w-full min-w-0 overflow-hidden rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
         {isLoadingTopItems ? (
           <div className="flex min-h-[240px] items-center justify-center">Loading…</div>
         ) : (
           <div className="w-full max-w-full min-w-0 space-y-4 overflow-hidden">
             <div>
+              {/* Title */}
               <h2 className="text-xl font-bold text-[#003c6c]">
                 {activeTab === 'Bookstore' ? 'Current Campus Bookstore Inventory' : 'Top Items'}
               </h2>
+              {/* Subtitle */}
               <p className="mt-1 mb-5 text-sm text-slate-950">
                 {activeTab === 'Bookstore'
                   ? 'Live BigQuery results of most-sold campus Bookstore items (sorted by purchase frequency by default). Use the search and filter buttons below to limit the results by year, quarter, category, and more. Press the "High-Impact" button to display only high-sold items. *Inventory levels approximated based on recent point-of-sale BigQuery data.'
@@ -404,8 +451,10 @@ export function Dashboard() {
               </p>
 
               <div className="mt-4">
+                {/* Search and Filter Tools */}
                 <h3 className="mb-4 text-lg font-semibold text-[#003c6c]">Search and Filter Tools</h3>
-
+                
+                {/* Search */}
                 <div className="flex flex-wrap items-end gap-4">
                   <div className="min-w-[280px] max-w-[460px] flex-1">
                     <label className="mb-1 block text-xs font-semibold uppercase text-[#2d66ae]">Search</label>
@@ -428,7 +477,8 @@ export function Dashboard() {
                       </Button>
                     </div>
                   </div>
-
+                  
+                  {/* Year */}
                   <div className="w-[176px] min-w-[160px]">
                     <label className="mb-1 block text-xs font-semibold uppercase text-[#2d66ae]">Year</label>
                     <Select value={selectedYear} onValueChange={(v) => setSelectedYear(String(v))}>
@@ -443,7 +493,8 @@ export function Dashboard() {
                       </SelectContent>
                     </Select>
                   </div>
-
+                  
+                  {/* Quarter */}
                   <div className="w-[176px] min-w-[160px]">
                     <label className="mb-1 block text-xs font-semibold uppercase text-[#2d66ae]">Quarter</label>
                     <Select value={selectedQuarter} onValueChange={(v) => setSelectedQuarter(String(v) as any)}>
@@ -460,6 +511,7 @@ export function Dashboard() {
                     </Select>
                   </div>
 
+                  {/* Category */}
                   <div className="w-[176px] min-w-[160px]">
                     <label className="mb-1 block text-xs font-semibold uppercase text-[#2d66ae]">Category</label>
                     <Select value={selectedCategory} onValueChange={(v) => setSelectedCategory(String(v))}>
@@ -475,7 +527,8 @@ export function Dashboard() {
                       </SelectContent>
                     </Select>
                   </div>
-
+                  
+                  {/* Sort */}
                   <div className="w-[140px] min-w-[140px]">
                     <label className="mb-1 block text-xs font-semibold uppercase text-[#2d66ae]">Sort</label>
                     <Select value={selectedSortMode} onValueChange={(v) => setSelectedSortMode(v as any)}>
@@ -488,7 +541,8 @@ export function Dashboard() {
                       </SelectContent>
                     </Select>
                   </div>
-
+                  
+                  {/* Min Spend */}
                   <div className="min-w-[190px]">
                     <label className="mb-1 block text-xs font-semibold uppercase text-[#2d66ae]">Min $</label>
                     <div className="flex items-center gap-2">
@@ -512,7 +566,8 @@ export function Dashboard() {
                       </Button>
                     </div>
                   </div>
-
+                  
+                  {/* High Impact Toggle + Clear Filters */}
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
@@ -563,7 +618,7 @@ export function Dashboard() {
         )}
       </div>
 
-      {/* Spending analytics charts */}
+      {/* Transaction Analytics Graphs */}
       <div className="w-full min-w-0 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
         <h2 className="text-xl font-bold text-[#003c6c]">Transaction Analytics Graphs</h2>
         <p className="mt-1 mb-5 text-sm text-slate-950">
@@ -580,7 +635,7 @@ export function Dashboard() {
         />
       </div>
 
-      {/* ML insights + purchase plan */}
+      {/* Amazon Demand Insights/Bookstore Inventory Insights and Purchase Plan */}
       {(activeTab === 'Amazon' || activeTab === 'Bookstore') && (
         <div className="space-y-4">
           <InventoryInsights

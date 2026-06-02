@@ -1,4 +1,7 @@
-// Component for tabbed navigation between the overview and dataset drilldowns.
+// -----------------------------------------------------------------------------
+// TAB NAVIGATION
+// Primary navigation buttons for switching between dashboard views.
+// -----------------------------------------------------------------------------
 interface TabNavigationProps {
   activeTab: string;
   onTabChange: (tab: 'Home' | 'Overall' | 'CruzBuy' | 'OneCard' | 'Amazon' | 'Bookstore') => void;
@@ -9,6 +12,7 @@ export function TabNavigation({ activeTab, onTabChange }: TabNavigationProps) {
 
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-1 flex flex-wrap gap-1">
+      {/* Tab buttons */}
       {tabs.map((tab) => (
         <button
           key={tab}

@@ -1,5 +1,7 @@
-// Renders a line chart showing spend over time, with support for both
-// historical spend and pending uploads
+// -----------------------------------------------------------------------------
+// TRANSACTIONS OVER TIME CHART
+// Line chart component for spend trends, historical totals, and projection overlays.
+// -----------------------------------------------------------------------------
 import React from 'react';
 import {
   LineChart,
@@ -29,6 +31,10 @@ type TransactionsOverTimeChartProps = {
   metricType?: 'currency' | 'quantity' | 'mixed';
 };
 
+// -----------------------------------------------------------------------------
+// UTILITY HELPERS
+// Formatters used by the chart rendering and tooltip values.
+// -----------------------------------------------------------------------------
 // Utility function to format numbers as USD currency
 const formatCurrency = (value: number) =>
   new Intl.NumberFormat('en-US', {
@@ -37,7 +43,10 @@ const formatCurrency = (value: number) =>
     maximumFractionDigits: 0,
   }).format(value);
 
-// Main component that renders the line chart
+// -----------------------------------------------------------------------------
+// MAIN COMPONENT
+// Renders the spend trend chart, header badge, and projection overlays.
+// -----------------------------------------------------------------------------
 const TransactionsOverTimeChart: React.FC<TransactionsOverTimeChartProps> = ({
   data,
   title = 'Spend Over Time',
@@ -81,6 +90,7 @@ const TransactionsOverTimeChart: React.FC<TransactionsOverTimeChartProps> = ({
 
   return (
     <div className="w-full min-w-0 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+      {/* Chart container with trend header and projection annotation */}
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
         <h3 className="text-lg font-bold leading-tight text-[#003c6c]">{title}</h3>
         {hasProjection && (

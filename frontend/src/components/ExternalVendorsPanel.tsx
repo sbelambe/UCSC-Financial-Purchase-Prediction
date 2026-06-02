@@ -1,9 +1,3 @@
-// ExternalVendorsPanel
-// Reads the pre-computed combined external-vendor ranking from
-// /api/analytics/external-vendors and renders it as a compact ranked table on
-// the Overall tab. The ranking is built once in the notebook (see
-// backend/data_cleaning/data_mining.ipynb) so this component is a cheap file
-// read on the backend — safe to mount on page load.
 import { useEffect, useState } from 'react';
 import { Building2, RefreshCw } from 'lucide-react';
 import {
@@ -15,6 +9,10 @@ import {
   TableRow,
 } from '../components/ui/table';
 
+// -----------------------------------------------------------------------------
+// EXTERNAL VENDOR PANEL TYPE
+// Data structure used by the external vendor ranking panel.
+// -----------------------------------------------------------------------------
 type Vendor = {
   rank: number;
   merchant_name: string;
@@ -25,6 +23,9 @@ type Vendor = {
   spend_share_pct: number;
 };
 
+// -----------------------------------------------------------------------------
+// HELPER FUNCTIONS
+// -----------------------------------------------------------------------------
 const formatCurrency = (n: number) =>
   new Intl.NumberFormat('en-US', {
     style: 'currency',
@@ -32,6 +33,9 @@ const formatCurrency = (n: number) =>
     maximumFractionDigits: 0,
   }).format(n);
 
+// -----------------------------------------------------------------------------
+// DATASET BUTTON STYLING
+// -----------------------------------------------------------------------------
 const DATASET_COLORS: Record<string, string> = {
   amazon: 'bg-amber-100 text-amber-800',
   cruzbuy: 'bg-blue-100 text-blue-800',
@@ -39,16 +43,25 @@ const DATASET_COLORS: Record<string, string> = {
   procard: 'bg-emerald-100 text-emerald-800',
 };
 
+// -----------------------------------------------------------------------------
+// COMPONENT PROPS
+// -----------------------------------------------------------------------------
 interface Props {
   limit?: number;
 }
 
 export function ExternalVendorsPanel({ limit = 10 }: Props) {
+  // ---------------------------------------------------------------------------
+  // EXTERNAL VENDORS STATE
+  // ---------------------------------------------------------------------------
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [totalVendors, setTotalVendors] = useState<number>(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // ---------------------------------------------------------------------------
+  // GET EXTERNAL VENDORS
+  // ---------------------------------------------------------------------------
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
@@ -77,19 +90,29 @@ export function ExternalVendorsPanel({ limit = 10 }: Props) {
     };
   }, [limit]);
 
+  // ---------------------------------------------------------------------------
+  // DERIVED METRICS
+  // Summary values used in the panel header and table totals.
+  // ---------------------------------------------------------------------------
   const topSpendShare = vendors.reduce((sum, v) => sum + v.spend_share_pct, 0);
 
+  // ---------------------------------------------------------------------------
+  // RENDER
+  // ---------------------------------------------------------------------------
   return (
     <section className="w-full min-w-0 overflow-hidden rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
       <div className="mb-4 flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
         <div>
+          {/* Title */}
           <div className="flex items-center gap-2">
             <h2 className="text-xl font-bold text-[#003c6c]">Top External Vendors</h2>
           </div>
+          {/* Subtitle */}
           <p className="mt-1 text-sm text-slate-950">
             Top-spend vendors identified across Amazon, CruzBuy, and OneCard/ProCard purchase history.
           </p>
         </div>
+        {/* Top length of total vendors... */}
         {!loading && !error && vendors.length > 0 && (
           <div className="text-xs text-slate-500">
             Top {vendors.length} of {totalVendors.toLocaleString()} vendors ·{' '}
@@ -128,6 +151,7 @@ export function ExternalVendorsPanel({ limit = 10 }: Props) {
         </div>
       )}
 
+      {/* Table Header */}
       {!loading && !error && vendors.length > 0 && (
         <div className="mt-5 overflow-x-auto rounded-lg border border-slate-200">
           <Table className="min-w-full text-sm">
@@ -141,6 +165,7 @@ export function ExternalVendorsPanel({ limit = 10 }: Props) {
                 <TableHead className="px-4 py-3 font-bold text-right text-[#2d66ae]">Share</TableHead>
               </TableRow>
             </TableHeader>
+            {/* Table Body */}
             <TableBody>
               {vendors.map((v) => (
                 <TableRow

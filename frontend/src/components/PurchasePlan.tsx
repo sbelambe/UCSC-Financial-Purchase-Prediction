@@ -3,6 +3,11 @@ import { Download, Trash2, ShoppingCart } from 'lucide-react';
 import type { InsightRow } from './InventoryInsights';
 import { Button } from './ui/button';
 
+// -----------------------------------------------------------------------------
+// PURCHASE PLAN TYPES
+// Types used by the purchase plan table and export functionality.
+// -----------------------------------------------------------------------------
+
 export interface PlanItem {
   item: InsightRow;
   dataset: string;
@@ -16,6 +21,11 @@ interface Props {
   onClearAll: () => void;
 }
 
+// -----------------------------------------------------------------------------
+// UTILITY HELPERS
+// Formatting helpers and style constants used by the purchase plan table.
+// -----------------------------------------------------------------------------
+
 const formatCurrency = (n: number) =>
   new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(n);
 
@@ -28,6 +38,10 @@ const ACTION_COLORS: Record<string, string> = {
 };
 
 export function PurchasePlan({ items, onRemove, onClearAll }: Props) {
+  // -------------------------------------------------------------------------
+  // RENDER SHORT-CIRCUIT
+  // Hide the component entirely when no purchase plan items are selected.
+  // -------------------------------------------------------------------------
   if (items.length === 0) return null;
 
   const enriched = items.map((p) => ({
@@ -38,6 +52,10 @@ export function PurchasePlan({ items, onRemove, onClearAll }: Props) {
   const total = enriched.reduce((sum, p) => sum + (p.estimatedCost ?? 0), 0);
   const hasAnyPrice = enriched.some((p) => p.estimatedCost != null);
 
+  // -------------------------------------------------------------------------
+  // CSV EXPORT
+  // Build and download a purchase plan CSV with estimated costs and item metadata.
+  // -------------------------------------------------------------------------
   const handleExport = () => {
     const header = ['Item', 'Dataset', 'Status', 'Recommended Qty', 'Avg. Historical Price', 'Est. Spend', 'Impact'];
     const rows = enriched.map((p) => [

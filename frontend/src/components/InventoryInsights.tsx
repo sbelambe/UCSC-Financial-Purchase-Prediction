@@ -22,6 +22,12 @@ import {
 import { ItemHistoryDrawer } from './ItemHistoryDrawer';
 import { FeedbackModal } from './FeedbackModal';
 
+// -----------------------------------------------------------------------------
+// INVENTORY INSIGHTS
+// Cards and controls that present ML-driven inventory signals and allow user
+// interactions (flagging, drilldown, adding to purchase plans).
+// -----------------------------------------------------------------------------
+
 export interface InsightRow {
   category: string;
   current_stock: number;
@@ -42,17 +48,13 @@ interface Props {
   planCategories?: Set<string>;
 }
 
-/**
- * Displays a responsive grid of cards showing inventory status, ML predictions, and trends.
- * Handles fetching dynamic data from either the Bookstore or Amazon endpoints based on the active tab,
- * and manages local state for development mode toggles, time periods, and action filters.
- * @param {Props} props - The component props.
- * @param {string} props.activeTab - The currently selected tab ('Amazon' or 'Bookstore'), which determines which API endpoint to fetch data from.
- * @returns {JSX.Element} The rendered grid of inventory insights and associated portal modals.
- */
 export function InventoryInsights({ activeTab, onAddToPlan, planCategories }: Props) {
   const isAmazon = activeTab === 'Amazon';
 
+  // -------------------------------------------------------------------------
+  // COMPONENT STATE
+  // Local UI and control state for the insights grid and modals.
+  // -------------------------------------------------------------------------
   const [timePeriod, setTimePeriod] = useState<string>('1_quarter');
   const [devMode, setDevMode] = useState<boolean>(false);
   const [actionFilter, setActionFilter] = useState<string>('All');
@@ -102,6 +104,10 @@ export function InventoryInsights({ activeTab, onAddToPlan, planCategories }: Pr
   const loading = isAmazon ? amazonLoading : bookstoreLoading;
   const error = isAmazon ? amazonError : bookstoreError;
 
+  // -------------------------------------------------------------------------
+  // HELPERS
+  // Rendering helpers and small UI helpers used by the cards below.
+  // -------------------------------------------------------------------------
   const renderActionBadge = (action: string) => {
     const baseClass = "flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-full whitespace-nowrap transition-colors";
     switch (action) {
@@ -167,13 +173,13 @@ export function InventoryInsights({ activeTab, onAddToPlan, planCategories }: Pr
   const emptyMessage = isAmazon
     ? 'No Amazon demand predictions available.'
     : 'No critical alerts detected.';
-
   return (
     <div className="w-full mb-10 flex flex-col gap-6 rounded-xl border border-slate-200 bg-white p-6 shadow-sm font-sans">
       {/* Header */}
       <div>
         <div>
           <div className="flex items-center gap-3">
+            {/* Title */}
             <h3 className="text-xl font-bold text-[#003c6c]">{title}</h3>
             {devMode && (
               <span className="flex items-center gap-1.5 text-[11px] font-semibold px-3 py-1 rounded-full bg-amber-100 text-amber-800 whitespace-nowrap">
@@ -181,6 +187,7 @@ export function InventoryInsights({ activeTab, onAddToPlan, planCategories }: Pr
               </span>
             )}
           </div>
+          {/* Subtitle */}
           <p className="text-sm text-slate-950">{subtitle}<br />  ⠀ </p>
         </div>
 
