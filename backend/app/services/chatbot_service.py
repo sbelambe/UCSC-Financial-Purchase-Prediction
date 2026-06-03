@@ -9,8 +9,6 @@ from __future__ import annotations
 import json
 import os
 import re
-import urllib.error
-import urllib.request
 from google import genai
 from google.genai import types
 from typing import Any, Dict, Optional
@@ -30,6 +28,7 @@ def _normalize_context(context: Optional[Dict[str, Any]]) -> Dict[str, Any]:
         "selected_category": context.get("selected_category") or "",
         "selected_time_period": context.get("selected_time_period") or "",
         "filters": context.get("filters") or {},
+        "analytics_context": context.get("analytics_context") or {},
     }
 
 
@@ -58,9 +57,10 @@ def _fallback_response(message: str, context: Dict[str, Any]) -> Dict[str, Any]:
     lower_message = message.lower()
     if "bookstore" in lower_message:
         answer = (
-            "For bookstore planning, ask about low-turnover items, seasonal peaks, and "
-            "items that are consistently purchased in smaller quantities. That helps "
-            "identify what can be stocked less often without hurting availability."
+            "I can help with bookstore stocking, but I need low-turnover or least-purchased item data "
+            "in the analytics context to name specific items. Based on the current setup, I can answer "
+            "which bookstore items are bought most often or should be prioritized for reordering, but I "
+            "should not guess which items can be stocked less often without the low-turnover results."
         )
     elif "spring" in lower_message:
         answer = (
@@ -78,6 +78,14 @@ def _fallback_response(message: str, context: Dict[str, Any]) -> Dict[str, Any]:
             f"under {selected_category or 'your current filters'} and then narrow to vendor "
             "or seasonal patterns."
         )
+    suggested = group["questions"][:]
+
+    if "bookstore" in lower_message:
+        suggested = [
+            "Which bookstore items should we prioritize for reordering?",
+            "What items were bought the most overall in the past quarter?",
+            "Which vendors supply the most frequently purchased bookstore items?",
+        ]
 
     return {
         "answer": answer,
@@ -90,8 +98,11 @@ def _fallback_response(message: str, context: Dict[str, Any]) -> Dict[str, Any]:
 def _build_user_prompt(message: str, context: Dict[str, Any]) -> str:
     context_json = json.dumps(context, indent=2, sort_keys=True)
     return (
-        "Dashboard context:\n"
+        "Dashboard context and live analytics data:\n"
         f"{context_json}\n\n"
+        "Use the live analytics data when answering. "
+        "If top_items or top_vendors_by_spend are available, reference specific names, counts, spend, or quantities from them. "
+        "Do not make up numbers or item names that are not in the provided context.\n\n"
         "User question:\n"
         f"{message}\n\n"
         "Return valid JSON with these keys: answer, category, suggested_questions. "
@@ -112,116 +123,56 @@ def _parse_json_response(text: str) -> Dict[str, Any]:
 
 
 def _call_gemini(message: str, context: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-    use_vertex = os.getenv("USE_VERTEX_AI", "False").lower() == "true"
-
-    if use_vertex:
-        try:
-            client = genai.Client(
-                vertexai=True,
-                project=os.getenv("GOOGLE_CLOUD_PROJECT"),
-                location=os.getenv("GOOGLE_CLOUD_LOCATION", "us-central1"),
-            )
-
-            prompt = _build_user_prompt(message, context)
-
-            response = client.models.generate_content(
-                model=os.getenv("GEMINI_MODEL", "gemini-2.5-flash"),
-                contents=prompt,
-                config=types.GenerateContentConfig(
-                    system_instruction=build_system_prompt(),
-                    temperature=0.4,
-                    max_output_tokens=512,
-                ),
-            )
-
-            text = response.text or ""
-            if not text:
-                return None
-
-            parsed = _parse_json_response(text)
-            suggested_questions = parsed.get("suggested_questions") or []
-            if not isinstance(suggested_questions, list):
-                suggested_questions = []
-
-            print("[VERTEX GEMINI SUCCESS] Response generated")
-
-            return {
-                "answer": str(parsed.get("answer") or text).strip(),
-                "category": str(parsed.get("category") or _matched_group(message)["id"]),
-                "suggested_questions": [str(question) for question in suggested_questions[:3]],
-                "source": "vertex",
-            }
-
-        except Exception as e:
-            print("[VERTEX GEMINI ERROR]", repr(e))
-            return None
-
-    api_key = os.getenv("GEMINI_API_KEY")
-    if not api_key:
-        return None
-
-    prompt = _build_user_prompt(message, context)
-    payload = {
-        "systemInstruction": {
-            "parts": [{"text": build_system_prompt()}]
-        },
-        "contents": [
-            {
-                "role": "user",
-                "parts": [{"text": prompt}],
-            }
-        ],
-        "generationConfig": {
-            "temperature": 0.4,
-            "maxOutputTokens": 512,
-        },
-    }
-
-    url = (
-        f"https://generativelanguage.googleapis.com/v1beta/models/"
-        f"{GEMINI_MODEL}:generateContent?key={api_key}"
-    )
-    request = urllib.request.Request(
-        url,
-        data=json.dumps(payload).encode("utf-8"),
-        headers={"Content-Type": "application/json"},
-        method="POST",
-    )
-
     try:
-        with urllib.request.urlopen(request, timeout=30) as response:
-            raw = response.read().decode("utf-8")
-        response_json = json.loads(raw)
-        text = ""
-        candidates = response_json.get("candidates") or []
-        if candidates:
-            parts = candidates[0].get("content", {}).get("parts", [])
-            text = "".join(part.get("text", "") for part in parts if isinstance(part, dict))
+        client = genai.Client(
+            vertexai=True,
+            project=os.getenv("GOOGLE_CLOUD_PROJECT", "slugsmart2"),
+            location=os.getenv("GOOGLE_CLOUD_LOCATION", "us-central1"),
+        )
+
+        prompt = _build_user_prompt(message, context)
+
+        response = client.models.generate_content(
+            model=os.getenv("GEMINI_MODEL", "gemini-2.5-flash"),
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                system_instruction=build_system_prompt(),
+                temperature=0.4,
+                max_output_tokens=1024,
+            ),
+        )
+
+        text = response.text or ""
         if not text:
             return None
 
-        parsed = _parse_json_response(text)
+        try:
+            parsed = _parse_json_response(text)
+        except json.JSONDecodeError:
+            print("[VERTEX AI WARNING] Response was not valid JSON. Using raw text.")
+            parsed = {
+                "answer": text,
+                "category": _matched_group(message)["id"],
+                "suggested_questions": _matched_group(message)["questions"][:3],
+            }
+
         suggested_questions = parsed.get("suggested_questions") or []
+        
         if not isinstance(suggested_questions, list):
             suggested_questions = []
 
-        print("[GEMINI SUCCESS] Response generated")
+        print("[VERTEX AI SUCCESS] Response generated")
 
         return {
             "answer": str(parsed.get("answer") or text).strip(),
             "category": str(parsed.get("category") or _matched_group(message)["id"]),
             "suggested_questions": [str(question) for question in suggested_questions[:3]],
-            "source": "gemini",
+            "source": "vertex",
         }
 
-    except urllib.error.HTTPError as e:
-        error_body = e.read().decode("utf-8", errors="ignore")
-        print("[GEMINI HTTP ERROR]", e.code, error_body)
-        return None
     except Exception as e:
-        print("[GEMINI ERROR]", repr(e))
+        print("[VERTEX AI ERROR]", repr(e))
         return None
-
 
 def generate_chatbot_guidance(message: str, context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     """Generate a chatbot response and three suggested follow-up questions."""
