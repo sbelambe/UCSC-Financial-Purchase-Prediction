@@ -343,6 +343,7 @@ Includes:
 * Faster querying of large datasets
 * Improved Dashboard modularization
 * Direct web uploads instead of Google Drive uploads
+* Better edge case testing for upload process
 * Expanded report export formats (.xlsx, etc.)
 
 ---
