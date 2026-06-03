@@ -276,7 +276,7 @@ See the Component Testing Guide for detailed testing procedures.
 
 ## Documentation
 
-Se `docs/` file for all of the current documentation files
+See `docs/` file for all of the current documentation files
 
 Includes:
 * Data Cleaning 
