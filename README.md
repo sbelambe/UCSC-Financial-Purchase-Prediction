@@ -43,7 +43,7 @@ Generate exportable summary reports for meetings, presentations, and periodic an
 Instructions for new Slugsmart users.
 
 ### About Page
-About the project, acknowledments, and terms of use.
+About the project, acknowledgments, and terms of use.
 
 ---
 
