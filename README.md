@@ -1,120 +1,57 @@
-# UCSC Financial Purchase Prediction Dashboard
+# SlugSmart
 
-This repository contains a full-stack data dashboard for analyzing UCSC purchasing data across multiple sources, including Amazon, CruzBuy, and OneCard.
+## Project Overview
 
-The frontend never reads raw spreadsheets directly. All data is processed by the backend and a Python data-cleaning pipeline before being served to the UI.
-
----
-
-## Tech Stack
-
-Frontend:
-- React
-- Vite
-- TypeScript
-- Tailwind CSS
-- Radix UI
-- Recharts
-
-Backend:
-- Python
-- FastAPI
-- Uvicorn
-
-Data Cleaning:
-- Python
-- pandas
-- openpyxl
+SlugSmart is a transaction analytics and financial decision support platform for the UCSC Financial Affairs Office. By consolidating purchasing data from Amazon, CruzBuy, OneCard, and Bay Tree Bookstore sales via an automated cleaning + upload pipeline, the platform provides a unified view of campus purchase/sales activity for tangible goods. Through transaction analytics, visualization tools, and AI-powered demand and inventory forecasting, SlugSmart helps identify external and internal purchasing trends and supports more informed bookstore stocking decisions. This contributes toward the financial team's goals of reducing external spending, increasing Bookstore revenue and foot traffic, and supporting sustainability efforts by lessening packaging waste and delivery emissions.
 
 ---
 
-## Repository Structure
+## Key Features
 
-```
-.
-├── backend
-│   ├── app                    # FastAPI backend (serves data to frontend)
-│   │   ├── main.py            # API endpoints
-│   │   ├── analytics.py       # Dashboard summaries from Firestore
-│   │   ├── analytics_bookstore.py
-│   │   ├── drive.py           # Pulls Google Drive source files
-│   │   └── firebase.py        # Firebase setup
-│   │
-│   ├── data_cleaning          # Raw → cleaned data pipeline
-│   │   ├── config             # Cleaning configs (column maps, etc.)
-│   │   │   ├── amazon_config.py
-│   │   │   ├── cruzbuy_config.py
-│   │   │   └── onecard_config.py
-│   │   │
-│   │   ├── data
-│   │   │   ├── raw            # Original datasets (CSV)
-│   │   │   ├── clean          # Cleaned datasets (CSV)
-│   │   │   └── drive_metadata.json
-│   │   │
-│   │   └── src                # Cleaning logic
-│   │       ├── pipeline.py
-│   │       ├── clean_amazon.py
-│   │       ├── clean_cruzbuy.py
-│   │       ├── clean_onecard.py
-│   │       └── clean_bookstore.py
-│   │
-│   ├── firebase               # Clean data → Firebase
-│   │   ├── pipeline.py        # Orchestrates upload + summaries
-│   │   ├── storage.py         # Uploads CSVs to Firebase Storage
-│   │   ├── firestore.py       # Writes structured records into Firestore
-│   │   ├── summaries.py       # Computes aggregations (top items, trends)
-│   │   ├── generate_test_csvs.py
-│   │   └── test_firestore.py  # Local Firestore tester
-│   │
-│   ├── jobs                   # Pipeline runners
-│   │   ├── run_cleaning.py             # Raw data → Clean data
-│   │   ├── run_firebase_uploads.py     # Clean data → Firestore
-│   │   └── run_full_pipeline.py        # Both cleaning + Firestore uploads
-│   │
-│   └── requirements.txt       # Python dependencies
-│
-├── frontend
-│   ├── src
-│   │   ├── components         # UI + dashboard components
-│   │   │   ├── ui             # Generic reusable UI elements
-│   │   │   ├── figma          # Design assets
-│   │   │   ├── Dashboard.tsx
-│   │   │   ├── ChartGrid.tsx
-│   │   │   ├── MetricsGrid.tsx
-│   │   │   ├── FilterBar.tsx
-│   │   │   ├── FilterPanel.tsx
-│   │   │   ├── TabNavigation.tsx
-│   │   │   ├── TopItemsChart.tsx
-│   │   │   ├── TopItemsTable.tsx
-│   │   │   ├── TransactionsOverTimeChart.tsx
-│   │   │   ├── VendorAnalysis.tsx
-│   │   │   ├── ProductAnalysis.tsx
-│   │   │   ├── ProjectionUploader.tsx
-│   │   │   ├── SalesOverview.tsx
-│   │   │   ├── ProtectedRoute.tsx
-│   │   │   └── Chatbot.tsx
-│   │   │
-│   │   ├── context            # Global state (e.g., auth)
-│   │   │   └── AuthContext.tsx
-│   │   │
-│   │   ├── App.tsx            # App layout + routing
-│   │   └── main.tsx           # Entry point
-│   │
-│   └── package.json
-│
-├── .env                      # Root environment variables (shared)
-├── .gitignore
-└── README.md
-└── README.md
-```
-Almost every file has documentation comments as well. Please refer to those if you are having trouble understanding a file.
+### Login
+
+* Secure OAuth login
+
+### Home Dashboard
+High-level summary of purchasing and sales activity across all datasets.
+
+* SlugSmart Overview and Key Metrics
+* Amazon Demand Insights (with Purchase Plan and Insight Details Panel)
+* Top Items Across Datasets
+* Top External Vendors
+* Transaction Analytics Graphs
+
+  * Top Transaction Patterns
+  * High Impact Items
+  * Spend Over Time
+  * Item Spend Trends
+
+### Dataset Pages
+Detailed analysis of individual datasets.
+
+* BigQuery Top Items
+* Transaction Analytics Graphs
+* Amazon Demand Insights / Bookstore Inventory Insights
+
+### Dataset Explorer
+Search, filter, inspect, and export cleaned transaction records.
+
+### Reports
+Generate exportable summary reports for meetings, presentations, and periodic analysis.
+
+### Help Page
+Instructions for new Slugsmart users.
+
+### About Page
+About the project, acknowledments, and terms of use.
 
 ---
 
-## Setup 
+## Setup
+
+> **Note:** GitHub Codespaces is not currently supported due to application port configuration requirements. Run the application locally instead.
+
 ### 1. Install Prerequisites
-
-Install these before proceeding:
 
 ```bash
 # Node.js
@@ -123,16 +60,12 @@ node -v
 # npm
 npm -v
 
-# Python 3.11 or newer
+# Python 3.11+
 python3 --version
 
 # Git
 git --version
 ```
-
----
-
-
 
 ### 2. Clone the Repository
 
@@ -141,60 +74,24 @@ git clone <repo-url>
 cd UCSC-Financial-Purchase-Prediction
 ```
 
----
+### 3. Add Environment Configuration and Credential Files
 
-### 3. Add Required Credential Files and Other Uncommitted Files
+Place in the root directory:
 
-Place the following files in the **repository root directory**:
-
-```
+```text
+.env
 serviceAccountKey.json
 google-drive-service.json
-.env
 ```
 
-Ensure your .env file has the following format:
+Keep these files secret and uncommitted.
+
+Ensure your files match the format of the example files in:
+```text
+docs/credential-file-examples/
 ```
-FIREBASE_CREDENTIALS_PATH=serviceAccountKey.json
-FIREBASE_STORAGE_BUCKET=your-project-id.appspot.com
-VITE_FIREBASE_API_KEY=your-api-key
-VITE_FIREBASE_AUTH_DOMAIN=your-project-id.firebaseapp.com
-VITE_FIREBASE_PROJECT_ID=your-project-id
-BIGQUERY_PROJECT_ID=your-project-id
-MOCK_FIRESTORE=True
-GOOGLE_DRIVE_CREDENTIALS=google-drive-service.json
-GOOGLE_DRIVE_FOLDER_ID=your-google-drive-folder-id
-```
-
-These files are required for backend authentication and are **not committed to GitHub**. They should not be shared publically.
-
-
-If ```dashboard.tsx``` is highlighted red, you will also need:
-
-```
-frontend/src/data/preview_spend_over_time_all_periods.json
-frontend/src/data/preview_spend_over_time_data.json
-frontend/src/data/preview_top_20_data.json
-
-```
-
-These can be generated by running ```python test_firestore.py``` in ```backend/firestore```. If that does not work, you may need to add the files manually. Consult your teammates for the files.
-
----
 
 ### 4. Frontend Setup (Terminal A)
-
-If you are on a Mac (not required for Windows), run:
-
-```bash
-cat > .env <<'EOF'
-VITE_FIREBASE_API_KEY=<API KEY>
-VITE_FIREBASE_AUTH_DOMAIN=<projext_id>.firebaseapp.com
-VITE_FIREBASE_PROJECT_ID=<project_id>
-FIREBASE_CREDENTIALS_PATH=backend/firebase-key.json
-FIREBASE_STORAGE_BUCKET=<project_id>.appspot.com
-EOF
-```
 
 Install dependencies:
 
@@ -203,32 +100,48 @@ cd frontend
 npm install
 ```
 
----
+For macOS users, create a frontend environment file:
 
-### 4.1 Data Cleaning/Firebase Upload(Terminal B)
-Navigate to the data cleaning repo and run command for data cleaning pipeline
+```bash
+cat > .env <<'EOF'
+VITE_FIREBASE_API_KEY=<API KEY>
+VITE_FIREBASE_AUTH_DOMAIN=<project_id>.firebaseapp.com
+VITE_FIREBASE_PROJECT_ID=<project_id>
+FIREBASE_CREDENTIALS_PATH=backend/firebase-key.json
+FIREBASE_STORAGE_BUCKET=<project_id>.appspot.com
+EOF
+```
+
+### 5. Data Cleaning & Firebase Upload (Terminal B)
+
+Navigate to:
+
 ```bash
 cd backend/jobs
 ```
-To data clean run:
+
+Run the cleaning pipeline:
+
 ```bash
 python run_cleaning.py
 ```
-To upload to Firebase Storage and Firestore (including summaries), run:
+
+Upload cleaned data to Firebase:
+
 ```bash
 python run_firebase_uploads.py
 ```
 
-### 4.2 Backend Setup (Terminal C)
+### 6. Backend Setup (Terminal C)
 
-Create and activate the Python virtual environment:
+Create a virtual environment:
 
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
 ```
 
-Install backend dependencies:
+Install dependencies:
 
 ```bash
 cd backend
@@ -236,7 +149,7 @@ pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
-If you are on a Mac (not required for Windows), run this to create backend environment file:
+For macOS users:
 
 ```bash
 cat > .env <<'EOF'
@@ -245,74 +158,41 @@ FIREBASE_STORAGE_BUCKET=<project_id>.appspot.com
 EOF
 ```
 
----
+### 7. Run the Application
 
-### 5. Deploying onto local host
-
-In one terminal, start the backend API:
+Start the backend:
 
 ```bash
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-In another terminal, start the frontend development server:
+Start the frontend:
 
 ```bash
-npm run dev
+npm run dev -- --host 0.0.0.0 --port 5173
 ```
 
-### Common Frontend Issues & Fixes
+### Common Frontend Issues
 
-### 1. Firebase `auth/invalid-api-key` Error
+#### Firebase `auth/invalid-api-key`
 
-**Symptoms:**
+**Symptoms**
 
-* White screen, OR
-* Login screen shows but stuck on **“Connecting…”**, OR
-* Error:
+* Blank screen
+* Login page stuck on "Connecting..."
+* Firebase authentication errors
 
-  ```
-  Uncaught FirebaseError: Firebase: Error (auth/invalid-api-key)
-  ```
+**Fix**
 
-**Cause:**
-Vite is not properly reading the Firebase API key.
-
-**Fix:**
-
-* Make sure your `.env` file is in the **root directory** (not inside `frontend/` or `backend/`)
-* Restart the frontend dev server after updating `.env`
-
----
-
-### 2. Firebase `auth/unauthorized-domain` Error
-
-**Symptoms:**
-
-* White screen
-* Error:
-
-  ```
-  FirebaseError: auth/unauthorized-domain
-  ```
-
-**Cause:**
-Your app is running on a domain that Firebase does not recognize (e.g., GitHub Codespaces, custom dev URLs).
-
-**Fix:**
-
-1. Go to **Firebase Console**
-2. Navigate to:
-
-   ```
-   Authentication → Settings → Authorized domains
-   ```
-3. Click **“Add domain”**
-4. Paste your app’s URL (e.g., Codespaces or local dev URL)
+* Ensure `.env` is located in the project root
+* Restart the frontend development server
+* Verify Firebase credentials are correct
 
 ---
 
 ## Test Backend Endpoints
+
+Verify backend functionality using:
 
 ```bash
 curl http://127.0.0.1:8000/health
@@ -322,40 +202,156 @@ curl -X POST http://127.0.0.1:8000/refresh
 
 ---
 
-## Data Flow Overview
+## File Structure
 
+### Where Do I Start?
+
+For developers new to the project, the recommended reading order is:
+
+1. App.tsx
+2. Dashboard.tsx
+3. main.py
+4. bigquery_service.py
+5. pipeline.py
+
+For a detailed explanation of nearly every file with color-coded importance, see:
+```text
+docs/File Structure.pdf
 ```
-[ Google Drive (Raw Excel Files) ]
-                │
-                ▼
-      backend/app/drive.py
-  (Detect changes, download, convert → CSV)
-                │
-                ▼
-   backend/data_cleaning/src/
-   (Clean + normalize datasets)
-                │
-                ▼
-   Cleaned DataFrames + CSVs
-                │
-                ▼
-   backend/firebase/pipeline.py
-   (Orchestrates upload + processing)
-                │
-        ┌───────┴────────┐
-        ▼                ▼
- Firebase Storage    Firestore
- (optional CSVs)     (structured data + summaries)
-                          │
-                          ▼
-            backend/app/analytics.py
-        (Fetch dashboard-ready summaries)
-                          │
-                          ▼
-        FastAPI Endpoints (main.py)
-                          │
-                          ▼
-        frontend/src/components/
-            Dashboard.tsx
-      (Fetch + render visualizations)
+
+---
+
+## Architecture
+
+```text
+Raw CSV Files
+        ↓
+Cleaning Scripts
+        ↓
+Clean CSV Files
+        ↓
+Firebase Upload Pipeline
+        ↓
+Firestore / Storage
+        ↓
+Backend API
+        ↓
+React Dashboard
 ```
+
+---
+
+## Tech Stack
+
+### Frontend
+
+* React
+* TypeScript
+* Vite
+* Tailwind CSS
+* Recharts
+* Radix UI
+
+### Backend
+
+* Python
+* FastAPI
+* Uvicorn
+* Firebase
+* BigQuery ML
+
+### Data Cleaning
+
+* Python
+* pandas
+* openpyxl
+
+---
+
+## Testing
+
+See the Component Testing Guide for detailed testing procedures. 
+
+---
+
+## Documentation
+
+Se `docs/` file for all of the current documentation files
+
+Includes:
+* Data Cleaning 
+* Frontend Architecture Guide
+* ML Architecture Guide
+* File Structure
+* Component Testing Guide
+
+---
+
+## User Guide
+
+1. Visit the SlugSmart web application.
+2. Log in using your `@ucsc.edu` account.
+3. View and read the "Help" page.
+4. Explore dashboards, datasets, reports, and forecasting insights.
+
+---
+
+## Known Issues
+
+* Refresh functionality is currently not working.
+* Chatbot functionality primarily relies on fallback responses.
+* Inventory forecasting certainty is often low (likely due to limited historical training data.)
+
+---
+
+## Future Enhancements
+
+### Data Cleaning
+
+* Shared configuration system for all dataset cleaners
+* Further modularization of cleaning logic
+* More advanced cleaning rules
+* Excluded-row audit reporting
+
+### Analytics & Visualization
+
+* Top subcategory analysis
+* Improved grouped-category filtering
+* Enhanced search accuracy for item trends
+* Pivot-table style dataset exploration
+
+### User Interface
+
+* Improved UI consistency
+* UI Style Guide
+* Enhanced loading experiences
+* Improved UI for information descriotions
+
+### Machine Learning
+
+* Improved forecasting models
+* Multi-year training datasets
+* Feedback-driven model refinement
+* Token usage analysis
+
+### Testing
+
+* Automated testing framework
+
+### Performance
+
+* Faster querying of large datasets
+* Improved Dashboard modularization
+* Direct web uploads instead of Google Drive uploads
+* Expanded report export formats (.xlsx, etc.)
+
+---
+
+## Contributors
+
+Developed by the UCSC SlugSmart Capstone Team for CSE 115B/115C.
+
+Additional contributors include:
+
+* Project Sponsors: Douglas Lang, Nicholas Jellison, Gregg Edgar
+* CSE 115B/115C Team: Richard Jullig, Mathis Aubert, Diego Ortiz Barbosa
