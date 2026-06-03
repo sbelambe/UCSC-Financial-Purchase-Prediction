@@ -299,7 +299,6 @@ Includes:
 ## Known Issues
 
 * Refresh functionality is currently not working.
-* Chatbot functionality primarily relies on fallback responses.
 * Inventory forecasting certainty is often low (likely due to limited historical training data.)
 
 ---
@@ -333,6 +332,7 @@ Includes:
 * Multi-year training datasets
 * Feedback-driven model refinement
 * Token usage analysis
+* Improve Chatbot functionality
 
 ### Testing
 
