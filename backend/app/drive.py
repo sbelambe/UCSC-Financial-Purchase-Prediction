@@ -30,7 +30,7 @@ def get_drive_service():
                 cred_dict, 
                 scopes=SCOPES
             )
-            return build("drive", "v3", credentials=creds)
+            return build("drive", "v3", credentials=creds, cache_discovery=False)
         except json.JSONDecodeError as e:
             raise ValueError(f"Failed to parse GOOGLE_CREDENTIALS_JSON for Drive. Error: {e}")
 
@@ -49,7 +49,7 @@ def get_drive_service():
         absolute_cred_path,
         scopes=SCOPES
     )
-    return build("drive", "v3", credentials=creds)
+    return build("drive", "v3", credentials=creds, cache_discovery=False)
 
 # Lists files in the specified Google Drive folder and returns 
 # their metadata (id, name, modified time)
