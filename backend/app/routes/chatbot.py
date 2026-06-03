@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from app.services.chatbot_service import generate_chatbot_guidance
+from app.bigquery_service import query_top_items_from_bigquery
 from typing import Optional, Dict, Any
 
 router = APIRouter()
@@ -60,6 +61,8 @@ def is_blocked_message(message: str) -> bool:
 @router.post("/guidance")
 def get_chatbot_guidance(request: ChatbotRequest):
     try:
+        analytics_context = {}
+
         message = (request.message or "").strip()
         dataset = (request.dataset or "overall").strip().lower()
 
@@ -123,6 +126,65 @@ def get_chatbot_guidance(request: ChatbotRequest):
                 },
             }
 
+        try:
+            message_lower = message.lower()
+
+            selected_year = "All Time"
+            selected_quarter = "All Quarters"
+
+            if "spring" in message_lower:
+                selected_quarter = "Spring"
+            elif "fall" in message_lower:
+                selected_quarter = "Fall"
+            elif "winter" in message_lower:
+                selected_quarter = "Winter"
+            elif "summer" in message_lower:
+                selected_quarter = "Summer"
+
+            top_items = query_top_items_from_bigquery(
+                dataset="overall",
+                selected_year=selected_year,
+                selected_quarter=selected_quarter,
+                limit=5,
+                sort_mode="frequency",
+                group_by="item",
+            )
+
+            top_vendors = query_top_items_from_bigquery(
+                dataset="overall",
+                selected_year=selected_year,
+                selected_quarter=selected_quarter,
+                limit=5,
+                sort_mode="cost",
+                group_by="merchant",
+            )
+
+            bookstore_items = query_top_items_from_bigquery(
+                dataset="bookstore",
+                selected_year=selected_year,
+                selected_quarter=selected_quarter,
+                limit=5,
+                sort_mode="frequency",
+                group_by="item",
+            )
+
+            analytics_context = {
+                "data_scope": "all approved datasets: amazon, cruzbuy, onecard, bookstore",
+                "top_items": top_items.get("items", []),
+                "top_vendors_by_spend": top_vendors.get("items", []),
+                "bookstore_top_items": bookstore_items.get("items", []),
+                "selected_year": selected_year,
+                "selected_quarter": selected_quarter,
+            }
+
+        except Exception as e:
+            print(f"[CHATBOT ANALYTICS CONTEXT ERROR] {e}")
+            analytics_context = {
+                "warning": "Live analytics context could not be loaded.",
+                "data_scope": "all approved datasets: amazon, cruzbuy, onecard, bookstore",
+            }
+
+
         context = {
             "current_view": request.current_view,
             "dataset": dataset,
@@ -130,8 +192,9 @@ def get_chatbot_guidance(request: ChatbotRequest):
             "selected_category": request.selected_category,
             "selected_time_period": request.selected_time_period,
             "filters": request.filters,
+            "analytics_context": analytics_context,
+            "bookstore_note": "For low-turnover bookstore questions, use the provided bookstore top_items as high-demand items. Do not claim low-turnover items unless low-turnover data is provided.",
         }
-
         result = generate_chatbot_guidance(
             message=message,
             context=context,
