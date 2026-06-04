@@ -299,6 +299,7 @@ Includes:
 ## Known Issues
 
 * Refresh functionality is currently not working.
+* Chatbot is in a limited functional state
 * Inventory forecasting certainty is often low (likely due to limited historical training data.)
 
 ---
@@ -333,6 +334,7 @@ Includes:
 * Feedback-driven model refinement
 * Token usage analysis
 * Improve Chatbot functionality
+* Integrate automated tests into ML pipeline
 
 ### Testing
 
@@ -345,6 +347,7 @@ Includes:
 * Direct web uploads instead of Google Drive uploads
 * Better edge case testing for upload process
 * Expanded report export formats (.xlsx, etc.)
+* Switching to a relational database (if possible)
 
 ---
 
