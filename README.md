@@ -285,7 +285,10 @@ React Dashboard
 
 ## Testing
 
-See the Component Testing Guide for detailed testing procedures. 
+See the Testing Plan testing procedures. 
+```text
+docs/Testing Plan.docx.pdf
+```
 
 ---
 
@@ -294,11 +297,12 @@ See the Component Testing Guide for detailed testing procedures.
 See `docs/` file for all of the current documentation files
 
 Includes:
+* Architecture
 * Data Cleaning 
 * Frontend Architecture Guide
 * ML Architecture Guide
 * File Structure
-* Component Testing Guide
+* Testing Plan
 
 ---
 
