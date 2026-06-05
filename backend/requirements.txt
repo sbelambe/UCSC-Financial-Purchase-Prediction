@@ -8,3 +8,4 @@ functions-framework
 flask
 google-cloud-firestore
 google-cloud-bigquery
+google-api-python-client

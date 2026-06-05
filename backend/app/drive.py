@@ -110,6 +110,8 @@ def download_excel(file_id, destination_path):
 
 # Converts the downloaded Excel file to CSV format for easier processing
 def convert_file_to_csv(input_path, csv_path):
+    import pandas as pd 
+    
     lower_path = input_path.lower()
 
     if lower_path.endswith(".csv"):
