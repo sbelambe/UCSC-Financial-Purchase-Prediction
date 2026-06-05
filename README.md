@@ -305,6 +305,7 @@ Includes:
 * Some text overflow on certain screen sizes in UI
 * CSS inconsistencies in some of the tables
 * Loading for the `RefreshModal.tsx` is noticably slow
+* Favicon.ico is missing from the backend as a route (shows as a 404 Not Found error) but is visible on the frontend
 ---
 
 ## Future Enhancements
