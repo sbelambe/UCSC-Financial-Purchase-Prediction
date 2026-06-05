@@ -1,5 +1,20 @@
 # SlugSmart
 
+## Table of Contents
+
+- [Project Overview](#project-overview)
+- [Key Features](#key-features)
+- [Setup](#setup)
+- [File Structure](#file-structure)
+- [Architecture](#architecture)
+- [Tech Stack](#tech-stack)
+- [Testing](#testing)
+- [Documentation](#documentation)
+- [User Guide](#user-guide)
+- [Known Issues](#known-issues)
+- [Future Enhancements](#future-enhancements)
+- [Contributors](#contributors)
+
 ## Project Overview
 
 SlugSmart is a transaction analytics and financial decision support platform for the UCSC Financial Affairs Office. By consolidating purchasing data from Amazon, CruzBuy, OneCard, and Bay Tree Bookstore sales via an automated cleaning + upload pipeline, the platform provides a unified view of campus purchase/sales activity for tangible goods. Through transaction analytics, visualization tools, and AI-powered demand and inventory forecasting, SlugSmart helps identify external and internal purchasing trends and supports more informed bookstore stocking decisions. This contributes toward the financial team's goals of reducing external spending, increasing Bookstore revenue and foot traffic, and supporting sustainability efforts by lessening packaging waste and delivery emissions.
@@ -271,6 +286,10 @@ React Dashboard
 ## Testing
 
 See the Component Testing Guide for detailed testing procedures. 
+```text
+docs/Testing Plan.docx.pdf
+```
+
 Use this command to test frontend components (`AuthContext.test.tsx` is the only one currently avaliable) using jest in the terminal:
 Note: You have to be in the `frontend` folder.
 ```bash
@@ -284,11 +303,12 @@ npx jest example.jsx
 See `docs/` file for all of the current documentation files
 
 Includes:
+* Architecture
 * Data Cleaning 
 * Frontend Architecture Guide
 * ML Architecture Guide
 * File Structure
-* Component Testing Guide
+* Testing Plan
 
 ---
 
