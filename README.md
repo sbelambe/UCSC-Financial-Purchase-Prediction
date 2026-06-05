@@ -331,7 +331,6 @@ Includes:
 * CSS inconsistencies in some of the tables
 * Loading for the `RefreshModal.tsx` is noticably slow due to the ETL pipeline
 * `Favicon.ico` is missing from the backend as a route (shows as a 404 Not Found error) but is visible on the frontend
-* Unauthorized users are not alerted that they aren't authorized to view the dashboard, but does show up as an error message on the browser console.
 ---
 
 ## Future Enhancements
