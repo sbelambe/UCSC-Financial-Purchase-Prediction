@@ -1,19 +1,10 @@
+# packages for vercel only
 fastapi==0.115.6
 uvicorn[standard]==0.30.6
-python-dotenv==1.0.1
 pandas
-openpyxl
-numpy
-matplotlib
+python-dotenv==1.0.1
 firebase_admin
-openpyxl
-google-api-python-client
-google-cloud-bigquery
-google-genai
-python-multipart
-pyarrow
-pandas-gbq
-beautifulsoup4
 functions-framework
 flask
 google-cloud-firestore
+google-cloud-bigquery
