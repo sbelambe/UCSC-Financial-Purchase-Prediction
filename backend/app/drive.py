@@ -2,15 +2,16 @@
 # raw-data directory for processing. It checks for new or modified 
 # files, downloads and normalizes them, and tracks metadata to 
 # avoid unnecessary reprocessing.
-import io
-import os
-import re
-import json
+import os, re, json, google.auth
 import pandas as pd
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseDownload
 
+# check if running in a google cloud env
+is_gcp = os.getenv("K_SERVICE") is not None
+
+# define the scopes the pipeline needs
 SCOPES = ["https://www.googleapis.com/auth/drive.readonly"]
 
 
@@ -20,7 +21,14 @@ SCOPES = ["https://www.googleapis.com/auth/drive.readonly"]
 # Authenticates and creates a Google Drive service client using 
 # a service account
 def get_drive_service():
-    # vercel prod path
+    # authenticate using default creds (GCP environment)
+    if is_gcp:
+        print("[INFO] Authenticating Google Drive via GCP Application Default Credentials.")
+        credentials, project = google.auth.default(scopes=SCOPES)
+        return build("drive", "v3", credentials=credentials, cache_discovery=False)
+    
+
+    # vercel prod path (fallback)
     env_creds = os.getenv("GOOGLE_CREDENTIALS_JSON")
     if env_creds:
         print("[INFO] Authenticating Google Drive via Vercel Environment Variable.")

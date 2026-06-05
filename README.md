@@ -309,8 +309,6 @@ Includes:
 * Concerning the Refresh Data button: 
   * There is an issue where trying to start the ETL pipeline via the "Start Refresh" button will keep infinitely loading and potentially soft-locking the user due to the pipeline taking too long to execute and finish
   * The default behavior of Vercel caps the max duration of API routes to 10-15s on the Free tier and about a minute on the Paid tier
-  * May need to consider porting the ETL pipeline over to more suited platform like Google Cloud
-  * Current bandaid fix is to set the duration for 60s
   * This error doesn't seem to occur on a local environment.
 ---
 

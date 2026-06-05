@@ -14,3 +14,6 @@ python-multipart
 pyarrow
 pandas-gbq
 beautifulsoup4
+functions-framework
+flask
+google-cloud-firestore

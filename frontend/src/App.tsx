@@ -181,7 +181,7 @@ function AuthenticatedLayout({ currentView, children }: AuthenticatedLayoutProps
     const timeoutId = setTimeout(() => controller.abort(), 30000); 
 
     try {
-      const response = await fetch('/api/system/refresh', {
+      const response = await fetch('https://us-central1-slugsmart2.cloudfunctions.net/etl-pipeline', {
         method: 'POST',
         signal: controller.signal 
       });
