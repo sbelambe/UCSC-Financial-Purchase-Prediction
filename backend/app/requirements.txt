@@ -1,0 +1,8 @@
+# for vercel
+fastapi==0.115.6
+uvicorn[standard]==0.30.6
+python-dotenv==1.0.1
+firebase_admin
+functions-framework
+flask
+google-cloud-firestore
