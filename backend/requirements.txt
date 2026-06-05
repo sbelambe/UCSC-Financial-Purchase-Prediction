@@ -9,3 +9,4 @@ flask
 google-cloud-firestore
 google-cloud-bigquery
 google-api-python-client
+python-multipart
