@@ -42,7 +42,7 @@ def get_top_items_bigquery(
     high_impact_only: bool = False,
 ):
     try:
-        category_originals = [c.strip() for c in category_filter.split("|") if c.strip()] if category_filter else []
+        category_originals = tuple(c.strip() for c in category_filter.split("|") if c.strip()) if category_filter else None
         data = query_top_items_from_bigquery(
             dataset=dataset,
             search_query=search_query,

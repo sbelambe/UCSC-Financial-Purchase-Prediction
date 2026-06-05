@@ -300,15 +300,18 @@ Includes:
 
 * Refresh functionality is currently not working.
 * Inventory forecasting certainty is often low (likely due to limited historical training data.)
-
+  * There is a large spread between the low and high purchase counts in the amazon/bookstore demand insights
+* Some text overflow on certain screen sizes in UI
+* CSS inconsistencies in some of the tables
+* Loading for the `RefreshModal.tsx` is noticably slow
 ---
 
 ## Future Enhancements
 
 ### Data Cleaning
 
-* Shared configuration system for all dataset cleaners
-* Further modularization of cleaning logic
+* Shared configuration system for all dataset cleaners (`clean_amazon.py`, `clean_onecard.py`, `clean_cruzbuy.py`, `clean_bookstore.py`)
+* Further modularization of cleaning logic 
 * More advanced cleaning rules
 * Excluded-row audit reporting
 
@@ -336,11 +339,11 @@ Includes:
 
 ### Testing
 
-* Automated testing framework
+* Automated testing framework via playwright, pytest, etc.
 
 ### Performance
 
-* Faster querying of large datasets
+* Faster querying of large datasets in areas like Dataset Explorer and Reports
 * Improved Dashboard modularization
 * Direct web uploads instead of Google Drive uploads
 * Better edge case testing for upload process

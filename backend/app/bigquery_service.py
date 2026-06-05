@@ -69,12 +69,8 @@ CONDENSED_PURCHASE_GROUP_RULES = (
 
 
 def _bq_column_name(column_name: str) -> str:
-    """Convert a display column name into the sanitized BigQuery CSV field name."""
-    normalized = re.sub(r"[^A-Za-z0-9_]", "_", column_name.strip())
-    normalized = re.sub(r"_+", "_", normalized).strip("_")
-    if not normalized:
-        raise ValueError(f"Invalid BigQuery column name derived from '{column_name}'")
-    return normalized
+    """Return the exact column name."""
+    return column_name.strip()
 
 
 def _normalize_dataset(dataset: str) -> str:
@@ -320,19 +316,19 @@ def _build_search_where(parsed_query: Dict[str, Any], category_originals: Option
     if parsed_query["free_text"]:
         clauses.append(
             "("
-            "LOWER(clean_item_name) LIKE CONCAT('%', LOWER(@free_text), '%') "
-            "OR LOWER(vendor_name) LIKE CONCAT('%', LOWER(@free_text), '%')"
+            "SEARCH(clean_item_name, @free_text) "
+            "OR SEARCH(vendor_name, @free_text)"
             ")"
         )
 
     for index, _ in enumerate(parsed_query["item_terms"]):
         clauses.append(
-            f"LOWER(clean_item_name) LIKE CONCAT('%', LOWER(@item_term_{index}), '%')"
+            f"SEARCH(clean_item_name, @item_term_{index})"
         )
 
     for index, _ in enumerate(parsed_query["vendor_terms"]):
         clauses.append(
-            f"LOWER(vendor_name) LIKE CONCAT('%', LOWER(@vendor_term_{index}), '%')"
+            f"SEARCH(vendor_name, @vendor_term_{index})"
         )
 
     if category_originals:
@@ -393,7 +389,7 @@ def _query_parameters(
     min_spend: float,
     limit: int,
     parsed_query: Dict[str, Any],
-    category_originals: Optional[List[str]] = None,
+    category_originals: Optional[tuple] = None,
 ) -> List[bigquery.ScalarQueryParameter]:
     """Create parameter bindings for the top-items BigQuery request."""
     params: List[bigquery.QueryParameter] = [
@@ -411,11 +407,12 @@ def _query_parameters(
         params.append(bigquery.ScalarQueryParameter(f"vendor_term_{index}", "STRING", value))
 
     if category_originals:
-        params.append(bigquery.ArrayQueryParameter("category_list", "STRING", category_originals))
+        params.append(bigquery.ArrayQueryParameter("category_list", "STRING", list(category_originals)))
 
     return params
 
 
+@lru_cache(maxsize=1)
 def _bigquery_client() -> bigquery.Client:
     """Create an authenticated BigQuery client from project env vars and service credentials."""
     project_id = (
@@ -590,6 +587,7 @@ def _serialize_detail_rows(rows: Any) -> List[Dict[str, Any]]:
     return serialized
 
 
+@lru_cache(maxsize=32)
 def query_top_items_from_bigquery(
     *,
     dataset: str = "overall",
@@ -624,21 +622,21 @@ def query_top_items_from_bigquery(
         if normalized_dataset == "overall"
         else [normalized_dataset]
     )
-
-    table_definitions: Dict[str, bigquery.ExternalConfig] = {}
+    
     source_queries: List[str] = []
     storage_paths: Dict[str, str] = {}
+    
+    bq_project = os.getenv("VITE_FIREBASE_PROJECT_ID", "")
+    bq_dataset = os.getenv("BIGQUERY_DATASET", "")
 
     for current_dataset in datasets:
         latest_upload = _latest_upload_metadata(current_dataset)
+
         if not latest_upload or not latest_upload.get("storagePath"):
             continue
 
-        table_name = f"{current_dataset}_ext"
         storage_paths[current_dataset] = latest_upload["storagePath"]
-        table_definitions[table_name] = _build_external_config(
-            _storage_uri(latest_upload["storagePath"])
-        )
+        table_name = f"{bq_project}.{bq_dataset}.{current_dataset}_cleaned"
         source_queries.append(_source_select_sql(table_name, current_dataset))
 
     if not source_queries:
@@ -739,6 +737,7 @@ def query_top_items_from_bigquery(
                                 sva.vendors AS vendors
                             )
                             ORDER BY sr.total_spent DESC, sr.count DESC, sr.clean_item_name
+                            LIMIT 50            -- cap drilldown items to 50 for performance and relevance
                         ) AS drilldown_items
                     FROM subitem_rollup sr
                     LEFT JOIN subitem_vendor_arrays sva
@@ -769,6 +768,7 @@ def query_top_items_from_bigquery(
                                 transaction_type
                             )
                             ORDER BY transaction_date DESC, total_price DESC, item_description
+                            LIMIT 50                -- cap raw rows to 50 for performance; these are meant for sampling, not exhaustive drilldown
                         ) AS raw_rows
                     FROM classified_source
                     GROUP BY dataset, display_item_name
@@ -952,7 +952,6 @@ def query_top_items_from_bigquery(
 
     client = _bigquery_client()
     job_config = bigquery.QueryJobConfig(
-        table_definitions=table_definitions,
         query_parameters=_query_parameters(
             selected_year=selected_year,
             selected_quarter=selected_quarter,
@@ -1005,6 +1004,8 @@ def query_top_items_from_bigquery(
     }
 
 
+
+@lru_cache(maxsize=32)
 def query_spend_over_time_from_bigquery(
     *,
     dataset: str = "overall",
@@ -1028,18 +1029,22 @@ def query_spend_over_time_from_bigquery(
     table_definitions: Dict[str, bigquery.ExternalConfig] = {}
     source_queries: List[str] = []
     storage_paths: Dict[str, str] = {}
+    
+    source_queries: List[str] = []
+    storage_paths: Dict[str, str] = {}
+    
+    bq_project = os.getenv("VITE_FIREBASE_PROJECT_ID", "")
+    bq_dataset = os.getenv("BIGQUERY_DATASET", "")
 
     for current_dataset in datasets:
         latest_upload = _latest_upload_metadata(current_dataset)
+
         if not latest_upload or not latest_upload.get("storagePath"):
             continue
 
         config = DATASET_COLUMN_CONFIG[current_dataset]["bigquery"]
-        table_name = f"{current_dataset}_spend_ext"
         storage_paths[current_dataset] = latest_upload["storagePath"]
-        table_definitions[table_name] = _build_external_config(
-            _storage_uri(latest_upload["storagePath"])
-        )
+        table_name = f"{bq_project}.{bq_dataset}.{current_dataset}_cleaned"
         parsed_date_expression = _parsed_date_expression(config["date_column"])
 
         source_queries.append(
@@ -1126,7 +1131,6 @@ def query_spend_over_time_from_bigquery(
 
     client = _bigquery_client()
     job_config = bigquery.QueryJobConfig(
-        table_definitions=table_definitions,
         query_parameters=[
             bigquery.ScalarQueryParameter("selected_year", "STRING", selected_year),
             bigquery.ScalarQueryParameter("selected_quarter", "STRING", selected_quarter),
@@ -1160,6 +1164,7 @@ def query_spend_over_time_from_bigquery(
     }
 
 
+@lru_cache(maxsize=32)
 def query_period_summary_from_bigquery(
     *,
     dataset: str = "overall",
@@ -1186,20 +1191,20 @@ def query_period_summary_from_bigquery(
         else [normalized_dataset]
     )
 
-    table_definitions: Dict[str, bigquery.ExternalConfig] = {}
     source_queries: List[str] = []
     storage_paths: Dict[str, str] = {}
+    
+    bq_project = os.getenv("VITE_FIREBASE_PROJECT_ID", "")
+    bq_dataset = os.getenv("BIGQUERY_DATASET", "")
 
     for current_dataset in datasets:
         latest_upload = _latest_upload_metadata(current_dataset)
+
         if not latest_upload or not latest_upload.get("storagePath"):
             continue
 
-        table_name = f"{current_dataset}_summary_ext"
         storage_paths[current_dataset] = latest_upload["storagePath"]
-        table_definitions[table_name] = _build_external_config(
-            _storage_uri(latest_upload["storagePath"])
-        )
+        table_name = f"{bq_project}.{bq_dataset}.{current_dataset}_cleaned"
         source_queries.append(_source_select_sql(table_name, current_dataset))
 
     if not source_queries:
@@ -1320,7 +1325,6 @@ def query_period_summary_from_bigquery(
 
     client = _bigquery_client()
     job_config = bigquery.QueryJobConfig(
-        table_definitions=table_definitions,
         query_parameters=[
             bigquery.ScalarQueryParameter("period_key", "STRING", period_key),
             bigquery.ScalarQueryParameter("limit", "INT64", safe_limit),
@@ -1378,7 +1382,7 @@ def query_period_summary_from_bigquery(
         "warnings": [],
     }
 
-
+@lru_cache(maxsize=32)
 def query_item_spend_over_time_from_bigquery(
     *,
     dataset: str = "overall",
@@ -1422,20 +1426,20 @@ def query_item_spend_over_time_from_bigquery(
         else [normalized_dataset]
     )
 
-    table_definitions: Dict[str, bigquery.ExternalConfig] = {}
     source_queries: List[str] = []
     storage_paths: Dict[str, str] = {}
+    
+    bq_project = os.getenv("VITE_FIREBASE_PROJECT_ID", "")
+    bq_dataset = os.getenv("BIGQUERY_DATASET", "")
 
     for current_dataset in datasets:
         latest_upload = _latest_upload_metadata(current_dataset)
+
         if not latest_upload or not latest_upload.get("storagePath"):
             continue
 
-        table_name = f"{current_dataset}_item_trend_ext"
         storage_paths[current_dataset] = latest_upload["storagePath"]
-        table_definitions[table_name] = _build_external_config(
-            _storage_uri(latest_upload["storagePath"])
-        )
+        table_name = f"{bq_project}.{bq_dataset}.{current_dataset}_cleaned"
         source_queries.append(_source_select_sql(table_name, current_dataset))
 
     if not source_queries:
@@ -1560,7 +1564,6 @@ def query_item_spend_over_time_from_bigquery(
 
     client = _bigquery_client()
     job_config = bigquery.QueryJobConfig(
-        table_definitions=table_definitions,
         query_parameters=[
             bigquery.ScalarQueryParameter("item_query", "STRING", item_query),
             bigquery.ScalarQueryParameter("selected_year", "STRING", selected_year),
