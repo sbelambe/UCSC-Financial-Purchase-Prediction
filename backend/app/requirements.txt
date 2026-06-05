@@ -6,3 +6,4 @@ firebase_admin
 functions-framework
 flask
 google-cloud-firestore
+google-cloud-bigquery
