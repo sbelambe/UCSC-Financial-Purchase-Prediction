@@ -285,7 +285,7 @@ React Dashboard
 
 ## Testing
 
-See the Testing Plan testing procedures. 
+See the Testing Plan for testing procedures. 
 ```text
 docs/Testing Plan.docx.pdf
 ```
