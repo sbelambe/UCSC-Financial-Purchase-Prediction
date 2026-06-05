@@ -174,24 +174,36 @@ function AuthenticatedLayout({ currentView, children }: AuthenticatedLayoutProps
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
-    setRefreshMsg(null);
+    setRefreshMsg("Starting data refresh...");
+
+    // create a 30-second timeout controller to prevent hanging if the server takes too long to respond
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000); 
 
     try {
       const response = await fetch('/api/system/refresh', {
         method: 'POST',
+        signal: controller.signal 
       });
 
-      const data = await response.json();
+      clearTimeout(timeoutId); 
 
-      if (data?.changed_files?.length > 0) {
-        setRefreshMsg(
-          `Updated files:\n${data.changed_files.join('\n')}`
-        );
-      } else {
-        setRefreshMsg(data?.message || 'No changes made to the data.');
+      if (!response.ok) {
+        throw new Error(`Server error: ${response.status}`);
       }
-    } catch (error) {
-      setRefreshMsg('Refresh failed. Is the backend running?');
+
+      const data = await response.json();
+      setRefreshMsg("Data refreshed successfully!");
+      
+    } catch (error: any) {
+      clearTimeout(timeoutId);
+      
+      if (error.name === 'AbortError') {
+        setRefreshMsg("The refresh is taking longer than expected. Check the database in a few minutes.");
+      } else {
+        setRefreshMsg(`Refresh failed: ${error.message}`);
+      }
+      console.error("Refresh Error:", error);
     } finally {
       setIsRefreshing(false);
     }
