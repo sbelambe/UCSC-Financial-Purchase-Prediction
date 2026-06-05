@@ -60,6 +60,7 @@ def list_files(folder_id):
         fields="files(id, name, modifiedTime, mimeType)",
         supportsAllDrives=True,
         includeItemsFromAllDrives=True,
+        corpora="allDrives",
     ).execute()
     return results.get("files", [])
 

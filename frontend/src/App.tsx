@@ -177,7 +177,7 @@ function AuthenticatedLayout({ currentView, children }: AuthenticatedLayoutProps
     setRefreshMsg(null);
 
     try {
-      const response = await fetch('/api/refresh', {
+      const response = await fetch('/api/system/refresh', {
         method: 'POST',
       });
 

@@ -25,10 +25,27 @@ def extract_year_from_filename(file_path):
 # ------------------------------- STEP 1: LOAD -------------------------------
 # Read the dataset file and load into a Pandas dataframe
 def load_cruzbuy():
-    file_paths = sorted(glob.glob(os.path.join(RAW_DIR, "cruzbuy_*.csv")))
+    clean_file_path = os.path.join(CLEAN_DIR, "cruzbuy_clean.csv")
+
+    if not os.path.exists(RAW_DIR):
+        os.makedirs(RAW_DIR, exist_ok=True)
+        
+    all_files = os.listdir(RAW_DIR)
+
+    file_paths = []
+
+    for file in all_files:
+        if "cruzbuy" in file.lower() and file.lower().endswith(".csv") or file.lower().endswith('.xlsx'):
+            file_paths.append(os.path.join(RAW_DIR, file))
+
+    file_paths = sorted(file_paths)  # Sort files alphabetically (oldest to newest)
 
     if not file_paths:
-        print(f"[WARNING] No CruzBuy files found in {RAW_DIR}")
+        if os.path.exists(clean_file_path):
+            print(f"[INFO] No new CruzBuy raw files. Loading historical clean data.")
+            return pd.read_csv(clean_file_path, low_memory=False)
+            
+        print(f"[WARNING] No CruzBuy files found in {RAW_DIR} and no history exists.")
         return pd.DataFrame()
 
     dfs = []
@@ -46,8 +63,7 @@ def load_cruzbuy():
 
     combined_df = pd.concat(dfs, ignore_index=True)
 
-    save_clean_data(combined_df)
-    return combined_df
+    return save_clean_data(combined_df, clean_file_path)
 
 # ----------------------------------------------------------------------------
 
@@ -214,10 +230,25 @@ def format_currency(df, cols):
 
 # -------------------------------- STEP 4: SAVE ------------------------------
 # Save the cleaned dataset
-def save_clean_data(df):
-    output_path = os.path.join(CLEAN_DIR, "cruzbuy_clean.csv")
+def save_clean_data(new_df, output_path):
     os.makedirs(CLEAN_DIR, exist_ok=True)
-    df.to_csv(output_path, index=False)
+    
+    if os.path.exists(output_path):
+        existing_df = pd.read_csv(output_path, low_memory=False)
+        
+        # Append the brand new rows to the historical rows
+        combined_df = pd.concat([existing_df, new_df], ignore_index=True)
+        
+        # Drop exact duplicates so re-running the script doesn't bloat the CSV/Database
+        combined_df = combined_df.drop_duplicates(ignore_index=True)
+    else:
+        # If no history exists, the new data becomes the baseline
+        combined_df = new_df
+
+    combined_df.to_csv(output_path, index=False)
+    
+    # Return the combined master dataframe back up the chain to Firestore
+    return combined_df
 
 # ----------------------------------------------------------------------------
 

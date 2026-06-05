@@ -1,6 +1,8 @@
+import { useState } from 'react';
 import { ChartPie, FileText, HelpCircle, Info, LogOut, RefreshCw, TableProperties } from 'lucide-react'
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { RefreshModal } from './RefreshModal'
 
 // -----------------------------------------------------------------------------
 // COMPONENT TYPES
@@ -18,6 +20,12 @@ export function AppHeader({ currentView, isRefreshing, refreshMsg, onRefresh }: 
   // ---------------------------------------------------------------------------
   const navigate = useNavigate();
   const { signOut, user } = useAuth();
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const handleConfirmRefresh = async () => {
+    await onRefresh();
+    setIsModalOpen(false);      // close the modal once the refresh starts/finishes
+  }
 
   // ---------------------------------------------------------------------------
   // BUTTON STYLING
@@ -101,7 +109,7 @@ export function AppHeader({ currentView, isRefreshing, refreshMsg, onRefresh }: 
 
           {/* Refresh Data */}
           <button
-            onClick={onRefresh}
+            onClick={() => setIsModalOpen(true)}
             disabled={isRefreshing}
             className={`${navButtonClass} disabled:opacity-60`}
             style={navButtonStyle(false)}
@@ -151,6 +159,14 @@ export function AppHeader({ currentView, isRefreshing, refreshMsg, onRefresh }: 
           {refreshMsg}
         </div>
       )}
+
+      <RefreshModal 
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onConfirmRefresh={handleConfirmRefresh}
+        isRefreshing={isRefreshing}
+      />
+      
     </header>
   );
 }
