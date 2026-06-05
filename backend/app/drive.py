@@ -2,11 +2,7 @@
 # raw-data directory for processing. It checks for new or modified 
 # files, downloads and normalizes them, and tracks metadata to 
 # avoid unnecessary reprocessing.
-import os, re, json, google.auth
-import pandas as pd
-from google.oauth2 import service_account
-from googleapiclient.discovery import build
-from googleapiclient.http import MediaIoBaseDownload
+import os, re, json
 
 # check if running in a google cloud env
 is_gcp = os.getenv("K_SERVICE") is not None
@@ -21,6 +17,10 @@ SCOPES = ["https://www.googleapis.com/auth/drive.readonly"]
 # Authenticates and creates a Google Drive service client using 
 # a service account
 def get_drive_service():
+    import google.auth
+    from google.oauth2 import service_account
+    from googleapiclient.discovery import build
+
     # authenticate using default creds (GCP environment)
     if is_gcp:
         print("[INFO] Authenticating Google Drive via GCP Application Default Credentials.")
@@ -99,6 +99,8 @@ def is_supported_data_file(filename):
 # Downloads the specified file from Google Drive and saves it to the
 # given local path
 def download_excel(file_id, destination_path):
+    from googleapiclient.http import MediaIoBaseDownload
+    
     service = get_drive_service()
     request = service.files().get_media(fileId=file_id)
 
