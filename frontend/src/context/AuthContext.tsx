@@ -1,7 +1,8 @@
 // Provides global authentication state management using Firebase Authentication
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { onAuthStateChanged, signOut as firebaseSignOut, User } from 'firebase/auth';
-import { auth } from '../lib/firebase';
+import { doc, getDoc } from 'firebase/firestore';
+import { auth, db } from '../lib/firebase';
 
 /**
  * Defines the shape of the Authentication Context.
@@ -28,20 +29,51 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     // Firebase listener handles both 'initial load' and 'updates'
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      setUser(currentUser);
-      setLoading(false);
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+      // If no Google account is logged in, immediately lock the state
+      if (!currentUser || !currentUser.email) {
+        setUser(null);
+        setLoading(false);
+        return;
+      }
+
+      try {
+        // Look up the document where the ID is the user's email
+        const userDocRef = doc(db, 'authorized_users', currentUser.email.toLowerCase());
+        const userDocSnap = await getDoc(userDocRef);
+
+        if (userDocSnap.exists()) {
+          // The user exists in the Firestore whitelist
+          setUser(currentUser);
+        } else {
+          // Rogue login: They have a valid Google account but aren't on the list
+          console.warn(`Unauthorized tenant blocked: ${currentUser.email}`);
+          await firebaseSignOut(auth);
+          setUser(null);
+          alert("Access Denied: You are not authorized to view this dashboard.");
+        }
+      } catch (error) {
+        // Fail securely: If the database lookup fails, deny access
+        console.error("Authorization check encountered an error:", error);
+        await firebaseSignOut(auth);
+        setUser(null);
+      } finally {
+        setLoading(false);
+      }
     });
+
     return () => unsubscribe();
   }, []);
 
+
+  // signs the current user out of the app via Firebase
   const signOut = async () => {
     await firebaseSignOut(auth);
   };
 
   return (
     <AuthContext.Provider value={{ user, loading, signOut }}>
-      {!loading && children}
+      {children}
     </AuthContext.Provider>
   );
 }

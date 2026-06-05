@@ -271,6 +271,11 @@ React Dashboard
 ## Testing
 
 See the Component Testing Guide for detailed testing procedures. 
+Use this command to test frontend components (`AuthContext.test.tsx` is the only one currently avaliable) using jest in the terminal:
+Note: You have to be in the `frontend` folder.
+```bash
+npx jest example.jsx
+```
 
 ---
 
@@ -304,12 +309,9 @@ Includes:
   * There is a large spread between the low and high purchase counts in the amazon/bookstore demand insights
 * Some text overflow on certain screen sizes in UI
 * CSS inconsistencies in some of the tables
-* Loading for the `RefreshModal.tsx` is noticably slow
+* Loading for the `RefreshModal.tsx` is noticably slow due to the ETL pipeline
 * `Favicon.ico` is missing from the backend as a route (shows as a 404 Not Found error) but is visible on the frontend
-* Concerning the Refresh Data button: 
-  * There is an issue where trying to start the ETL pipeline via the "Start Refresh" button will keep infinitely loading and potentially soft-locking the user due to the pipeline taking too long to execute and finish
-  * The default behavior of Vercel caps the max duration of API routes to 10-15s on the Free tier and about a minute on the Paid tier
-  * This error doesn't seem to occur on a local environment.
+* Unauthorized users are not alerted that they aren't authorized to view the dashboard, but does show up as an error message on the browser console.
 ---
 
 ## Future Enhancements
@@ -346,7 +348,9 @@ Includes:
 
 ### Testing
 
-* Automated testing framework via playwright, pytest, etc.
+* Automated testing framework for frontend/backend/data scraping via playwright, jest, pytest, etc.
+  * very limited testing in `frontend` using jest.
+
 
 ### Performance
 
